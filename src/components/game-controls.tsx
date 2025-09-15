@@ -20,6 +20,7 @@ type GameControlsProps = {
   setActiveCharacter: (character: Character) => void;
   mechanicsVisibility: MechanicsVisibility;
   setMechanicsVisibility: (value: MechanicsVisibility) => void;
+  onOpenStory: () => void;
 };
 
 export function GameControls({
@@ -33,12 +34,13 @@ export function GameControls({
   setActiveCharacter,
   mechanicsVisibility,
   setMechanicsVisibility,
+  onOpenStory,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">
-      <Header onOpenDrawer={() => setIsDrawerOpen(true)} />
+      <Header onOpenDrawer={() => setIsDrawerOpen(true)} onOpenStory={onOpenStory} />
       <TurnManager 
         characters={characters}
         activeCharacter={activeCharacter}

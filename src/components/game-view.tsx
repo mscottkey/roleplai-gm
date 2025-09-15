@@ -11,6 +11,13 @@ import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } 
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
 import { formatDialogue } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 type GameViewProps = {
   messages: Message[];
@@ -40,6 +47,9 @@ export function GameView({
   setMechanicsVisibility,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [isStoryOpen, setIsStoryOpen] =
+  useState(false);
 
   useEffect(() => {
     if (storyRef.current) {
@@ -50,29 +60,44 @@ export function GameView({
     }
   }, [storyMessages]);
 
+  const StoryContent = () => (
+    <div className="p-12 text-foreground">
+        <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
+            {storyMessages.map((message, index) => {
+              const contentWithDialogue = formatDialogue(message.content);
+              return (
+                <div key={index}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                    {contentWithDialogue}
+                  </ReactMarkdown>
+                  {index < storyMessages.length - 1 && <Separator className="mt-8" />}
+                </div>
+              )
+            })}
+        </div>
+    </div>
+  );
 
   return (
     <div className="grid md:grid-cols-2 h-screen bg-background overflow-hidden">
-      {/* Left Pane: Visual Story Board */}
-      <div className="h-full hidden md:flex flex-col overflow-hidden bg-background">
-        <ScrollArea className="flex-1" ref={storyRef}>
-            <div className="p-12 text-foreground">
-                <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
-                    {storyMessages.map((message, index) => {
-                      const contentWithDialogue = formatDialogue(message.content);
-                      return (
-                        <div key={index}>
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                            {contentWithDialogue}
-                          </ReactMarkdown>
-                          {index < storyMessages.length - 1 && <Separator className="mt-8" />}
-                        </div>
-                      )
-                    })}
-                </div>
-            </div>
-        </ScrollArea>
-      </div>
+      {isMobile ? (
+        <Sheet open={isStoryOpen} onOpenChange={setIsStoryOpen}>
+          <SheetContent side="left" className="w-full max-w-full p-0">
+             <SheetHeader className="p-4 border-b">
+               <SheetTitle className="font-headline text-primary">Visual Storyboard</SheetTitle>
+             </SheetHeader>
+             <ScrollArea className="h-full">
+                <StoryContent />
+             </ScrollArea>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div className="h-full hidden md:flex flex-col overflow-hidden bg-background">
+          <ScrollArea className="flex-1" ref={storyRef}>
+              <StoryContent />
+          </ScrollArea>
+        </div>
+      )}
 
       {/* Right Pane: Game Controls */}
       <div className="h-full flex flex-col overflow-hidden">
@@ -87,6 +112,7 @@ export function GameView({
             setActiveCharacter={setActiveCharacter}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
+            onOpenStory={() => setIsStoryOpen(true)}
           />
       </div>
     </div>

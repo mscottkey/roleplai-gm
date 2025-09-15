@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
+import { AuthProvider } from '@/hooks/use-auth';
+import { FirebaseProvider } from '@/components/firebase-provider';
 
 export const metadata: Metadata = {
   title: 'RoleplAI GM',
@@ -27,7 +29,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <FirebaseProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </FirebaseProvider>
           <Toaster />
         </ThemeProvider>
       </body>

@@ -24,15 +24,14 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen w-full bg-background p-4 bg-[url('/grid.svg')]">
+    <div className="flex items-center justify-center min-h-full w-full bg-background p-4">
       <Card className="w-full max-w-md mx-4 shadow-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-4xl text-primary flex justify-center items-center gap-3">
-            <Logo className="h-12 w-12 text-primary" />
-            RoleplAI GM
+          <CardTitle className="font-headline text-3xl text-primary flex justify-center items-center gap-3">
+            Create a New Adventure
             </CardTitle>
           <CardDescription className="pt-2">
-            Your personal AI Game Master. What adventure awaits?
+            What kind of story do you want to tell?
           </CardDescription>
         </CardHeader>
         <CardContent>

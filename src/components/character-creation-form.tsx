@@ -167,10 +167,13 @@ export function CharacterCreationForm({
         setCharacters(prev =>
           prev.map(c => {
             if (c.id === characterId) {
+                // Preserve playerName while updating the rest
+                const existingPlayerName = c.playerName;
                 return {
-                    ...c, // Keep existing fields like playerName
-                    ...newChar, // Overwrite with new AI data
-                    isCustom: false
+                    ...newChar,
+                    id: c.id,
+                    playerName: existingPlayerName, 
+                    isCustom: false,
                 };
             }
             return c;
@@ -262,7 +265,7 @@ export function CharacterCreationForm({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full p-4 bg-background">
+    <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
       <Card className="w-full max-w-7xl mx-auto shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
