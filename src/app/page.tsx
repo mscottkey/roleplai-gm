@@ -10,6 +10,35 @@ import { CharacterCreationForm } from '@/components/character-creation-form';
 import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 
+const normalizeOrderedList = (s: string) => {
+  if (!s) return s;
+  // Put every "N. " at the start of a new line (keeps the first "1. " as-is)
+  return s
+    .trim()
+    .replace(/(\d+)\.\s/g, (m, num, offset, full) => (offset === 0 ? `${num}. ` : `\n${num}. `))
+    .replace(/\n{2,}/g, '\n'); // collapse accidental extra blank lines
+};
+
+const normalizeInlineBulletsInSections = (md: string) => {
+  if (!md) return md;
+  // If bullets were jammed inline like: "Key Factions: * A * B * C"
+  // turn them into real list lines ONLY for the named sections.
+  const fixLine = (title: string, text: string) => {
+    const re = new RegExp(`(${title}:)\\s*(.*)`, 'i');
+    return text.replace(re, (_m, t, rest) => {
+      const fixed = rest
+        // turn " * " or "* " into "\n- " but only in this captured section tail
+        .replace(/\s*\*\s+/g, '\n- ')
+        .trim();
+      return `${t}\n${fixed}`;
+    });
+  };
+  md = fixLine('Key Factions', md);
+  md = fixLine('Notable Locations', md);
+  return md;
+};
+
+
 export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
@@ -71,14 +100,18 @@ export default function RoleplAIGMPage() {
 
     const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
 
+    const cleanedSetting = normalizeInlineBulletsInSections(updatedGameData.setting);
+    const cleanedTone = normalizeInlineBulletsInSections(updatedGameData.tone);
+    const cleanedHooks = normalizeOrderedList(updatedGameData.initialHooks);
+
     const initialMessageContent = `
 # Welcome to your adventure!
 
 ## Setting
-${updatedGameData.setting}
+${cleanedSetting}
 
 ## Tone
-${updatedGameData.tone}
+${cleanedTone}
 
 ## Your Party
 ${characterList}
@@ -86,10 +119,12 @@ ${characterList}
 ---
 
 ## The Adventure Begins...
-${updatedGameData.initialHooks}
+
+${cleanedHooks}
 
 The stage is set, and the heroes are ready. What happens first is up to you.
 `.trim();
+
 
     setMessages([
       {

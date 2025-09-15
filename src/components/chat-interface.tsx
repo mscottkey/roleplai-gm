@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -91,7 +92,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                   )}
                 >
                   <div className="text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {message.content}
                     </ReactMarkdown>
                   </div>

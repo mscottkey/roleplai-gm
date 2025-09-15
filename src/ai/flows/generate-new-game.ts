@@ -30,22 +30,40 @@ export async function generateNewGame(input: GenerateNewGameInput): Promise<Gene
 
 const prompt = ai.definePrompt({
   name: 'generateNewGamePrompt',
-  input: {schema: GenerateNewGameInputSchema},
-  output: {schema: GenerateNewGameOutputSchema},
-  prompt: `You are an expert game master. A player wants to start a new game. Based on their request, generate a game setting, a game tone, and a few initial hooks to get the game started.
+  input: { schema: GenerateNewGameInputSchema },
+  output: { schema: GenerateNewGameOutputSchema },
+  prompt: `
+You are an expert tabletop Game Master and narrative designer.
 
-Request: {{{request}}}
+## Task
+Given the player's request below, create **three fields**—\`setting\`, \`tone\`, and \`initialHooks\`—as a **single JSON object** that exactly matches the provided schema. **Return only the JSON object**. Do **not** include any preamble, explanations, notes, code fences, or extra keys.
 
-Provide a response in the requested format.
-- "setting": A description of the game setting.
-- "tone": A description of the game tone.
-- "initialHooks": A string containing a few initial hooks to get the game started. You must format this as a numbered list, with each item starting with "1.", "2.", "3.", etc., and separated by a newline character.
+Player request:
+"{{{request}}}"
 
-Example for initialHooks:
-"1. The crew is hired to steal a priceless artifact from a moving mag-lev train.
-2. A rival crew has been sabotaging your operations, and it's time to hit them back where it hurts.
-3. An encrypted message from a mysterious benefactor offers a high-risk, high-reward job that could set you up for life."
-`,
+## Output Contract (must follow exactly)
+- **Format**: A single JSON object with these keys:
+  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short *logline* (one sentence in italics), followed by 1–2 vivid paragraphs. End with a short list:
+    - **Key Factions:** 2–3 bullets
+    - **Notable Locations:** 2–3 bullets
+  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes.
+  - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks as a **Markdown ordered list** numbered \`1.\` through \`5.\`. Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
+
+## Style & Safety Rules
+- **Markdown only** inside field values (no HTML, no code fences).
+- Keep content **PG-13** by default; avoid slurs and explicit sexual content.
+- If details are missing, make sensible genre-appropriate assumptions—**do not ask questions**.
+- Use original phrasing; avoid copyrighted proper nouns unless they are generic genre terms.
+
+## JSON Shape Reminder (for format only—do not copy text):
+{
+  "setting": "…markdown…",
+  "tone": "…markdown…",
+  "initialHooks": "1. …\\n2. …\\n3. …\\n4. …\\n5. …"
+}
+
+**Return ONLY the JSON object.**
+  `,
 });
 
 const generateNewGameFlow = ai.defineFlow(

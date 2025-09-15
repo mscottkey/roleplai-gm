@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
@@ -55,7 +56,7 @@ export function GameView({
             <div className="p-12 text-foreground">
                 <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline">
                     {lastAssistantMessage && (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                             {lastAssistantMessage.content}
                         </ReactMarkdown>
                     )}
