@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useId } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
@@ -47,7 +45,6 @@ export function CharacterCreationForm({
   const [preferences, setPreferences] = useState<Record<string, CharacterPreferences>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
-  const backgroundImage = PlaceHolderImages.find(img => img.id === 'landing-background');
   const formId = useId();
 
   const handlePreferenceChange = (id: string, field: keyof CharacterPreferences, value: string) => {
@@ -134,19 +131,8 @@ export function CharacterCreationForm({
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen w-full p-4">
-      {backgroundImage && (
-        <Image
-          src={backgroundImage.imageUrl}
-          alt={backgroundImage.description}
-          data-ai-hint={backgroundImage.imageHint}
-          fill
-          className="object-cover"
-          priority
-        />
-      )}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-      <Card className="relative z-10 w-full max-w-7xl mx-auto shadow-2xl">
+    <div className="flex flex-col items-center justify-center min-h-screen w-full p-4 bg-background">
+      <Card className="w-full max-w-7xl mx-auto shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
             <UserPlus />
@@ -257,7 +243,7 @@ export function CharacterCreationForm({
                 </CardContent>
               </Card>
             ))}
-             <Card className="flex flex-col items-center justify-center border-2 border-dashed bg-background/50 hover:bg-background/80 transition-colors">
+             <Card className="flex flex-col items-center justify-center border-2 border-dashed bg-card hover:bg-muted transition-colors">
                 <CardContent className="p-6 text-center">
                     <Button variant="ghost" className="h-auto p-4 flex flex-col gap-2" onClick={addNewPlayer}>
                         <PlusCircle className="h-10 w-10 text-muted-foreground" />
