@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useId } from 'react';
@@ -16,6 +17,26 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+
+
+const normalizeToneBullets = (s: string) => {
+  if (!s) return s;
+  let out = s.trim();
+
+  // If a bullet follows sentence punctuation (e.g., "...wits.- Pace: ..."), break the line.
+  out = out.replace(/([.!?])\s*-\s+(?=[A-Z][^:]{1,40}:)/g, '$1\n- ');
+
+  // If bullets still run together (e.g., "- Pace: ...- Danger: ..."), break them too.
+  // Safe because it only targets patterns like "- Word:" (capitalized + colon).
+  out = out.replace(/-\s+(?=[A-Z][^:]{1,40}:)/g, '\n- ');
+
+  // Ensure a blank line before the first bullet list (helps Markdown start a list block).
+  out = out.replace(/(Vibe:[^\n]*)(\n-)/i, '$1\n\n-');
+
+  return out;
+};
+
 
 // Combine custom fields with generated ones for the form's character state
 type FormCharacter = CustomCharacterType & Omit<Partial<GenCharacterType>, 'name' | 'description' | 'aspect'>;
@@ -233,14 +254,14 @@ export function CharacterCreationForm({
                      <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Setting</h2>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                             {gameData.setting}
                           </ReactMarkdown>
                         </section>
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Tone</h2>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {gameData.tone}
+                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                           {normalizeToneBullets(gameData.tone)}
                           </ReactMarkdown>
                         </section>
                      </div>
@@ -350,12 +371,12 @@ export function CharacterCreationForm({
                       </CardContent>
                     </Card>
                   ))}
-                  <Card className="flex flex-col items-center justify-center border-2 border-dashed bg-card hover:bg-muted transition-colors">
+                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-accent hover:bg-accent transition-colors cursor-pointer" onClick={addNewPlayer} >
                       <CardContent className="p-6 text-center">
-                          <Button variant="ghost" className="h-auto p-4 flex flex-col gap-2" onClick={addNewPlayer} disabled={isGeneratingParty}>
-                              <PlusCircle className="h-10 w-10 text-muted-foreground" />
-                              <span className="text-muted-foreground font-semibold">Add New Player</span>
-                          </Button>
+                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-muted-foreground group-hover:text-accent-foreground">
+                              <PlusCircle className="h-10 w-10 transition-transform duration-300 group-hover:scale-110" />
+                              <span className="font-semibold">Add New Player</span>
+                          </div>
                       </CardContent>
                   </Card>
                 </div>
