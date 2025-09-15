@@ -190,6 +190,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
         const response = await getAnswerToQuestion({
           question: playerInput,
           worldState,
+          character: activeCharacter,
         });
 
         assistantMessage = {
