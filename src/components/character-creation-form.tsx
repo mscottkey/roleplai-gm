@@ -106,7 +106,16 @@ export function CharacterCreationForm({
         setCharacters(prev => 
             prev.map(char => {
                 const newCharData = newCharacters.get(char.id);
-                return newCharData ? { ...char, ...newCharData, isCustom: false } : char;
+                 if (newCharData) {
+                    // Preserve playerName while updating the rest
+                    return {
+                        ...newCharData,
+                        id: char.id,
+                        playerName: char.playerName, 
+                        isCustom: false,
+                    };
+                }
+                return char;
             })
         );
         
@@ -156,11 +165,16 @@ export function CharacterCreationForm({
       if (result.characters.length > 0) {
         const newChar = result.characters[0];
         setCharacters(prev =>
-          prev.map(c =>
-            c.id === characterId
-              ? { ...c, ...newChar, isCustom: false }
-              : c
-          )
+          prev.map(c => {
+            if (c.id === characterId) {
+                return {
+                    ...c, // Keep existing fields like playerName
+                    ...newChar, // Overwrite with new AI data
+                    isCustom: false
+                };
+            }
+            return c;
+          })
         );
 
         // Update preferences for the regenerated character
@@ -388,9 +402,9 @@ export function CharacterCreationForm({
                       </CardContent>
                     </Card>
                   ))}
-                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-primary hover:bg-primary/90 transition-colors cursor-pointer" onClick={addNewPlayer} >
+                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-primary hover:bg-primary transition-colors cursor-pointer" onClick={addNewPlayer} >
                       <CardContent className="p-6 text-center">
-                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-primary/70 group-hover:text-primary-foreground">
+                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-primary group-hover:text-primary-foreground">
                               <PlusCircle className="h-10 w-10 transition-transform duration-300 group-hover:scale-110" />
                               <span className="font-semibold">Add New Player</span>
                           </div>
