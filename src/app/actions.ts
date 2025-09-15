@@ -7,7 +7,7 @@ import { updateWorldState as updateWorldStateFlow, UpdateWorldStateOutput } from
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { z } from 'genkit';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
 
 import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
