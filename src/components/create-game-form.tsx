@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/icons';
 import { ArrowRight } from 'lucide-react';
+import { Logo } from './logo';
 
 type CreateGameFormProps = {
   onSubmit: (request: string) => void;
@@ -23,10 +24,13 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen w-full bg-background p-4">
+    <div className="flex items-center justify-center min-h-screen w-full bg-background p-4 bg-[url('/grid.svg')]">
       <Card className="w-full max-w-md mx-4 shadow-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-4xl text-primary">RoleplAI GM</CardTitle>
+          <CardTitle className="font-headline text-4xl text-primary flex justify-center items-center gap-3">
+            <Logo className="h-10 w-10 text-primary" />
+            RoleplAI GM
+            </CardTitle>
           <CardDescription className="pt-2">
             Your personal AI Game Master. What adventure awaits?
           </CardDescription>

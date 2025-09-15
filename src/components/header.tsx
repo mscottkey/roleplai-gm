@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { BookText } from 'lucide-react';
 import { ThemeToggle } from "./theme-toggle";
+import { Logo } from "./logo";
 
 type HeaderProps = {
   onOpenDrawer: () => void;
@@ -9,7 +10,10 @@ type HeaderProps = {
 export function Header({ onOpenDrawer }: HeaderProps) {
   return (
     <header className="flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
-      <h1 className="text-xl font-headline font-bold text-primary">RoleplAI GM</h1>
+      <div className="flex items-center gap-3">
+        <Logo className="h-7 w-7 text-primary" />
+        <h1 className="text-xl font-headline font-bold text-primary">RoleplAI GM</h1>
+      </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <Button variant="ghost" size="icon" onClick={onOpenDrawer} aria-label="Open story notes">
