@@ -39,7 +39,12 @@ Request: {{{request}}}
 Provide a response in the requested format.
 - "setting": A description of the game setting.
 - "tone": A description of the game tone.
-- "initialHooks": A few initial hooks to get the game started. Each hook must be on its own line.
+- "initialHooks": A string containing a few initial hooks to get the game started. You must format this as a numbered list, with each item starting with "1.", "2.", "3.", etc., and separated by a newline character.
+
+Example for initialHooks:
+"1. The crew is hired to steal a priceless artifact from a moving mag-lev train.
+2. A rival crew has been sabotaging your operations, and it's time to hit them back where it hurts.
+3. An encrypted message from a mysterious benefactor offers a high-risk, high-reward job that could set you up for life."
 `,
 });
 
