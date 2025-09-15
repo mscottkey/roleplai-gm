@@ -23,6 +23,7 @@ export const GenerateCharacterInputSchema = z.object({
   setting: z.string().describe('The game setting description.'),
   tone: z.string().describe('The game tone description.'),
   characterSlots: z.array(CharacterSlotSchema).describe('An array of character slots to be filled, each with its own optional preferences.'),
+  existingNames: z.array(z.string()).optional().describe('An optional list of existing character names to avoid generating duplicates.'),
 });
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 

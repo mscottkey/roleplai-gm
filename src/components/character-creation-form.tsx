@@ -27,7 +27,7 @@ const normalizeToneBullets = (s: string) => {
   // If a bullet follows sentence punctuation (e.g., "...wits.- Pace: ..."), break the line.
   out = out.replace(/([.!?])\s*-\s+(?=[A-Z][^:]{1,40}:)/g, '$1\n- ');
 
-  // If bullets still run together (e.g., "- Pace: ...- Danger: ..."), break them too.
+  // If bullets still run together (e.g., "- Pace: …- Danger: …"), break them too.
   // Safe because it only targets patterns like "- Word:" (capitalized + colon).
   out = out.replace(/-\s+(?=[A-Z][^:]{1,40}:)/g, '\n- ');
 
@@ -138,11 +138,15 @@ export function CharacterCreationForm({
     setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
       const charPrefs = preferences[characterId] || {};
+      const existingNames = characters
+        .filter(c => c.id !== characterId && c.name)
+        .map(c => c.name);
       
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
         characterSlots: [{ id: characterId, ...charPrefs }],
+        existingNames: existingNames,
       });
 
       const newChar = result.characters[0];
@@ -376,9 +380,9 @@ export function CharacterCreationForm({
                       </CardContent>
                     </Card>
                   ))}
-                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-accent hover:bg-accent/80 transition-colors cursor-pointer" onClick={addNewPlayer} >
+                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-primary hover:bg-primary/90 transition-colors cursor-pointer" onClick={addNewPlayer} >
                       <CardContent className="p-6 text-center">
-                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-muted-foreground group-hover:text-accent-foreground">
+                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-primary/70 group-hover:text-primary-foreground">
                               <PlusCircle className="h-10 w-10 transition-transform duration-300 group-hover:scale-110" />
                               <span className="font-semibold">Add New Player</span>
                           </div>
@@ -412,4 +416,5 @@ export function CharacterCreationForm({
   );
 
     
+
 
