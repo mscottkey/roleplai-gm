@@ -67,3 +67,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .dialogue {
+    @apply text-accent-foreground;
+    font-style: italic;
+  }
+  .dark .dialogue {
+    @apply text-accent;
+  }
+}

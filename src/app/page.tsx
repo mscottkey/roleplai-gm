@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } from '@/app/lib/types';
 import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -43,7 +43,7 @@ export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [storyMessages, setStoryMessages] = useState<Message[]>([]);
+  const [storyMessages, setStoryMessages] = useState<StoryMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
   const [step, setStep] = useState<'create' | 'characters' | 'play'>('create');
@@ -131,7 +131,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
       content: initialMessageContent,
     } as Message;
     setMessages([initialMessage]);
-    setStoryMessages([initialMessage]);
+    setStoryMessages([{content: initialMessageContent}]);
   }
 
 
@@ -169,7 +169,12 @@ The stage is set, and the heroes are ready. What happens first is up to you.
           mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
         };
 
-        setStoryMessages(prev => [...prev, assistantMessage]);
+        setStoryMessages(prev => [...prev, {content: response.narrativeResult}]);
+        
+        // Auto-advance turn
+        const currentIndex = characters.findIndex(c => c.id === activeCharacter.id);
+        const nextIndex = (currentIndex + 1) % characters.length;
+        setActiveCharacter(characters[nextIndex]);
         
         // Kick off the world state update in the background.
         updateWorldState({

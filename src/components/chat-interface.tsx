@@ -4,12 +4,13 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingSpinner } from '@/components/icons';
-import { cn } from '@/lib/utils';
+import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
 import { SendHorizonal, User, Bot } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const prevIsLoading = useRef(isLoading);
 
   useEffect(() => {
     // Auto-scroll to bottom
@@ -34,6 +36,14 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
         }
     }
   }, [messages]);
+
+  useEffect(() => {
+    // Refocus input after AI is done
+    if (prevIsLoading.current && !isLoading) {
+      textareaRef.current?.focus();
+    }
+    prevIsLoading.current = isLoading;
+  }, [isLoading]);
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
@@ -70,6 +80,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
         <div className="space-y-6 max-w-4xl mx-auto h-full">
           {messages.map((message, index) => {
             const isUser = message.content.startsWith('**');
+            const contentWithDialogue = formatDialogue(message.content);
             return (
               <div
                 key={index}
@@ -92,8 +103,8 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                   )}
                 >
                   <div className="text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2">
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                      {message.content}
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                      {contentWithDialogue}
                     </ReactMarkdown>
                   </div>
                   {message.mechanics && (
