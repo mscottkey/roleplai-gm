@@ -4,6 +4,9 @@ export const CharacterSchema = z.object({
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
     aspect: z.string().describe('A key concept or catch-phrase for the character, like "Cyber-enhanced muscle with a hidden heart of gold."'),
+    gender: z.string().optional().describe("The character's gender."),
+    age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
+    archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });
 export type Character = z.infer<typeof CharacterSchema>;

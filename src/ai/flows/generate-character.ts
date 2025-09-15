@@ -29,7 +29,13 @@ Game Tone: {{{tone}}}
 {{#if age}}Preferred Age: {{{age}}}{{/if}}
 {{#if archetype}}Preferred Archetype: {{{archetype}}}{{/if}}
 
-For each character, provide a name, a one-sentence description, and a core aspect.
+For each character, provide:
+- A name.
+- A one-sentence description.
+- A core aspect.
+- A gender (if not specified in the input).
+- An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient"; if not specified in the input).
+- An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage"; if not specified in the input).
 `,
 });
 

@@ -9,15 +9,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
-import type { GameData, Character } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
+import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
+import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
 import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
+// Combine custom fields with generated ones for the form's character state
+type FormCharacter = CustomCharacterType & Omit<Partial<GenCharacterType>, 'name' | 'description' | 'aspect'>;
+
 type CharacterCreationFormProps = {
   gameData: GameData;
-  onCharactersFinalized: (characters: Character[]) => void;
+  onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: Omit<GenerateCharacterInput, 'count'> & { count: number }) => Promise<GenerateCharacterOutput>;
 };
 
@@ -32,7 +35,7 @@ export function CharacterCreationForm({
   onCharactersFinalized,
   generateCharacterSuggestions,
 }: CharacterCreationFormProps) {
-  const [characters, setCharacters] = useState<Character[]>(() => [
+  const [characters, setCharacters] = useState<FormCharacter[]>(() => [
     {
       id: `player-0-${Date.now()}`,
       name: '',
@@ -78,9 +81,23 @@ export function CharacterCreationForm({
       setCharacters(prev =>
         prev.map((c, index) => {
           const newChar = result.characters[index];
-          return { ...c, name: newChar.name, description: newChar.description, aspect: newChar.aspect, isCustom: false };
+          return { ...c, ...newChar, isCustom: false };
         })
       );
+
+       // Also update preferences to reflect generated values
+       const newPrefs: Record<string, CharacterPreferences> = {};
+       result.characters.forEach((char, index) => {
+         const charId = characters[index].id;
+         newPrefs[charId] = {
+           gender: char.gender || '',
+           age: char.age || '',
+           archetype: char.archetype || '',
+         };
+       });
+       setPreferences(prev => ({...prev, ...newPrefs}));
+
+
     } catch (error) {
        const err = error as Error;
        console.error("Failed to get party suggestions:", err);
@@ -109,10 +126,20 @@ export function CharacterCreationForm({
       setCharacters(prev =>
         prev.map(c =>
           c.id === characterId
-            ? { ...c, name: newChar.name, description: newChar.description, aspect: newChar.aspect, isCustom: false }
+            ? { ...c, ...newChar, isCustom: false }
             : c
         )
       );
+      // Update preferences for the regenerated character
+      setPreferences(prev => ({
+        ...prev,
+        [characterId]: {
+          gender: newChar.gender || '',
+          age: newChar.age || '',
+          archetype: newChar.archetype || '',
+        }
+      }));
+
     } catch (error) {
        const err = error as Error;
        console.error("Failed to regenerate character:", err);
@@ -135,7 +162,7 @@ export function CharacterCreationForm({
   }
 
   const addNewPlayer = () => {
-    const newPlayer: Character = {
+    const newPlayer: FormCharacter = {
       id: `player-${characters.length}-${Date.now()}`,
       name: '',
       description: '',
@@ -328,5 +355,3 @@ export function CharacterCreationForm({
     </div>
   );
 }
-
-    
