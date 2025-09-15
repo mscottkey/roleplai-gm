@@ -12,13 +12,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { WorldStateSchema } from '../schemas/world-state-schemas';
 
-export const AskQuestionInputSchema = z.object({
+const AskQuestionInputSchema = z.object({
   question: z.string().describe('The question the player is asking the GM.'),
   worldState: WorldStateSchema.describe('The entire current state of the game world.'),
 });
 export type AskQuestionInput = z.infer<typeof AskQuestionInputSchema>;
 
-export const AskQuestionOutputSchema = z.object({
+const AskQuestionOutputSchema = z.object({
   answer: z.string().describe('The GMs answer to the question.'),
 });
 export type AskQuestionOutput = z.infer<typeof AskQuestionOutputSchema>;

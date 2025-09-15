@@ -11,12 +11,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ClassifyIntentInputSchema = z.object({
+const ClassifyIntentInputSchema = z.object({
   playerInput: z.string().describe('The text input from the player.'),
 });
-export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
+type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
 
-export const ClassifyIntentOutputSchema = z.object({
+const ClassifyIntentOutputSchema = z.object({
   intent: z.enum(['Action', 'Question']).describe('The classified intent of the player input.'),
 });
 export type ClassifyIntentOutput = z.infer<typeof ClassifyIntentOutputSchema>;

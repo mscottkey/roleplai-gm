@@ -4,11 +4,18 @@ import { generateNewGame, GenerateNewGameInput, GenerateNewGameOutput } from "@/
 import { resolveAction, ResolveActionInput, ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
-import { classifyIntent, ClassifyIntentOutput, ClassifyIntentInput } from "@/ai/flows/classify-intent";
-import { askQuestion, AskQuestionInput, AskQuestionOutput } from "@/ai/flows/ask-question";
+import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
+import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
+import { z } from 'genkit';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
 import type { UpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
+
+const ClassifyIntentInputSchema = z.object({
+  playerInput: z.string().describe('The text input from the player.'),
+});
+export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
+
 
 export async function startNewGame(input: GenerateNewGameInput): Promise<GenerateNewGameOutput> {
   try {
