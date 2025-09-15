@@ -31,7 +31,7 @@ const askQuestionPrompt = ai.definePrompt({
   name: 'askQuestionPrompt',
   input: {schema: AskQuestionInputSchema},
   output: {schema: AskQuestionOutputSchema},
-  prompt: `You are the Game Master for a tabletop RPG. A player has asked you a question directly. Using your knowledge of the game world, provide a clear and concise answer. Do not narrate a new scene or advance time. Simply answer the question based on the information provided. If the answer is not known or the characters would not know, state that.
+  prompt: `You are the Game Master for a tabletop RPG. A player has asked you a question directly. Using your knowledge of the game world, provide a clear and helpful answer from a GM's perspective. Do not narrate a new scene or advance time, but guide the player.
 
 You have a complete memory of the game world. Use it to inform your answer.
 - World Summary: {{{worldState.summary}}}
@@ -43,7 +43,9 @@ You have a complete memory of the game world. Use it to inform your answer.
 
 Player's Question: {{{question}}}
 
-Provide a direct answer to the player's question.
+If the question is open-ended (e.g., "What should we do?", "Where can we go?"), respond like a helpful GM by pointing out the most obvious courses of action based on the Story Outline and Recent Events. You might ask a clarifying question back to the players to help them decide.
+
+If the question is about a specific detail of the world, answer it concisely based on the information provided. If the characters would not know the answer, say so.
 `,
 });
 
