@@ -12,7 +12,7 @@ export const Logo = ({ className, ...props }: LogoProps) => (
   >
     <defs>
         <filter id="ai-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="currentColor" />
+            <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="currentColor" />
         </filter>
     </defs>
     <g transform="rotate(15 50 50)" filter="url(#ai-glow)">
