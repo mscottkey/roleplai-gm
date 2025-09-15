@@ -5,12 +5,14 @@ import type { GameData, Message, MechanicsVisibility } from '@/app/lib/types';
 import { startNewGame, continueStory } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
 import { GameView } from '@/components/game-view';
+import { useToast } from '@/hooks/use-toast';
 
 export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
+  const { toast } = useToast();
 
   const handleCreateGame = async (request: string) => {
     setIsLoading(true);
@@ -19,13 +21,15 @@ export default function RoleplAIGMPage() {
       setGameData(newGame);
       // Create a formatted initial message
       const initialMessageContent = `
-**Setting:**
+# Welcome to your adventure!
+
+## Setting
 ${newGame.setting}
 
-**Tone:**
+## Tone
 ${newGame.tone}
 
-**Initial Hooks:**
+## Initial Hooks
 ${newGame.initialHooks}
       `.trim();
 
@@ -36,8 +40,13 @@ ${newGame.initialHooks}
         },
       ]);
     } catch (error) {
-      console.error("Failed to start new game:", error);
-      // Optionally, show an error to the user
+       const err = error as Error;
+       console.error("Failed to start new game:", err);
+       toast({
+         variant: "destructive",
+         title: "Failed to Start Game",
+         description: err.message || "An unknown error occurred.",
+       });
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +77,14 @@ ${newGame.initialHooks}
         },
       ]);
     } catch (error) {
-       console.error("Failed to get narration:", error);
-       // Revert the user message and show an error
+       const err = error as Error;
+       console.error("Failed to get narration:", err);
+       toast({
+         variant: "destructive",
+         title: "Failed to Continue Story",
+         description: err.message || "An unknown error occurred.",
+       });
+       // Revert the user message on error
        setMessages(messages);
     } finally {
       setIsLoading(false);

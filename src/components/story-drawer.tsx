@@ -1,23 +1,50 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+'use client';
+
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription
+} from "@/components/ui/sheet";
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { BookText, Users, MapPin, Sparkles, Settings2 } from "lucide-react";
+import {
+    BookText,
+    Users,
+    MapPin,
+    Sparkles,
+    Settings2
+} from "lucide-react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 
 type StoryDrawerProps = {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  gameData: GameData;
-  mechanicsVisibility: MechanicsVisibility;
-  setMechanicsVisibility: (value: MechanicsVisibility) => void;
+    isOpen: boolean;
+    onOpenChange: (isOpen: boolean) => void;
+    gameData: GameData;
+    mechanicsVisibility: MechanicsVisibility;
+    setMechanicsVisibility: (value: MechanicsVisibility) => void;
 };
 
-export function StoryDrawer({ isOpen, onOpenChange, gameData, mechanicsVisibility, setMechanicsVisibility }: StoryDrawerProps) {
-  return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+export function StoryDrawer({
+    isOpen,
+    onOpenChange,
+    gameData,
+    mechanicsVisibility,
+    setMechanicsVisibility
+}: StoryDrawerProps) {
+    return (
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="p-6 pb-4">
           <SheetTitle className="font-headline">Story Notes</SheetTitle>
@@ -33,18 +60,18 @@ export function StoryDrawer({ isOpen, onOpenChange, gameData, mechanicsVisibilit
                   <span>Campaign Info</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 whitespace-pre-wrap font-body">
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-2 whitespace-pre-wrap font-body">
                 <div>
                   <h4 className="font-bold text-foreground">Setting</h4>
-                  <p>{gameData.setting}</p>
+                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.setting}</ReactMarkdown>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground">Tone</h4>
-                  <p>{gameData.tone}</p>
+                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.tone}</ReactMarkdown>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground">Initial Hooks</h4>
-                  <p>{gameData.initialHooks}</p>
+                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.initialHooks}</ReactMarkdown>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -119,5 +146,5 @@ export function StoryDrawer({ isOpen, onOpenChange, gameData, mechanicsVisibilit
         </div>
       </SheetContent>
     </Sheet>
-  );
+    );
 }

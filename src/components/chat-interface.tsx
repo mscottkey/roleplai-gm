@@ -26,7 +26,10 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
   useEffect(() => {
     // Auto-scroll to bottom
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+        const viewport = scrollAreaRef.current.querySelector('div');
+        if (viewport) {
+          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        }
     }
   }, [messages]);
 
@@ -56,7 +59,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6 max-w-4xl mx-auto">
           {messages.map((message, index) => (
@@ -74,10 +77,10 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
               )}
               <div
                 className={cn(
-                  'max-w-xl rounded-lg p-4 shadow-sm',
-                  message.role === 'user'
+                  'max-w-xl rounded-lg p-3.5 shadow-sm',
+                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
-                    : 'bg-card border rounded-bl-none'
+                    : 'bg-background border rounded-bl-none'
                 )}
               >
                 <div className="text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2">
