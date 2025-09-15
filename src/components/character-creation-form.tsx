@@ -43,7 +43,9 @@ export function CharacterCreationForm({
     }
   ]);
   const [preferences, setPreferences] = useState<Record<string, CharacterPreferences>>({});
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [isGeneratingParty, setIsGeneratingParty] = useState(false);
+  const [individualLoading, setIndividualLoading] = useState<Record<string, boolean>>({});
+  const [hasGenerated, setHasGenerated] = useState(false);
   const { toast } = useToast();
   const formId = useId();
 
@@ -57,8 +59,44 @@ export function CharacterCreationForm({
     }));
   };
 
-  const getSuggestion = async (characterId: string) => {
-    setLoadingStates(prev => ({ ...prev, [characterId]: true }));
+  const getPartySuggestions = async () => {
+    setIsGeneratingParty(true);
+    setHasGenerated(true);
+    try {
+      // NOTE: We are not sending individual preferences for the batch generation
+      // to allow the AI to create a more balanced and diverse party.
+      const result = await generateCharacterSuggestions({
+        setting: gameData.setting,
+        tone: gameData.tone,
+        count: characters.length,
+      });
+
+      if (result.characters.length < characters.length) {
+        throw new Error("The AI didn't generate enough characters. Please try again.");
+      }
+
+      setCharacters(prev =>
+        prev.map((c, index) => {
+          const newChar = result.characters[index];
+          return { ...c, name: newChar.name, description: newChar.description, aspect: newChar.aspect, isCustom: false };
+        })
+      );
+    } catch (error) {
+       const err = error as Error;
+       console.error("Failed to get party suggestions:", err);
+       toast({
+         variant: "destructive",
+         title: "Party Generation Failed",
+         description: err.message || "Could not generate character suggestions.",
+       });
+       setHasGenerated(false);
+    } finally {
+        setIsGeneratingParty(false);
+    }
+  };
+
+  const regenerateCharacter = async (characterId: string) => {
+    setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
       const charPrefs = preferences[characterId] || {};
       const result = await generateCharacterSuggestions({
@@ -76,15 +114,15 @@ export function CharacterCreationForm({
         )
       );
     } catch (error) {
-      const err = error as Error;
-      console.error("Failed to get character suggestion:", err);
-      toast({
-        variant: "destructive",
-        title: "Character Generation Failed",
-        description: err.message || "Could not generate a character suggestion.",
-      });
+       const err = error as Error;
+       console.error("Failed to regenerate character:", err);
+       toast({
+         variant: "destructive",
+         title: "Character Regeneration Failed",
+         description: err.message || "Could not generate a character suggestion.",
+       });
     } finally {
-      setLoadingStates(prev => ({ ...prev, [characterId]: false }));
+      setIndividualLoading(prev => ({ ...prev, [characterId]: false }));
     }
   };
 
@@ -97,17 +135,22 @@ export function CharacterCreationForm({
   }
 
   const addNewPlayer = () => {
-    setCharacters(prev => [
-      ...prev,
-      {
-        id: `player-${prev.length}-${Date.now()}`,
-        name: '',
-        description: '',
-        aspect: '',
-        playerName: '',
-        isCustom: false
-      }
-    ]);
+    const newPlayer: Character = {
+      id: `player-${characters.length}-${Date.now()}`,
+      name: '',
+      description: '',
+      aspect: '',
+      playerName: '',
+      isCustom: false
+    };
+
+    if (hasGenerated) {
+      // If we've already generated, create a new character for the new player immediately.
+      setCharacters(prev => [...prev, newPlayer]);
+      regenerateCharacter(newPlayer.id);
+    } else {
+       setCharacters(prev => [...prev, newPlayer]);
+    }
   };
 
   const removePlayer = (id: string) => {
@@ -119,6 +162,13 @@ export function CharacterCreationForm({
   const allReady = characters.every(c => c.name && c.playerName);
 
   const handleFinalize = () => {
+    if (!hasGenerated) {
+       toast({
+        title: "Generate Your Party",
+        description: "Please generate your party before starting the adventure.",
+      });
+      return;
+    }
     if (allReady) {
       onCharactersFinalized(characters);
     } else {
@@ -139,7 +189,7 @@ export function CharacterCreationForm({
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-            Create or generate characters for each player. Add more players if needed.
+            Add players, then generate a unique party. You can regenerate individual characters or customize them.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -169,12 +219,12 @@ export function CharacterCreationForm({
                 <CardContent className="flex-1">
                    <Tabs defaultValue="generate" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="generate"><Wand2 className="mr-2 h-4 w-4"/>Generate</TabsTrigger>
+                      <TabsTrigger value="generate"><Wand2 className="mr-2 h-4 w-4"/>Generated</TabsTrigger>
                       <TabsTrigger value="custom"><Edit className="mr-2 h-4 w-4"/>Custom</TabsTrigger>
                     </TabsList>
                     <TabsContent value="generate" className="pt-4">
                       <div className="space-y-2 mb-4">
-                        <Label>Generation Preferences (Optional)</Label>
+                        <Label>Regeneration Preferences (Optional)</Label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                            <div className="relative">
                               <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -202,10 +252,10 @@ export function CharacterCreationForm({
                            </div>
                         </div>
                       </div>
-                      {loadingStates[char.id] ? (
+                      {isGeneratingParty || individualLoading[char.id] ? (
                          <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                             <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
-                            <p className="text-sm text-muted-foreground">Crafting a hero...</p>
+                            <p className="text-sm text-muted-foreground">{isGeneratingParty ? 'Crafting a party...' : 'Crafting a hero...'}</p>
                          </div>
                       ) : char.name && !char.isCustom ? (
                         <div className="space-y-2 h-48">
@@ -217,14 +267,16 @@ export function CharacterCreationForm({
                         <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                            <Dices className="h-8 w-8 text-muted-foreground" />
                            <p className="text-sm text-muted-foreground">
-                             Fill in preferences and click "Generate".
+                             Waiting for party generation...
                            </p>
                         </div>
                       )}
-                       <Button onClick={() => getSuggestion(char.id)} className="w-full mt-4" variant="outline" disabled={loadingStates[char.id]}>
-                         <RefreshCw className={cn("mr-2 h-4 w-4", loadingStates[char.id] && "animate-spin")} />
-                         {char.name && !char.isCustom ? "Generate New" : "Generate"}
-                       </Button>
+                       {hasGenerated && (
+                        <Button onClick={() => regenerateCharacter(char.id)} className="w-full mt-4" variant="outline" disabled={isGeneratingParty || individualLoading[char.id]}>
+                          <RefreshCw className={cn("mr-2 h-4 w-4", individualLoading[char.id] && "animate-spin")} />
+                          Regenerate
+                        </Button>
+                       )}
                     </TabsContent>
                      <TabsContent value="custom" className="pt-4">
                         <div className="space-y-2 h-[228px] overflow-y-auto pr-2">
@@ -245,19 +297,27 @@ export function CharacterCreationForm({
             ))}
              <Card className="flex flex-col items-center justify-center border-2 border-dashed bg-card hover:bg-muted transition-colors">
                 <CardContent className="p-6 text-center">
-                    <Button variant="ghost" className="h-auto p-4 flex flex-col gap-2" onClick={addNewPlayer}>
+                    <Button variant="ghost" className="h-auto p-4 flex flex-col gap-2" onClick={addNewPlayer} disabled={isGeneratingParty}>
                         <PlusCircle className="h-10 w-10 text-muted-foreground" />
                         <span className="text-muted-foreground font-semibold">Add New Player</span>
                     </Button>
                 </CardContent>
             </Card>
           </div>
+          {!hasGenerated && (
+             <div className="flex justify-center pt-8">
+              <Button size="lg" onClick={getPartySuggestions} disabled={isGeneratingParty}>
+                <Wand2 className={cn("mr-2 h-5 w-5", isGeneratingParty && "animate-spin")} />
+                Generate Party
+              </Button>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-center pt-6">
           <Button
             size="lg"
             onClick={handleFinalize}
-            disabled={!allReady}
+            disabled={!allReady || isGeneratingParty || !hasGenerated}
             className="font-headline text-xl"
           >
             <Dices className="mr-2 h-5 w-5" />
@@ -268,3 +328,5 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
