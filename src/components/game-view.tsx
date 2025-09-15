@@ -8,9 +8,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
+import { Separator } from './ui/separator';
 
 type GameViewProps = {
   messages: Message[];
+  storyMessages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   gameData: GameData;
@@ -24,6 +26,7 @@ type GameViewProps = {
 
 export function GameView({
   messages,
+  storyMessages,
   onSendMessage,
   isLoading,
   gameData,
@@ -35,8 +38,6 @@ export function GameView({
   setMechanicsVisibility,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
-  const assistantMessages = messages.filter(m => m.role === 'assistant');
-  const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
 
   useEffect(() => {
     if (storyRef.current) {
@@ -45,7 +46,7 @@ export function GameView({
           viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
         }
     }
-  }, [lastAssistantMessage]);
+  }, [storyMessages]);
 
 
   return (
@@ -54,12 +55,15 @@ export function GameView({
       <div className="h-full hidden md:flex flex-col overflow-hidden bg-background">
         <ScrollArea className="flex-1" ref={storyRef}>
             <div className="p-12 text-foreground">
-                <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline">
-                    {lastAssistantMessage && (
+                <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
+                    {storyMessages.map((message, index) => (
+                      <div key={index}>
                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                            {lastAssistantMessage.content}
+                            {message.content}
                         </ReactMarkdown>
-                    )}
+                        {index < storyMessages.length - 1 && <Separator className="mt-8" />}
+                      </div>
+                    ))}
                 </div>
             </div>
         </ScrollArea>

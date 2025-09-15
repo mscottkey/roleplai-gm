@@ -43,6 +43,7 @@ export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [storyMessages, setStoryMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
   const [step, setStep] = useState<'create' | 'characters' | 'play'>('create');
@@ -125,13 +126,12 @@ ${cleanedHooks}
 The stage is set, and the heroes are ready. What happens first is up to you.
 `.trim();
 
-
-    setMessages([
-      {
-        role: 'assistant',
-        content: initialMessageContent,
-      },
-    ]);
+    const initialMessage = {
+      role: 'assistant',
+      content: initialMessageContent,
+    } as Message;
+    setMessages([initialMessage]);
+    setStoryMessages([initialMessage]);
   }
 
 
@@ -168,6 +168,8 @@ The stage is set, and the heroes are ready. What happens first is up to you.
           content: response.narrativeResult,
           mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
         };
+
+        setStoryMessages(prev => [...prev, assistantMessage]);
         
         // Kick off the world state update in the background.
         updateWorldState({
@@ -227,6 +229,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
        return (
         <GameView
           messages={messages}
+          storyMessages={storyMessages}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           gameData={gameData!}
