@@ -12,18 +12,21 @@ export const CharacterSchema = z.object({
 export type Character = z.infer<typeof CharacterSchema>;
 
 
-export const GenerateCharacterInputSchema = z.object({
-  setting: z.string().describe('The game setting description.'),
-  tone: z.string().describe('The game tone description.'),
-  count: z.number().min(1).max(5).default(1).describe('The number of characters to generate.'),
+const CharacterSlotSchema = z.object({
+  id: z.string().describe("A unique identifier for this character slot."),
   gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),
   age: z.string().optional().describe('A preferred age or age range for the character (e.g., "Young Adult", "Veteran").'),
   archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").'),
-  existingNames: z.array(z.string()).optional().describe('An array of character names that already exist in the party to avoid duplicates.'),
+});
+
+export const GenerateCharacterInputSchema = z.object({
+  setting: z.string().describe('The game setting description.'),
+  tone: z.string().describe('The game tone description.'),
+  characterSlots: z.array(CharacterSlotSchema).describe('An array of character slots to be filled, each with its own optional preferences.'),
 });
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 
 export const GenerateCharacterOutputSchema = z.object({
-  characters: z.array(CharacterSchema).describe('An array of distinct character suggestions.'),
+  characters: z.array(CharacterSchema.extend({slotId: z.string().describe("The unique ID of the slot this character was generated for.")})).describe('An array of distinct character suggestions, one for each requested slot.'),
 });
 export type GenerateCharacterOutput = z.infer<typeof GenerateCharacterOutputSchema>;

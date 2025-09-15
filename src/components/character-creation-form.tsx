@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 
 
 const normalizeToneBullets = (s: string) => {
@@ -43,7 +44,7 @@ type FormCharacter = CustomCharacterType & Omit<Partial<GenCharacterType>, 'name
 type CharacterCreationFormProps = {
   gameData: GameData;
   onCharactersFinalized: (characters: FormCharacter[]) => void;
-  generateCharacterSuggestions: (input: Omit<GenerateCharacterInput, 'count'> & { count: number }) => Promise<GenerateCharacterOutput>;
+  generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
 };
 
 type CharacterPreferences = {
@@ -88,17 +89,45 @@ export function CharacterCreationForm({
     setIsGeneratingParty(true);
     setHasGenerated(true);
 
-    // Instead of one batch call, make individual calls to respect preferences.
-    const generationPromises = characters.map(char => regenerateCharacter(char.id));
+    const characterSlots = characters.map(char => ({
+        id: char.id,
+        ...(preferences[char.id] || {})
+    }));
 
     try {
-        await Promise.all(generationPromises);
+        const result = await generateCharacterSuggestions({
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characterSlots: characterSlots,
+        });
+
+        const newCharacters = new Map(result.characters.map(c => [c.slotId, c]));
+
+        setCharacters(prev => 
+            prev.map(char => {
+                const newCharData = newCharacters.get(char.id);
+                return newCharData ? { ...char, ...newCharData, isCustom: false } : char;
+            })
+        );
+        
+        // Update preferences for all characters based on what was generated
+        const newPreferences: Record<string, CharacterPreferences> = {};
+        result.characters.forEach(char => {
+            newPreferences[char.slotId] = {
+                gender: char.gender || '',
+                age: char.age || '',
+                archetype: char.archetype || '',
+            };
+        });
+        setPreferences(prev => ({ ...prev, ...newPreferences }));
+
     } catch (error) {
-        // Errors are toasted inside regenerateCharacter, but we can add a general one.
+        const err = error as Error;
+        console.error("Failed to generate party:", err);
         toast({
             variant: "destructive",
             title: "Party Generation Failed",
-            description: "One or more characters could not be generated. Please try again.",
+            description: err.message || "Could not generate characters. Please try again.",
         });
     } finally {
         setIsGeneratingParty(false);
@@ -109,19 +138,13 @@ export function CharacterCreationForm({
     setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
       const charPrefs = preferences[characterId] || {};
-      const existingNames = characters
-        .filter(c => c.id !== characterId && c.name)
-        .map(c => c.name);
-
+      
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
-        count: 1,
-        gender: charPrefs.gender || undefined,
-        age: charPrefs.age || undefined,
-        archetype: charPrefs.archetype || undefined,
-        existingNames: existingNames.length > 0 ? existingNames : undefined,
+        characterSlots: [{ id: characterId, ...charPrefs }],
       });
+
       const newChar = result.characters[0];
       setCharacters(prev =>
         prev.map(c =>
@@ -130,6 +153,7 @@ export function CharacterCreationForm({
             : c
         )
       );
+
       // Update preferences for the regenerated character
       setPreferences(prev => ({
         ...prev,
@@ -148,8 +172,6 @@ export function CharacterCreationForm({
          title: "Character Generation Failed",
          description: err.message || "Could not generate a character suggestion.",
        });
-       // Re-throw to be caught by Promise.all in getPartySuggestions
-       throw err;
     } finally {
       setIndividualLoading(prev => ({ ...prev, [characterId]: false }));
     }
@@ -172,19 +194,23 @@ export function CharacterCreationForm({
       playerName: '',
       isCustom: false
     };
+    
+    setCharacters(prev => [...prev, newPlayer]);
 
     if (hasGenerated) {
       // If we've already generated, create a new character for the new player immediately.
-      setCharacters(prev => [...prev, newPlayer]);
       regenerateCharacter(newPlayer.id);
-    } else {
-       setCharacters(prev => [...prev, newPlayer]);
     }
   };
 
   const removePlayer = (id: string) => {
     if (characters.length > 1) {
       setCharacters(prev => prev.filter(c => c.id !== id));
+      setPreferences(prev => {
+        const newPrefs = {...prev};
+        delete newPrefs[id];
+        return newPrefs;
+      });
     }
   };
 
@@ -233,13 +259,13 @@ export function CharacterCreationForm({
                      <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Setting</h2>
-                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                             {gameData.setting}
                           </ReactMarkdown>
                         </section>
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Tone</h2>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                            {normalizeToneBullets(gameData.tone)}
                           </ReactMarkdown>
                         </section>
@@ -310,7 +336,7 @@ export function CharacterCreationForm({
                             {isGeneratingParty || individualLoading[char.id] ? (
                               <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                                   <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
-                                  <p className="text-sm text-muted-foreground">{isGeneratingParty ? 'Crafting a party...' : 'Crafting a hero...'}</p>
+                                  <p className="text-sm text-muted-foreground">{isGeneratingParty ? 'Crafting the party...' : 'Crafting a hero...'}</p>
                               </div>
                             ) : char.name && !char.isCustom ? (
                               <div className="space-y-2 h-48">
@@ -322,7 +348,7 @@ export function CharacterCreationForm({
                               <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                                 <Dices className="h-8 w-8 text-muted-foreground" />
                                 <p className="text-sm text-muted-foreground">
-                                  Waiting for party generation...
+                                  {hasGenerated ? "Regenerate to see character" : "Waiting for party generation..."}
                                 </p>
                               </div>
                             )}
@@ -386,3 +412,4 @@ export function CharacterCreationForm({
   );
 
     
+
