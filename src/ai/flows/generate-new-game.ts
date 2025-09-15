@@ -43,22 +43,22 @@ Player request:
 
 ## Output Contract (must follow exactly)
 - **Format**: A single JSON object with these keys:
-  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short *logline* (one sentence in italics, using Markdown's asterisks like *this*), followed by 1–2 vivid paragraphs. End with a short list:
-    - **Key Factions:** 2–3 bullets
-    - **Notable Locations:** 2–3 bullets
-  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. Use \\n for newlines before each bullet.
+  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with a short list:
+    - **Key Factions:** 2–3 bullets, each starting with \`\n- \`.
+    - **Notable Locations:** 2–3 bullets, each starting with \`\n- \`.
+  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. Each bullet must start with \`\n- \`.
   - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks. Each hook must be on a new line and start with a number (e.g., "1. ...\\n2. ..."). Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
 
 ## Style & Safety Rules
-- **Use only Markdown** inside field values (no HTML tags like <i>, no code fences).
+- **Use only Markdown** inside field values (no HTML tags, no code fences).
 - Keep content **PG-13** by default; avoid slurs and explicit sexual content.
 - If details are missing, make sensible genre-appropriate assumptions—**do not ask questions**.
 - Use original phrasing; avoid copyrighted proper nouns unless they are generic genre terms.
 
 ## JSON Shape Reminder (for format only—do not copy text):
 {
-  "setting": "…markdown…",
-  "tone": "…markdown…",
+  "setting": "**A bold logline.**\\n\\nParagraph one...\\n\\nParagraph two...\\n\\n**Key Factions:**\\n- Faction A\\n- Faction B\\n\\n**Notable Locations:**\\n- Location X\\n- Location Y",
+  "tone": "**Vibe:** A one-sentence description.\\n\\n- **Pace:** Description.\\n- **Danger:** Description.",
   "initialHooks": "1. ...\\n2. ...\\n3. ...\\n4. ...\\n5. ..."
 }
 
