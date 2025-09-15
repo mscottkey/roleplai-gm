@@ -18,7 +18,8 @@ export const GenerateCharacterInputSchema = z.object({
   count: z.number().min(1).max(5).default(1).describe('The number of characters to generate.'),
   gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),
   age: z.string().optional().describe('A preferred age or age range for the character (e.g., "Young Adult", "Veteran").'),
-  archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").')
+  archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").'),
+  existingNames: z.array(z.string()).optional().describe('An array of character names that already exist in the party to avoid duplicates.'),
 });
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 

@@ -31,8 +31,16 @@ Strictly adhere to the following preferences if they are provided. If a preferen
 {{#if age}}Preferred Age: {{{age}}}{{/if}}
 {{#if archetype}}Preferred Archetype: {{{archetype}}}{{/if}}
 
+{{#if existingNames}}
+IMPORTANT: Do not use any of the following names, as they already exist in the party:
+{{#each existingNames}}
+- {{{this}}}
+{{/each}}
+{{/if}}
+
+
 For each character, provide:
-- A name.
+- A unique name that is not in the existing names list.
 - A one-sentence description.
 - A core aspect.
 - A gender.

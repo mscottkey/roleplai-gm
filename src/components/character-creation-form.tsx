@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 
 
 const normalizeToneBullets = (s: string) => {
@@ -110,6 +109,10 @@ export function CharacterCreationForm({
     setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
       const charPrefs = preferences[characterId] || {};
+      const existingNames = characters
+        .filter(c => c.id !== characterId && c.name)
+        .map(c => c.name);
+
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
@@ -117,6 +120,7 @@ export function CharacterCreationForm({
         gender: charPrefs.gender || undefined,
         age: charPrefs.age || undefined,
         archetype: charPrefs.archetype || undefined,
+        existingNames: existingNames.length > 0 ? existingNames : undefined,
       });
       const newChar = result.characters[0];
       setCharacters(prev =>
@@ -229,13 +233,13 @@ export function CharacterCreationForm({
                      <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Setting</h2>
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {gameData.setting}
                           </ReactMarkdown>
                         </section>
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Tone</h2>
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
                            {normalizeToneBullets(gameData.tone)}
                           </ReactMarkdown>
                         </section>
