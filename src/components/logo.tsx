@@ -15,7 +15,7 @@ export const Logo = ({ className, ...props }: LogoProps) => (
             <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="currentColor" />
         </filter>
     </defs>
-    <g transform="rotate(15 50 50)">
+    <g transform="rotate(15 50 50)" filter="url(#ai-glow)">
       {/* First Die (6 pips) */}
       <rect x="15" y="15" width="40" height="40" rx="5" fill="currentColor" />
       <circle cx="23" cy="23" r="2.5" fill="white" />
