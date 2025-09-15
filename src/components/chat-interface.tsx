@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,19 +16,6 @@ type ChatInterfaceProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
-};
-
-// Simple markdown-like parser for **bold** text
-const formatMessage = (text: string) => {
-  return text.split(/(\*\*.*?\*\*|\n)/g).map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    }
-    if (part === '\n') {
-      return <br key={i} />;
-    }
-    return part;
-  });
 };
 
 export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterfaceProps) {
@@ -91,7 +80,11 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
                     : 'bg-card border rounded-bl-none'
                 )}
               >
-                <div className="text-sm whitespace-pre-wrap">{formatMessage(message.content)}</div>
+                <div className="text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
                 {message.mechanics && (
                   <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/30">
                     <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">{message.mechanics}</p>
