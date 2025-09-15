@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
-import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
 import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -16,7 +17,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { doc, onSnapshot, getFirestore, collection, query, where, orderBy } from 'firebase/firestore';
 import { LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
-import type { GameSession } from '@/app/lib/types';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -73,7 +73,8 @@ export default function RoleplAIGMPage() {
       return;
     }
     if (!user) {
-      router.push('/login');
+      // The login page is now responsible for handling the auth flow.
+      // This page assumes a user is logged in.
       return;
     }
 
@@ -90,59 +91,70 @@ export default function RoleplAIGMPage() {
         ...doc.data()
       } as GameSession));
       setGames(userGames);
+
+      // If no game is selected via URL, and we have games, default to the latest one.
+      const currentGameId = searchParams.get('game');
+      if (!currentGameId && userGames.length > 0) {
+        // router.push(`/?game=${userGames[0].id}`);
+      } else if (!currentGameId) {
+        setStep('create');
+      }
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, searchParams]);
 
   useEffect(() => {
     const gameId = searchParams.get('game');
     if (gameId && gameId !== activeGameId) {
       setActiveGameId(gameId);
     } else if (!gameId && activeGameId) {
+      // Clear state when navigating away from a game
       setActiveGameId(null);
-      setStep('create');
-      // Reset state for new game creation
       setGameData(null);
       setWorldState(null);
       setMessages([]);
       setStoryMessages([]);
       setCharacters([]);
       setActiveCharacter(null);
+      setStep('create');
     }
   }, [searchParams, activeGameId]);
 
   useEffect(() => {
-    if (activeGameId) {
-      setStep('loading');
-      const db = getFirestore();
-      const unsub = onSnapshot(doc(db, "games", activeGameId), (doc) => {
-        if (doc.exists()) {
-          const game = doc.data() as GameSession;
-          setGameData(game.gameData);
-          setWorldState(game.worldState);
-          setMessages(game.messages);
-          setStoryMessages(game.storyMessages || []);
-          const finalCharacters = game.gameData.characters || [];
-          setCharacters(finalCharacters);
-          
-          if (finalCharacters.length > 0) {
-            // Restore active character, or default to first
-            const savedActiveCharId = game.activeCharacterId;
-            const restoredChar = finalCharacters.find(c => c.id === savedActiveCharId) || finalCharacters[0];
-            setActiveCharacter(restoredChar);
-          }
-
-          setStep('play');
-        } else {
-          console.error("No such game!");
-          toast({ variant: 'destructive', title: 'Error', description: 'Game session not found.' });
-          router.push('/');
-        }
-      });
-      return () => unsub();
+    if (!activeGameId) {
+        if (!authLoading) setStep('create');
+        return;
     }
-  }, [activeGameId, router, toast]);
+    
+    setStep('loading');
+    const db = getFirestore();
+    const unsub = onSnapshot(doc(db, "games", activeGameId), (doc) => {
+      if (doc.exists()) {
+        const game = doc.data() as GameSession;
+        setGameData(game.gameData);
+        setWorldState(game.worldState);
+        setMessages(game.messages || []);
+        setStoryMessages(game.storyMessages || []);
+        const finalCharacters = game.gameData.characters || [];
+        setCharacters(finalCharacters);
+        
+        if (finalCharacters.length > 0) {
+          const savedActiveCharId = game.activeCharacterId;
+          const restoredChar = finalCharacters.find(c => c.id === savedActiveCharId) || finalCharacters[0];
+          setActiveCharacter(restoredChar);
+        }
+
+        setStep(game.step === 'characters' ? 'characters' : 'play');
+      } else {
+        console.error("No such game!");
+        toast({ variant: 'destructive', title: 'Error', description: 'Game session not found.' });
+        router.push('/');
+      }
+    });
+    return () => unsub();
+    
+  }, [activeGameId, authLoading, router, toast]);
   
   if (authLoading || step === 'loading') {
     return (
@@ -153,6 +165,8 @@ export default function RoleplAIGMPage() {
   }
   
   if (!user) {
+    // This case should be handled by the /login page,
+    // but as a fallback, show a loading or locked state.
     return <LoginForm />;
   }
 
@@ -165,18 +179,8 @@ export default function RoleplAIGMPage() {
     setIsLoading(true);
     try {
       const { gameId, newGame } = await startNewGame({ request, userId: user.uid });
-      setActiveGameId(gameId);
       router.push(`/?game=${gameId}`);
-      setGameData(newGame);
-      setWorldState({
-        summary: `The game is a ${newGame.tone} adventure set in ${newGame.setting}.`,
-        storyOutline: newGame.initialHooks.split('\n').filter(s => s.length > 0),
-        recentEvents: ["The adventure has just begun."],
-        characters: [],
-        places: [],
-        storyAspects: [],
-      });
-      setStep('characters');
+      setActiveGameId(gameId); // This will trigger the snapshot listener
     } catch (error) {
        const err = error as Error;
        console.error("Failed to start new game:", err);
@@ -203,6 +207,9 @@ export default function RoleplAIGMPage() {
         description: c.description,
         aspect: c.aspect,
         playerName: c.playerName,
+        archetype: c.archetype,
+        gender: c.gender,
+        age: c.age,
       }))
     };
 
@@ -251,6 +258,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
           messages: newMessages,
           storyMessages: newStoryMessages,
           step: 'play',
+          activeCharacterId: finalCharacters[0].id,
         }
       });
       setStep('play');
@@ -369,9 +377,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
   };
 
   const renderContent = () => {
-    const currentStep = activeGameId ? step : 'create';
-
-    switch (currentStep) {
+    switch (step) {
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
       case 'characters':
@@ -423,3 +429,5 @@ The stage is set, and the heroes are ready. What happens first is up to you.
     </AppShell>
   );
 }
+
+    

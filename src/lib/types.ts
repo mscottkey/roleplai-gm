@@ -16,6 +16,8 @@ export type Character = {
   playerName: string;
   isCustom: boolean;
   archetype?: string;
+  gender?: string;
+  age?: string;
 };
 
 export type GameData = GenerateNewGameOutput & {
@@ -41,3 +43,5 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
+
+    
