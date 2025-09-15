@@ -229,8 +229,8 @@ export function CharacterCreationForm({
               </TabsList>
               <TabsContent value="summary">
                  <Card className="bg-muted/50">
-                    <CardContent className="p-6 prose prose-sm dark:prose-invert max-h-[60vh] overflow-y-auto">
-                        <h2>Setting</h2>
+                 <CardContent className="p-6 prose prose-sm dark:prose-invert max-w-none max-h-[60vh] overflow-y-auto">
+                 <h2>Setting</h2>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.setting}</ReactMarkdown>
                         <h2>Tone</h2>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.tone}</ReactMarkdown>

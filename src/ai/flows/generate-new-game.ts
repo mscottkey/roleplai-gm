@@ -31,7 +31,7 @@ export async function generateNewGame(input: GenerateNewGameInput): Promise<Gene
 const prompt = ai.definePrompt({
   name: 'generateNewGamePrompt',
   input: { schema: GenerateNewGameInputSchema },
-  output: { schema: GenerateNewGameOutputSchema },
+  output: { schema: GenerateNewGameOutputSchema, format: 'json' },
   prompt: `
 You are an expert tabletop Game Master and narrative designer.
 
