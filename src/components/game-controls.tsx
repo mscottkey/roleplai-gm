@@ -29,13 +29,13 @@ export function GameControls({
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">
       <Header onOpenDrawer={() => setIsDrawerOpen(true)} />
-      <main className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         <ChatInterface
           messages={messages}
           onSendMessage={onSendMessage}
           isLoading={isLoading}
         />
-      </main>
+      </div>
       <StoryDrawer
         isOpen={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}

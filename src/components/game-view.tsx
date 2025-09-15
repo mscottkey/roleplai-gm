@@ -42,9 +42,9 @@ export function GameView({
 
 
   return (
-    <div className="grid md:grid-cols-2 h-screen bg-background">
+    <div className="grid md:grid-cols-2 h-screen bg-background overflow-hidden">
       {/* Left Pane: Visual Story Board */}
-      <div className="relative h-full hidden md:flex flex-col">
+      <div className="relative h-full hidden md:flex flex-col overflow-hidden">
          {backgroundImage && (
             <Image
             src={backgroundImage.imageUrl}
@@ -70,7 +70,7 @@ export function GameView({
       </div>
 
       {/* Right Pane: Game Controls */}
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-hidden">
           <GameControls 
             messages={messages}
             onSendMessage={onSendMessage}

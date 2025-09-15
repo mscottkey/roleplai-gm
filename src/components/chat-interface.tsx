@@ -61,7 +61,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterf
   return (
     <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto h-full">
           {messages.map((message, index) => (
             <div
               key={index}
