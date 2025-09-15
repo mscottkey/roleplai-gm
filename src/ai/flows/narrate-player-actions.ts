@@ -1,4 +1,3 @@
-// src/ai/flows/narrate-player-actions.ts
 'use server';
 
 /**
@@ -11,10 +10,12 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { CharacterSchema } from '../schemas/generate-character-schemas';
 
 const NarratePlayerActionsInputSchema = z.object({
   playerAction: z.string().describe('The action the player is taking.'),
   gameState: z.string().describe('The current state of the game.'),
+  character: CharacterSchema.describe('The character performing the action.'),
 });
 export type NarratePlayerActionsInput = z.infer<typeof NarratePlayerActionsInputSchema>;
 
@@ -33,7 +34,7 @@ const narratePlayerActionsPrompt = ai.definePrompt({
   output: {schema: NarratePlayerActionsOutputSchema},
   prompt: `You are the AI Gamemaster for a tabletop RPG.
 
-The player has taken the following action: {{{playerAction}}}
+The player, controlling {{{character.name}}}, has taken the following action: {{{playerAction}}}
 
 The current game state is:
 {{{gameState}}}

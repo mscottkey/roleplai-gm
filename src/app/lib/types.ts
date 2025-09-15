@@ -6,9 +6,14 @@ export type Message = {
   mechanics?: string;
 };
 
+export type Character = {
+  name: string;
+  description: string;
+  aspect: string;
+};
+
 export type GameData = GenerateNewGameOutput & {
-  // We can extend this with more structured data as needed
-  characters?: any[];
+  characters?: Character[];
   places?: any[];
   aspects?: string[];
 };
