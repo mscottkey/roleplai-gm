@@ -31,7 +31,15 @@ const prompt = ai.definePrompt({
   name: 'generateNewGamePrompt',
   input: {schema: GenerateNewGameInputSchema},
   output: {schema: GenerateNewGameOutputSchema},
-  prompt: `You are an expert game master. A player wants to start a new game. Based on their request, generate a game setting, a game tone, and a few initial hooks to get the game started.\n\nRequest: {{{request}}}\n\nSetting:\n{{{@zod description=\"setting\"}}}\n\nTone:\n{{{@zod description=\"tone\"}}}\n\nInitial Hooks:\n{{{@zod description=\"initialHooks\"}}}}`,
+  prompt: `You are an expert game master. A player wants to start a new game. Based on their request, generate a game setting, a game tone, and a few initial hooks to get the game started.
+
+Request: {{{request}}}
+
+Provide a response in the requested format.
+- "setting": A description of the game setting.
+- "tone": A description of the game tone.
+- "initialHooks": A few initial hooks to get the game started.
+`,
 });
 
 const generateNewGameFlow = ai.defineFlow(
