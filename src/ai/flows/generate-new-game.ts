@@ -46,8 +46,8 @@ Player request:
   - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short *logline* (one sentence in italics, using Markdown's asterisks like *this*), followed by 1–2 vivid paragraphs. End with a short list:
     - **Key Factions:** 2–3 bullets
     - **Notable Locations:** 2–3 bullets
-  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes.
-  - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks as a **Markdown ordered list** numbered \`1.\` through \`5.\`. Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
+  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. Use \\n for newlines before each bullet.
+  - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks. Each hook must be on a new line and start with a number (e.g., "1. ...\\n2. ..."). Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
 
 ## Style & Safety Rules
 - **Use only Markdown** inside field values (no HTML tags like <i>, no code fences).
@@ -59,7 +59,7 @@ Player request:
 {
   "setting": "…markdown…",
   "tone": "…markdown…",
-  "initialHooks": "1. …\\n2. …\\n3. …\\n4. …\\n5. …"
+  "initialHooks": "1. ...\\n2. ...\\n3. ...\\n4. ...\\n5. ..."
 }
 
 **Return ONLY the JSON object.**

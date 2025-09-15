@@ -16,7 +16,6 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 
 // Combine custom fields with generated ones for the form's character state
 type FormCharacter = CustomCharacterType & Omit<Partial<GenCharacterType>, 'name' | 'description' | 'aspect'>;
@@ -32,24 +31,6 @@ type CharacterPreferences = {
   age?: string;
   archetype?: string;
 };
-
-const normalizeToneBullets = (s: string) => {
-  if (!s) return s;
-  let out = s.trim();
-
-  // If a bullet follows sentence punctuation (e.g., "…wits.- Pace: …"), break the line.
-  out = out.replace(/([.!?])\s*-\s+(?=[A-Z][^:]{1,40}:)/g, '$1\n- ');
-
-  // If bullets still run together (e.g., "- Pace: …- Danger: …"), break them too.
-  // Safe because it only targets patterns like "- Word:" (capitalized + colon).
-  out = out.replace(/-\s+(?=[A-Z][^:]{1,40}:)/g, '\n- ');
-
-  // Ensure a blank line before the first bullet list (helps Markdown start a list block).
-  out = out.replace(/(Vibe:[^\n]*)(\n-)/i, '$1\n\n-');
-
-  return out;
-};
-
 
 export function CharacterCreationForm({
   gameData,
@@ -250,18 +231,18 @@ export function CharacterCreationForm({
                  <Card className="bg-muted/50">
                    <CardContent className="p-6 max-h-[60vh] overflow-y-auto">
                      <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
-                       <section className="prose prose-sm dark:prose-invert max-w-none">
-                         <h2 className="mt-0">Setting</h2>
-                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                           {gameData.setting}
-                         </ReactMarkdown>
-                       </section>
-                       <section className="prose prose-sm dark:prose-invert max-w-none">
-                         <h2 className="mt-0">Tone</h2>
-                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                           {normalizeToneBullets(gameData.tone)}
-                         </ReactMarkdown>
-                       </section>
+                        <section className="prose prose-sm dark:prose-invert max-w-none">
+                          <h2 className="mt-0">Setting</h2>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {gameData.setting}
+                          </ReactMarkdown>
+                        </section>
+                        <section className="prose prose-sm dark:prose-invert max-w-none">
+                          <h2 className="mt-0">Tone</h2>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {gameData.tone}
+                          </ReactMarkdown>
+                        </section>
                      </div>
                    </CardContent>
                  </Card>
