@@ -13,13 +13,12 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type CharacterCreationFormProps = {
   gameData: GameData;
-  playerCount: number;
   onCharactersFinalized: (characters: Character[]) => void;
   generateCharacterSuggestions: (input: Omit<GenerateCharacterInput, 'count'> & { count: number }) => Promise<GenerateCharacterOutput>;
 };
@@ -32,20 +31,19 @@ type CharacterPreferences = {
 
 export function CharacterCreationForm({
   gameData,
-  playerCount,
   onCharactersFinalized,
   generateCharacterSuggestions,
 }: CharacterCreationFormProps) {
-  const [characters, setCharacters] = useState<Character[]>(() =>
-    Array.from({ length: playerCount }, (_, i) => ({
-      id: `player-${i}-${Date.now()}`,
+  const [characters, setCharacters] = useState<Character[]>(() => [
+    {
+      id: `player-0-${Date.now()}`,
       name: '',
       description: '',
       aspect: '',
       playerName: '',
       isCustom: false
-    }))
-  );
+    }
+  ]);
   const [preferences, setPreferences] = useState<Record<string, CharacterPreferences>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
@@ -98,8 +96,22 @@ export function CharacterCreationForm({
   };
   
   const handleCustomFieldChange = (id: string, field: 'name' | 'aspect' | 'description', value: string) => {
-    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, [field]: value } : c)));
+    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, [field]: value, isCustom: true } : c)));
   }
+
+  const addNewPlayer = () => {
+    setCharacters(prev => [
+      ...prev,
+      {
+        id: `player-${prev.length}-${Date.now()}`,
+        name: '',
+        description: '',
+        aspect: '',
+        playerName: '',
+        isCustom: false
+      }
+    ]);
+  };
 
   const allReady = characters.every(c => c.name && c.playerName);
 
@@ -128,18 +140,18 @@ export function CharacterCreationForm({
         />
       )}
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-      <Card className="relative z-10 w-full max-w-6xl mx-auto shadow-2xl">
+      <Card className="relative z-10 w-full max-w-7xl mx-auto shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
             <UserPlus />
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-            Create or generate characters for each player.
+            Create or generate characters for each player. Add more players if needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className={`grid md:grid-cols-2 lg:grid-cols-${playerCount > 2 ? 3 : playerCount} gap-4`}>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {characters.map((char, index) => (
               <Card key={char.id} className="flex flex-col">
                 <CardHeader>
@@ -228,6 +240,14 @@ export function CharacterCreationForm({
                 </CardContent>
               </Card>
             ))}
+             <Card className="flex flex-col items-center justify-center border-2 border-dashed bg-background/50 hover:bg-background/80 transition-colors">
+                <CardContent className="p-6 text-center">
+                    <Button variant="ghost" className="h-auto p-4 flex flex-col gap-2" onClick={addNewPlayer}>
+                        <PlusCircle className="h-10 w-10 text-muted-foreground" />
+                        <span className="text-muted-foreground font-semibold">Add New Player</span>
+                    </Button>
+                </CardContent>
+            </Card>
           </div>
         </CardContent>
         <CardFooter className="flex justify-center pt-6">

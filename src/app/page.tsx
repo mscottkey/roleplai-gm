@@ -8,15 +8,13 @@ import { CreateGameForm } from '@/components/create-game-form';
 import { CharacterCreationForm } from '@/components/character-creation-form';
 import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
-import { PlayerCountForm } from '@/components/player-count-form';
 
 export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
-  const [step, setStep] = useState<'create' | 'player-count' | 'characters' | 'play'>('create');
-  const [playerCount, setPlayerCount] = useState(1);
+  const [step, setStep] = useState<'create' | 'characters' | 'play'>('create');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
@@ -27,7 +25,7 @@ export default function RoleplAIGMPage() {
     try {
       const newGame = await startNewGame({ request });
       setGameData(newGame);
-      setStep('player-count');
+      setStep('characters');
     } catch (error) {
        const err = error as Error;
        console.error("Failed to start new game:", err);
@@ -41,11 +39,6 @@ export default function RoleplAIGMPage() {
       setIsLoading(false);
     }
   };
-
-  const handlePlayerCountSet = (count: number) => {
-    setPlayerCount(count);
-    setStep('characters');
-  }
 
   const handleCharactersFinalized = (finalCharacters: Character[]) => {
     setCharacters(finalCharacters);
@@ -136,13 +129,10 @@ The stage is set, and the heroes are ready. What happens first is up to you.
   switch (step) {
     case 'create':
       return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
-    case 'player-count':
-       return <PlayerCountForm onSubmit={handlePlayerCountSet} />;
     case 'characters':
        return (
         <CharacterCreationForm
           gameData={gameData!}
-          playerCount={playerCount}
           onCharactersFinalized={handleCharactersFinalized}
           generateCharacterSuggestions={createCharacter}
         />
