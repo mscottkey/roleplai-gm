@@ -60,7 +60,7 @@ export function StoryDrawer({
                   <span>Campaign Info</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-2 whitespace-pre-wrap font-body">
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
                 <div>
                   <h4 className="font-bold text-foreground">Setting</h4>
                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.setting}</ReactMarkdown>

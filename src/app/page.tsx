@@ -50,7 +50,8 @@ export default function RoleplAIGMPage() {
   const handleCharactersFinalized = (finalCharacters: Character[]) => {
     setCharacters(finalCharacters);
     setActiveCharacter(finalCharacters[0]); // Set the first character as active initially
-    setGameData(prev => prev ? { ...prev, characters: finalCharacters } : null);
+    const updatedGameData = { ...gameData!, characters: finalCharacters };
+    setGameData(updatedGameData);
     setStep('play');
 
     const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
@@ -59,17 +60,20 @@ export default function RoleplAIGMPage() {
 # Welcome to your adventure!
 
 ## Setting
-${gameData?.setting}
+${updatedGameData.setting}
 
 ## Tone
-${gameData?.tone}
+${updatedGameData.tone}
 
 ## Your Party
 ${characterList}
 
 ---
 
-The adventure begins... The stage is set, and the heroes are ready. What happens first is up to you.
+## The Adventure Begins...
+${updatedGameData.initialHooks}
+
+The stage is set, and the heroes are ready. What happens first is up to you.
 `.trim();
 
     setMessages([
