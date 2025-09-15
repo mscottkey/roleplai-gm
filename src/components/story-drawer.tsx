@@ -52,7 +52,7 @@ export function StoryDrawer({
         </SheetHeader>
         <Separator />
         <div className="flex-1 overflow-y-auto p-6">
-          <Accordion type="multiple" defaultValue={['setting', 'settings']} className="w-full">
+          <Accordion type="multiple" defaultValue={['setting', 'characters', 'settings']} className="w-full">
             <AccordionItem value="setting">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -83,8 +83,18 @@ export function StoryDrawer({
                   <span>Characters</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">
-                Character information will appear here as they are introduced.
+              <AccordionContent className="text-muted-foreground space-y-4">
+                {gameData.characters && gameData.characters.length > 0 ? (
+                    gameData.characters.map(char => (
+                        <div key={char.id} className="text-sm">
+                            <p className="font-bold text-foreground">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
+                            <p>{char.description}</p>
+                            <p className="text-xs italic text-muted-foreground/80">Aspect: {char.aspect}</p>
+                        </div>
+                    ))
+                ) : (
+                    "Character information will appear here."
+                )}
               </AccordionContent>
             </AccordionItem>
             

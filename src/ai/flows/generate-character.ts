@@ -20,7 +20,7 @@ const prompt = ai.definePrompt({
   name: 'generateCharacterPrompt',
   input: {schema: GenerateCharacterInputSchema},
   output: {schema: GenerateCharacterOutputSchema},
-  prompt: `You are an expert game master creating compelling characters for a tabletop RPG. Based on the provided setting and tone, generate three distinct and interesting character concepts.
+  prompt: `You are an expert game master creating compelling characters for a tabletop RPG. Based on the provided setting and tone, generate {{{count}}} distinct and interesting character concepts.
 
 Game Setting: {{{setting}}}
 Game Tone: {{{tone}}}

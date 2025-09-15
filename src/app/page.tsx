@@ -8,22 +8,26 @@ import { CreateGameForm } from '@/components/create-game-form';
 import { CharacterCreationForm } from '@/components/character-creation-form';
 import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
+import { PlayerCountForm } from '@/components/player-count-form';
 
 export default function RoleplAIGMPage() {
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
-  const [isCreatingCharacters, setIsCreatingCharacters] = useState(false);
+  const [step, setStep] = useState<'create' | 'player-count' | 'characters' | 'play'>('create');
+  const [playerCount, setPlayerCount] = useState(1);
+  const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
+  const { toast } = useToast();
 
   const handleCreateGame = async (request: string) => {
     setIsLoading(true);
     try {
       const newGame = await startNewGame({ request });
       setGameData(newGame);
-      setIsCreatingCharacters(true); // Move to character creation
+      setStep('player-count');
     } catch (error) {
        const err = error as Error;
        console.error("Failed to start new game:", err);
@@ -32,15 +36,24 @@ export default function RoleplAIGMPage() {
          title: "Failed to Start Game",
          description: err.message || "An unknown error occurred.",
        });
+       setStep('create');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCharacterSelected = (character: Character) => {
-    setActiveCharacter(character);
-    setGameData(prev => prev ? { ...prev, characters: [character] } : null);
-    setIsCreatingCharacters(false);
+  const handlePlayerCountSet = (count: number) => {
+    setPlayerCount(count);
+    setStep('characters');
+  }
+
+  const handleCharactersFinalized = (finalCharacters: Character[]) => {
+    setCharacters(finalCharacters);
+    setActiveCharacter(finalCharacters[0]); // Set the first character as active initially
+    setGameData(prev => prev ? { ...prev, characters: finalCharacters } : null);
+    setStep('play');
+
+    const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
 
     const initialMessageContent = `
 # Welcome to your adventure!
@@ -51,12 +64,12 @@ ${gameData?.setting}
 ## Tone
 ${gameData?.tone}
 
-## Initial Hooks
-${gameData?.initialHooks}
+## Your Party
+${characterList}
 
 ---
 
-You are **${character.name}**: *${character.description}*
+The adventure begins... The stage is set, and the heroes are ready. What happens first is up to you.
 `.trim();
 
     setMessages([
@@ -67,6 +80,7 @@ You are **${character.name}**: *${character.description}*
     ]);
   }
 
+
   const handleSendMessage = async (playerAction: string) => {
     if (!activeCharacter) {
         toast({
@@ -76,13 +90,13 @@ You are **${character.name}**: *${character.description}*
         });
         return;
     }
-    const newMessages: Message[] = [...messages, { role: 'user', content: playerAction }];
+    const newMessages: Message[] = [...messages, { role: 'user', content: `**${activeCharacter.name} (${activeCharacter.playerName})**: ${playerAction}` }];
     setMessages(newMessages);
     setIsLoading(true);
 
     try {
       // The game state is the full history of interactions.
-      const gameState = newMessages.map(m => `${m.role}: ${m.content}`).join('\n\n');
+      const gameState = newMessages.map(m => m.content).join('\n\n');
       
       const response = await continueStory({
         actionDescription: playerAction,
@@ -115,30 +129,35 @@ You are **${character.name}**: *${character.description}*
     }
   };
 
-  if (!gameData) {
-    return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
+  switch (step) {
+    case 'create':
+      return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
+    case 'player-count':
+       return <PlayerCountForm onSubmit={handlePlayerCountSet} />;
+    case 'characters':
+       return (
+        <CharacterCreationForm
+          gameData={gameData!}
+          playerCount={playerCount}
+          onCharactersFinalized={handleCharactersFinalized}
+          generateCharacterSuggestions={createCharacter}
+        />
+      );
+    case 'play':
+       return (
+        <GameView
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+          gameData={gameData!}
+          characters={characters}
+          activeCharacter={activeCharacter}
+          setActiveCharacter={setActiveCharacter}
+          mechanicsVisibility={mechanicsVisibility}
+          setMechanicsVisibility={setMechanicsVisibility}
+        />
+      );
+    default:
+       return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
   }
-
-  if (isCreatingCharacters) {
-    return (
-      <CharacterCreationForm
-        gameData={gameData}
-        onCharacterSelect={handleCharacterSelected}
-        generateCharacterSuggestions={createCharacter}
-        isLoading={isLoading}
-        setIsLoading={setIsLoading}
-      />
-    );
-  }
-
-  return (
-    <GameView
-      messages={messages}
-      onSendMessage={handleSendMessage}
-      isLoading={isLoading}
-      gameData={gameData}
-      mechanicsVisibility={mechanicsVisibility}
-      setMechanicsVisibility={setMechanicsVisibility}
-    />
-  );
 }

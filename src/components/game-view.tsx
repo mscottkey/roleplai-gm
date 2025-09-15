@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
-import type { GameData, Message, MechanicsVisibility } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type GameViewProps = {
@@ -14,6 +14,9 @@ type GameViewProps = {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   gameData: GameData;
+  characters: Character[];
+  activeCharacter: Character | null;
+  setActiveCharacter: (character: Character) => void;
   mechanicsVisibility: MechanicsVisibility;
   setMechanicsVisibility: (value: MechanicsVisibility) => void;
 };
@@ -23,6 +26,9 @@ export function GameView({
   onSendMessage,
   isLoading,
   gameData,
+  characters,
+  activeCharacter,
+  setActiveCharacter,
   mechanicsVisibility,
   setMechanicsVisibility,
 }: GameViewProps) {
@@ -71,11 +77,14 @@ export function GameView({
 
       {/* Right Pane: Game Controls */}
       <div className="h-full flex flex-col overflow-hidden">
-          <GameControls 
+          <GameControls
             messages={messages}
             onSendMessage={onSendMessage}
             isLoading={isLoading}
             gameData={gameData}
+            characters={characters}
+            activeCharacter={activeCharacter}
+            setActiveCharacter={setActiveCharacter}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
           />

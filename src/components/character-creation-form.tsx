@@ -1,65 +1,103 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useId } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Save, Edit } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 
 type CharacterCreationFormProps = {
   gameData: GameData;
-  onCharacterSelect: (character: Character) => void;
-  generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
+  playerCount: number;
+  onCharactersFinalized: (characters: Character[]) => void;
+  generateCharacterSuggestions: (input: Omit<GenerateCharacterInput, 'count'> & { count: number }) => Promise<GenerateCharacterOutput>;
 };
 
 export function CharacterCreationForm({
   gameData,
-  onCharacterSelect,
+  playerCount,
+  onCharactersFinalized,
   generateCharacterSuggestions,
-  isLoading,
-  setIsLoading
 }: CharacterCreationFormProps) {
-  const [suggestions, setSuggestions] = useState<Character[]>([]);
+  const [characters, setCharacters] = useState<Character[]>(() =>
+    Array.from({ length: playerCount }, (_, i) => ({
+      id: `player-${i}-${Date.now()}`,
+      name: '',
+      description: '',
+      aspect: '',
+      playerName: '',
+      isCustom: false
+    }))
+  );
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'landing-background');
+  const formId = useId();
 
-  const getSuggestions = async () => {
-    setIsLoading(true);
+  const getSuggestion = async (characterId: string) => {
+    setLoadingStates(prev => ({ ...prev, [characterId]: true }));
     try {
-        const result = await generateCharacterSuggestions({
-            setting: gameData.setting,
-            tone: gameData.tone
-        });
-        setSuggestions(result.characters);
+      const result = await generateCharacterSuggestions({
+        setting: gameData.setting,
+        tone: gameData.tone,
+        count: 1,
+      });
+      const newChar = result.characters[0];
+      setCharacters(prev =>
+        prev.map(c =>
+          c.id === characterId
+            ? { ...c, name: newChar.name, description: newChar.description, aspect: newChar.aspect, isCustom: false }
+            : c
+        )
+      );
     } catch (error) {
-        const err = error as Error;
-        console.error("Failed to get character suggestions:", err);
-        toast({
-            variant: "destructive",
-            title: "Character Generation Failed",
-            description: err.message || "Could not generate character suggestions.",
-        });
+      const err = error as Error;
+      console.error("Failed to get character suggestion:", err);
+      toast({
+        variant: "destructive",
+        title: "Character Generation Failed",
+        description: err.message || "Could not generate a character suggestion.",
+      });
     } finally {
-        setIsLoading(false);
+      setLoadingStates(prev => ({ ...prev, [characterId]: false }));
     }
   };
 
-  // Fetch suggestions on initial component load
-  useEffect(() => {
-    getSuggestions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handlePlayerNameChange = (id: string, name: string) => {
+    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, playerName: name } : c)));
+  };
+  
+  const handleCustomFieldChange = (id: string, field: 'name' | 'aspect' | 'description', value: string) => {
+    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, [field]: value } : c)));
+  }
+
+  const allReady = characters.every(c => c.name && c.playerName);
+
+  const handleFinalize = () => {
+    if (allReady) {
+      onCharactersFinalized(characters);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Not Ready Yet",
+        description: "Please make sure every player has a name and a character.",
+      });
+    }
+  };
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen w-full p-4">
+    <div className="relative flex flex-col items-center justify-center min-h-screen w-full p-4">
       {backgroundImage && (
         <Image
           src={backgroundImage.imageUrl}
@@ -71,52 +109,89 @@ export function CharacterCreationForm({
         />
       )}
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-      <Card className="relative z-10 w-full max-w-4xl mx-auto shadow-2xl">
+      <Card className="relative z-10 w-full max-w-6xl mx-auto shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
-            <Dices />
-            Choose Your Hero
+            <UserPlus />
+            Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-            Select one of the following characters to begin your journey.
+            Create or generate characters for each player.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && suggestions.length === 0 ? (
-             <div className="flex flex-col items-center justify-center text-center p-8 space-y-4">
-                <LoadingSpinner className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">The AI is crafting some heroes for your story...</p>
-             </div>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-4">
-              {suggestions.map((char, index) => (
-                <Card key={index} className="flex flex-col">
-                  <CardHeader>
-                    <CardTitle>{char.name}</CardTitle>
-                    <CardDescription className="italic">"{char.aspect}"</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <p className="text-sm text-muted-foreground">{char.description}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <Button onClick={() => onCharacterSelect(char)} className="w-full">
-                      Play as {char.name.split(' ')[0]}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
+          <div className={`grid md:grid-cols-2 lg:grid-cols-${playerCount > 3 ? 3 : playerCount} gap-4`}>
+            {characters.map((char, index) => (
+              <Card key={char.id} className="flex flex-col">
+                <CardHeader>
+                  <Input
+                    placeholder={`Player ${index + 1} Name`}
+                    value={char.playerName}
+                    onChange={e => handlePlayerNameChange(char.id, e.target.value)}
+                    className="text-center font-bold text-lg"
+                    aria-label={`Player ${index + 1} Name`}
+                  />
+                </CardHeader>
+                <CardContent className="flex-1">
+                   <Tabs defaultValue="generate" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="generate"><Wand2 className="mr-2 h-4 w-4"/>Generate</TabsTrigger>
+                      <TabsTrigger value="custom"><Edit className="mr-2 h-4 w-4"/>Custom</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="generate" className="pt-4">
+                      {loadingStates[char.id] ? (
+                         <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
+                            <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-sm text-muted-foreground">Crafting a hero...</p>
+                         </div>
+                      ) : char.name ? (
+                        <div className="space-y-2 h-48">
+                          <h3 className="font-bold text-xl">{char.name}</h3>
+                          <p className="text-sm italic text-muted-foreground">"{char.aspect}"</p>
+                          <p className="text-sm">{char.description}</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
+                           <Dices className="h-8 w-8 text-muted-foreground" />
+                           <p className="text-sm text-muted-foreground">
+                             Click "Generate" to create a character.
+                           </p>
+                        </div>
+                      )}
+                       <Button onClick={() => getSuggestion(char.id)} className="w-full mt-4" variant="outline" disabled={loadingStates[char.id]}>
+                         <RefreshCw className={cn("mr-2 h-4 w-4", loadingStates[char.id] && "animate-spin")} />
+                         {char.name ? "Generate New" : "Generate"}
+                       </Button>
+                    </TabsContent>
+                     <TabsContent value="custom" className="pt-4">
+                        <div className="space-y-2 h-48">
+                            <Label htmlFor={`${formId}-${char.id}-name`}>Name</Label>
+                            <Input id={`${formId}-${char.id}-name`} value={char.name} onChange={(e) => handleCustomFieldChange(char.id, 'name', e.target.value)} placeholder="Character Name" />
+                             <Label htmlFor={`${formId}-${char.id}-aspect`}>Aspect</Label>
+                            <Input id={`${formId}-${char.id}-aspect`} value={char.aspect} onChange={(e) => handleCustomFieldChange(char.id, 'aspect', e.target.value)} placeholder="e.g., 'Haunted by the ghost of a cyborg...'" />
+                             <Label htmlFor={`${formId}-${char.id}-desc`}>Description</Label>
+                             <Textarea id={`${formId}-${char.id}-desc`} value={char.description} onChange={(e) => handleCustomFieldChange(char.id, 'description', e.target.value)} placeholder="A short description." className="h-16 resize-none" />
+                        </div>
+                         <div className="w-full mt-4 text-xs text-center text-muted-foreground italic">
+                            Custom characters are saved automatically.
+                        </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-center pt-4">
-             <Button
-              variant="outline"
-              onClick={getSuggestions}
-              disabled={isLoading}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              New Suggestions
-            </Button>
+        <CardFooter className="flex justify-center pt-6">
+          <Button
+            size="lg"
+            onClick={handleFinalize}
+            disabled={!allReady}
+            className="font-headline text-xl"
+          >
+            <Dices className="mr-2 h-5 w-5" />
+            Start Adventure
+          </Button>
         </CardFooter>
       </Card>
     </div>

@@ -7,9 +7,12 @@ export type Message = {
 };
 
 export type Character = {
+  id: string;
   name: string;
-  description: string;
+  description:string;
   aspect: string;
+  playerName: string;
+  isCustom: boolean;
 };
 
 export type GameData = GenerateNewGameOutput & {
