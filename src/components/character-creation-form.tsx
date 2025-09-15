@@ -13,15 +13,20 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Save, Edit } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Save, Edit, User, Cake, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
 
 type CharacterCreationFormProps = {
   gameData: GameData;
   playerCount: number;
   onCharactersFinalized: (characters: Character[]) => void;
   generateCharacterSuggestions: (input: Omit<GenerateCharacterInput, 'count'> & { count: number }) => Promise<GenerateCharacterOutput>;
+};
+
+type CharacterPreferences = {
+  gender?: string;
+  age?: string;
+  archetype?: string;
 };
 
 export function CharacterCreationForm({
@@ -40,18 +45,31 @@ export function CharacterCreationForm({
       isCustom: false
     }))
   );
+  const [preferences, setPreferences] = useState<Record<string, CharacterPreferences>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'landing-background');
   const formId = useId();
 
+  const handlePreferenceChange = (id: string, field: keyof CharacterPreferences, value: string) => {
+    setPreferences(prev => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] || {}),
+        [field]: value,
+      }
+    }));
+  };
+
   const getSuggestion = async (characterId: string) => {
     setLoadingStates(prev => ({ ...prev, [characterId]: true }));
     try {
+      const charPrefs = preferences[characterId] || {};
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
         count: 1,
+        ...charPrefs,
       });
       const newChar = result.characters[0];
       setCharacters(prev =>
@@ -120,7 +138,7 @@ export function CharacterCreationForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className={`grid md:grid-cols-2 lg:grid-cols-${playerCount > 3 ? 3 : playerCount} gap-4`}>
+          <div className={`grid md:grid-cols-2 lg:grid-cols-${playerCount > 2 ? 3 : playerCount} gap-4`}>
             {characters.map((char, index) => (
               <Card key={char.id} className="flex flex-col">
                 <CardHeader>
@@ -139,12 +157,29 @@ export function CharacterCreationForm({
                       <TabsTrigger value="custom"><Edit className="mr-2 h-4 w-4"/>Custom</TabsTrigger>
                     </TabsList>
                     <TabsContent value="generate" className="pt-4">
+                      <div className="space-y-2 mb-4">
+                        <Label>Generation Preferences (Optional)</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                           <div className="relative">
+                              <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="Gender" className="pl-8" value={preferences[char.id]?.gender || ''} onChange={e => handlePreferenceChange(char.id, 'gender', e.target.value)} />
+                            </div>
+                            <div className="relative">
+                               <Cake className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="Age" className="pl-8" value={preferences[char.id]?.age || ''} onChange={e => handlePreferenceChange(char.id, 'age', e.target.value)} />
+                           </div>
+                           <div className="relative">
+                              <Shield className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="Archetype" className="pl-8" value={preferences[char.id]?.archetype || ''} onChange={e => handlePreferenceChange(char.id, 'archetype', e.target.value)} />
+                           </div>
+                        </div>
+                      </div>
                       {loadingStates[char.id] ? (
                          <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                             <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
                             <p className="text-sm text-muted-foreground">Crafting a hero...</p>
                          </div>
-                      ) : char.name ? (
+                      ) : char.name && !char.isCustom ? (
                         <div className="space-y-2 h-48">
                           <h3 className="font-bold text-xl">{char.name}</h3>
                           <p className="text-sm italic text-muted-foreground">"{char.aspect}"</p>
@@ -154,23 +189,23 @@ export function CharacterCreationForm({
                         <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
                            <Dices className="h-8 w-8 text-muted-foreground" />
                            <p className="text-sm text-muted-foreground">
-                             Click "Generate" to create a character.
+                             Fill in preferences and click "Generate".
                            </p>
                         </div>
                       )}
                        <Button onClick={() => getSuggestion(char.id)} className="w-full mt-4" variant="outline" disabled={loadingStates[char.id]}>
                          <RefreshCw className={cn("mr-2 h-4 w-4", loadingStates[char.id] && "animate-spin")} />
-                         {char.name ? "Generate New" : "Generate"}
+                         {char.name && !char.isCustom ? "Generate New" : "Generate"}
                        </Button>
                     </TabsContent>
                      <TabsContent value="custom" className="pt-4">
-                        <div className="space-y-2 h-48">
+                        <div className="space-y-2 h-[228px] overflow-y-auto pr-2">
                             <Label htmlFor={`${formId}-${char.id}-name`}>Name</Label>
                             <Input id={`${formId}-${char.id}-name`} value={char.name} onChange={(e) => handleCustomFieldChange(char.id, 'name', e.target.value)} placeholder="Character Name" />
                              <Label htmlFor={`${formId}-${char.id}-aspect`}>Aspect</Label>
                             <Input id={`${formId}-${char.id}-aspect`} value={char.aspect} onChange={(e) => handleCustomFieldChange(char.id, 'aspect', e.target.value)} placeholder="e.g., 'Haunted by the ghost of a cyborg...'" />
                              <Label htmlFor={`${formId}-${char.id}-desc`}>Description</Label>
-                             <Textarea id={`${formId}-${char.id}-desc`} value={char.description} onChange={(e) => handleCustomFieldChange(char.id, 'description', e.target.value)} placeholder="A short description." className="h-16 resize-none" />
+                             <Textarea id={`${formId}-${char.id}-desc`} value={char.description} onChange={(e) => handleCustomFieldChange(char.id, 'description', e.target.value)} placeholder="A short description." className="h-24 resize-none" />
                         </div>
                          <div className="w-full mt-4 text-xs text-center text-muted-foreground italic">
                             Custom characters are saved automatically.

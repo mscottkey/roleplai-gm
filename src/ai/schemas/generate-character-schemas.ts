@@ -12,7 +12,10 @@ export type Character = z.infer<typeof CharacterSchema>;
 export const GenerateCharacterInputSchema = z.object({
   setting: z.string().describe('The game setting description.'),
   tone: z.string().describe('The game tone description.'),
-  count: z.number().min(1).max(5).default(1).describe('The number of characters to generate.')
+  count: z.number().min(1).max(5).default(1).describe('The number of characters to generate.'),
+  gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),
+  age: z.string().optional().describe('A preferred age or age range for the character (e.g., "Young Adult", "Veteran").'),
+  archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").')
 });
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 
