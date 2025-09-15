@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
@@ -113,6 +113,12 @@ export function CharacterCreationForm({
     ]);
   };
 
+  const removePlayer = (id: string) => {
+    if (characters.length > 1) {
+      setCharacters(prev => prev.filter(c => c.id !== id));
+    }
+  };
+
   const allReady = characters.every(c => c.name && c.playerName);
 
   const handleFinalize = () => {
@@ -153,7 +159,18 @@ export function CharacterCreationForm({
         <CardContent>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {characters.map((char, index) => (
-              <Card key={char.id} className="flex flex-col">
+              <Card key={char.id} className="flex flex-col relative group">
+                 {characters.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6 z-10 text-muted-foreground hover:text-destructive-foreground hover:bg-destructive"
+                    onClick={() => removePlayer(char.id)}
+                    aria-label="Remove player"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
                 <CardHeader>
                   <Input
                     placeholder={`Player ${index + 1} Name`}
