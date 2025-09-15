@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
@@ -70,18 +72,18 @@ export function StoryDrawer({
               <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
                 <div>
                   <h4 className="font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" />Summary</h4>
-                   <p>{worldState?.summary ?? "Not yet available."}</p>
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{worldState?.summary ?? "Not yet available."}</ReactMarkdown>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground flex items-center gap-2"><ListTodo className="h-4 w-4" />Story Outline</h4>
                    <ul className="list-disc pl-5">
-                       {worldState?.storyOutline?.map((item, i) => <li key={i}>{item}</li>) ?? <li>Not yet available.</li>}
+                       {worldState?.storyOutline?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
                    </ul>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground flex items-center gap-2"><History className="h-4 w-4" />Recent Events</h4>
                    <ul className="list-disc pl-5">
-                       {worldState?.recentEvents?.map((item, i) => <li key={i}>{item}</li>) ?? <li>Not yet available.</li>}
+                       {worldState?.recentEvents?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
                    </ul>
                 </div>
               </AccordionContent>
@@ -97,15 +99,15 @@ export function StoryDrawer({
               <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
                 <div>
                   <h4 className="font-bold text-foreground">Setting</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.setting}</ReactMarkdown>
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.setting}</ReactMarkdown>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground">Tone</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.tone}</ReactMarkdown>
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.tone}</ReactMarkdown>
                 </div>
                  <div>
                   <h4 className="font-bold text-foreground">Initial Hooks</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{gameData.initialHooks}</ReactMarkdown>
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.initialHooks}</ReactMarkdown>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -120,10 +122,10 @@ export function StoryDrawer({
               <AccordionContent className="text-muted-foreground space-y-4">
                 {gameData.characters && gameData.characters.length > 0 ? (
                     gameData.characters.map(char => (
-                        <div key={char.id} className="text-sm">
-                            <p className="font-bold text-foreground">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
-                            <p>{char.description}</p>
-                            <p className="text-xs italic text-muted-foreground/80">Aspect: {char.aspect}</p>
+                        <div key={char.id} className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                            <p className="font-bold text-foreground not-prose">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{char.description}</ReactMarkdown>
+                            <p className="text-xs italic text-muted-foreground/80 not-prose">Aspect: {char.aspect}</p>
                         </div>
                     ))
                 ) : (
@@ -142,9 +144,9 @@ export function StoryDrawer({
               <AccordionContent className="text-muted-foreground">
                  {worldState?.places && worldState.places.length > 0 ? (
                     worldState.places.map((place, i) => (
-                        <div key={i} className="text-sm">
-                            <p className="font-bold text-foreground">{place.name}</p>
-                            <p>{place.description}</p>
+                        <div key={i} className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                            <p className="font-bold text-foreground not-prose">{place.name}</p>
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{place.description}</ReactMarkdown>
                         </div>
                     ))
                 ) : (
