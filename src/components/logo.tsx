@@ -10,18 +10,35 @@ export const Logo = ({ className, ...props }: LogoProps) => (
     className={cn('h-8 w-8', className)}
     {...props}
   >
+    <defs>
+        <filter id="ai-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="currentColor" />
+        </filter>
+    </defs>
     <g transform="rotate(15 50 50)">
-      {/* First Die */}
+      {/* First Die (6 pips) */}
       <rect x="15" y="15" width="40" height="40" rx="5" fill="currentColor" />
-      <circle cx="25" cy="25" r="3" fill="white" />
-      <circle cx="45" cy="45" r="3" fill="white" />
+      <circle cx="23" cy="23" r="2.5" fill="white" />
+      <circle cx="23" cy="35" r="2.5" fill="white" />
+      <circle cx="23" cy="47" r="2.5" fill="white" />
+      <circle cx="47" cy="23" r="2.5" fill="white" />
+      <circle cx="47" cy="35" r="2.5" fill="white" />
+      <circle cx="47" cy="47" r="2.5" fill="white" />
 
-      {/* Second Die */}
+      {/* Second Die (AI) */}
       <rect x="45" y="45" width="40" height="40" rx="5" fill="currentColor" />
-      <circle cx="55" cy="55" r="3" fill="white" />
-      <circle cx="55" cy="75" r="3" fill="white" />
-      <circle cx="75" cy="55" r="3" fill="white" />
-      <circle cx="75" cy="75" r="3" fill="white" />
+       <text
+        x="65"
+        y="70"
+        fontFamily="Space Grotesk, sans-serif"
+        fontWeight="bold"
+        fontSize="24"
+        fill="white"
+        textAnchor="middle"
+        filter="url(#ai-glow)"
+      >
+        AI
+      </text>
     </g>
   </svg>
 );
