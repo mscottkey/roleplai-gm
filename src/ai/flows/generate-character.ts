@@ -25,6 +25,8 @@ const prompt = ai.definePrompt({
 Game Setting: {{{setting}}}
 Game Tone: {{{tone}}}
 
+Strictly adhere to the following preferences if they are provided. If a preference is not provided, you should generate an appropriate value for that field.
+
 {{#if gender}}Preferred Gender: {{{gender}}}{{/if}}
 {{#if age}}Preferred Age: {{{age}}}{{/if}}
 {{#if archetype}}Preferred Archetype: {{{archetype}}}{{/if}}
@@ -33,9 +35,9 @@ For each character, provide:
 - A name.
 - A one-sentence description.
 - A core aspect.
-- A gender (if not specified in the input).
-- An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient"; if not specified in the input).
-- An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage"; if not specified in the input).
+- A gender.
+- An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient").
+- An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage").
 `,
 });
 
