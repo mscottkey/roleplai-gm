@@ -15,9 +15,11 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { LogOut, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSidebar } from './ui/sidebar';
 
 export function UserMenu() {
   const { user } = useAuth();
+  const { state } = useSidebar();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -29,6 +31,30 @@ export function UserMenu() {
     return null;
   }
 
+  if (state === 'collapsed') {
+    return (
+        <div className="p-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-center h-auto p-2">
+                        <Avatar className="h-8 w-8">
+                        <AvatarFallback><User /></AvatarFallback>
+                        </Avatar>
+                    </Button>
+                </DropdownMenuTrigger>
+                 <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    )
+  }
+
   return (
     <div className="p-2">
       <DropdownMenu>
@@ -38,9 +64,9 @@ export function UserMenu() {
                 <Avatar className="h-8 w-8">
                   <AvatarFallback><User /></AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
+                <div className="flex flex-col text-left">
                   <span className="text-sm font-medium">Guest User</span>
-                  <span className="text-xs text-muted-foreground truncate">
+                  <span className="text-xs text-muted-foreground truncate w-32">
                     {user.uid}
                   </span>
                 </div>
