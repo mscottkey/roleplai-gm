@@ -88,48 +88,19 @@ export function CharacterCreationForm({
   const getPartySuggestions = async () => {
     setIsGeneratingParty(true);
     setHasGenerated(true);
+
+    // Instead of one batch call, make individual calls to respect preferences.
+    const generationPromises = characters.map(char => regenerateCharacter(char.id));
+
     try {
-      // NOTE: We are not sending individual preferences for the batch generation
-      // to allow the AI to create a more balanced and diverse party.
-      const result = await generateCharacterSuggestions({
-        setting: gameData.setting,
-        tone: gameData.tone,
-        count: characters.length,
-      });
-
-      if (result.characters.length < characters.length) {
-        throw new Error("The AI didn't generate enough characters. Please try again.");
-      }
-
-      setCharacters(prev =>
-        prev.map((c, index) => {
-          const newChar = result.characters[index];
-          return { ...c, ...newChar, isCustom: false };
-        })
-      );
-
-       // Also update preferences to reflect generated values
-       const newPrefs: Record<string, CharacterPreferences> = {};
-       result.characters.forEach((char, index) => {
-         const charId = characters[index].id;
-         newPrefs[charId] = {
-           gender: char.gender || '',
-           age: char.age || '',
-           archetype: char.archetype || '',
-         };
-       });
-       setPreferences(prev => ({...prev, ...newPrefs}));
-
-
+        await Promise.all(generationPromises);
     } catch (error) {
-       const err = error as Error;
-       console.error("Failed to get party suggestions:", err);
-       toast({
-         variant: "destructive",
-         title: "Party Generation Failed",
-         description: err.message || "Could not generate character suggestions.",
-       });
-       setHasGenerated(false);
+        // Errors are toasted inside regenerateCharacter, but we can add a general one.
+        toast({
+            variant: "destructive",
+            title: "Party Generation Failed",
+            description: "One or more characters could not be generated. Please try again.",
+        });
     } finally {
         setIsGeneratingParty(false);
     }
@@ -143,7 +114,9 @@ export function CharacterCreationForm({
         setting: gameData.setting,
         tone: gameData.tone,
         count: 1,
-        ...charPrefs,
+        gender: charPrefs.gender || undefined,
+        age: charPrefs.age || undefined,
+        archetype: charPrefs.archetype || undefined,
       });
       const newChar = result.characters[0];
       setCharacters(prev =>
@@ -168,9 +141,11 @@ export function CharacterCreationForm({
        console.error("Failed to regenerate character:", err);
        toast({
          variant: "destructive",
-         title: "Character Regeneration Failed",
+         title: "Character Generation Failed",
          description: err.message || "Could not generate a character suggestion.",
        });
+       // Re-throw to be caught by Promise.all in getPartySuggestions
+       throw err;
     } finally {
       setIndividualLoading(prev => ({ ...prev, [characterId]: false }));
     }
@@ -371,7 +346,7 @@ export function CharacterCreationForm({
                       </CardContent>
                     </Card>
                   ))}
-                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-accent hover:bg-accent transition-colors cursor-pointer" onClick={addNewPlayer} >
+                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-accent hover:bg-accent/80 transition-colors cursor-pointer" onClick={addNewPlayer} >
                       <CardContent className="p-6 text-center">
                           <div className="h-auto p-4 flex flex-col gap-2 items-center text-muted-foreground group-hover:text-accent-foreground">
                               <PlusCircle className="h-10 w-10 transition-transform duration-300 group-hover:scale-110" />
@@ -405,4 +380,5 @@ export function CharacterCreationForm({
       </Card>
     </div>
   );
-}
+
+    
