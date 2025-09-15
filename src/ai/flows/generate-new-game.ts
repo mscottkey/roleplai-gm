@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -38,7 +39,7 @@ Request: {{{request}}}
 Provide a response in the requested format.
 - "setting": A description of the game setting.
 - "tone": A description of the game tone.
-- "initialHooks": A few initial hooks to get the game started.
+- "initialHooks": A few initial hooks to get the game started. Each hook must be on its own line.
 `,
 });
 
