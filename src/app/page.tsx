@@ -115,7 +115,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
     setIsLoading(true);
 
     try {
-      const { intent } = await routePlayerInput(playerInput);
+      const { intent } = await routePlayerInput({ playerInput });
       
       let assistantMessage: Message;
 

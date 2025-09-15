@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const ClassifyIntentInputSchema = z.object({
+export const ClassifyIntentInputSchema = z.object({
   playerInput: z.string().describe('The text input from the player.'),
 });
 export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;

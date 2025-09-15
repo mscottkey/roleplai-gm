@@ -46,9 +46,9 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   }
 }
 
-export async function routePlayerInput(playerInput: string): Promise<ClassifyIntentOutput> {
+export async function routePlayerInput(input: ClassifyIntentInput): Promise<ClassifyIntentOutput> {
   try {
-    return await classifyIntent({ playerInput });
+    return await classifyIntent(input);
   } catch (error) {
     console.error("Error in routePlayerInput action:", error);
     throw new Error("Failed to classify player intent. Please try again.");
