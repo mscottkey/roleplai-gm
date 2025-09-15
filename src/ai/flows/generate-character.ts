@@ -25,7 +25,7 @@ const prompt = ai.definePrompt({
 Game Setting: {{{setting}}}
 Game Tone: {{{tone}}}
 
-For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. Return the original \`id\` for each slot so the characters can be matched up.
+For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. Return the original \`slotId\` for each slot so the characters can be matched up.
 
 {{#each characterSlots}}
 - Slot ID: {{{this.id}}}
