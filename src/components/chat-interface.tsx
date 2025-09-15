@@ -1,0 +1,144 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LoadingSpinner } from '@/components/icons';
+import { cn } from '@/lib/utils';
+import type { Message } from '@/app/lib/types';
+import { SendHorizonal, User, Bot } from 'lucide-react';
+
+type ChatInterfaceProps = {
+  messages: Message[];
+  onSendMessage: (message: string) => void;
+  isLoading: boolean;
+};
+
+// Simple markdown-like parser for **bold** text
+const formatMessage = (text: string) => {
+  return text.split(/(\*\*.*?\*\*|\n)/g).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part === '\n') {
+      return <br key={i} />;
+    }
+    return part;
+  });
+};
+
+export function ChatInterface({ messages, onSendMessage, isLoading }: ChatInterfaceProps) {
+  const [input, setInput] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Auto-scroll to bottom
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    setInput(textarea.value);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim() && !isLoading) {
+      onSendMessage(input.trim());
+      setInput('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={cn(
+                'flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              )}
+            >
+              {message.role === 'assistant' && (
+                <Avatar className="w-8 h-8 bg-primary text-primary-foreground flex-shrink-0">
+                  <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
+                </Avatar>
+              )}
+              <div
+                className={cn(
+                  'max-w-xl rounded-lg p-4 shadow-sm',
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-card border rounded-bl-none'
+                )}
+              >
+                <div className="text-sm whitespace-pre-wrap">{formatMessage(message.content)}</div>
+                {message.mechanics && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/30">
+                    <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">{message.mechanics}</p>
+                  </div>
+                )}
+              </div>
+              {message.role === 'user' && (
+                <Avatar className="w-8 h-8 bg-secondary text-secondary-foreground flex-shrink-0">
+                  <AvatarFallback><User className="w-5 h-5" /></AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ))}
+           {isLoading && messages[messages.length - 1]?.role === 'user' && (
+            <div className="flex items-start gap-4 justify-start">
+               <Avatar className="w-8 h-8 bg-primary text-primary-foreground">
+                  <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
+                </Avatar>
+                <div className="max-w-xl rounded-lg p-4 bg-card border rounded-bl-none">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <LoadingSpinner className="w-4 h-4 animate-spin"/>
+                        <span>GM is thinking...</span>
+                    </div>
+                </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="p-4 border-t bg-card/80 backdrop-blur-sm">
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-end gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="What do you do?"
+            className="flex-1 resize-none max-h-48"
+            rows={1}
+            disabled={isLoading}
+            aria-label="Chat input"
+          />
+          <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="flex-shrink-0 bg-accent hover:bg-accent/90">
+            <SendHorizonal className="h-5 w-5" />
+            <span className="sr-only">Send</span>
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
