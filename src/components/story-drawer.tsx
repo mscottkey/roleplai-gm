@@ -21,17 +21,22 @@ import {
     Users,
     MapPin,
     Sparkles,
-    Settings2
+    Settings2,
+    FileText,
+    ListTodo,
+    History
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
+import type { WorldState } from "@/ai/schemas/world-state-schemas";
 
 type StoryDrawerProps = {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
     gameData: GameData;
+    worldState: WorldState | null;
     mechanicsVisibility: MechanicsVisibility;
     setMechanicsVisibility: (value: MechanicsVisibility) => void;
 };
@@ -40,6 +45,7 @@ export function StoryDrawer({
     isOpen,
     onOpenChange,
     gameData,
+    worldState,
     mechanicsVisibility,
     setMechanicsVisibility
 }: StoryDrawerProps) {
@@ -47,13 +53,41 @@ export function StoryDrawer({
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="p-6 pb-4">
-          <SheetTitle className="font-headline">Story Notes</SheetTitle>
+          <SheetTitle className="font-headline">Story & World</SheetTitle>
           <SheetDescription>Your campaign's details at a glance.</SheetDescription>
         </SheetHeader>
         <Separator />
         <div className="flex-1 overflow-y-auto p-6">
-          <Accordion type="multiple" defaultValue={['setting', 'characters', 'settings']} className="w-full">
-            <AccordionItem value="setting">
+          <Accordion type="multiple" defaultValue={['world-state', 'campaign', 'characters', 'settings']} className="w-full">
+            
+            <AccordionItem value="world-state">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="font-bold">AI Game State</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
+                <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" />Summary</h4>
+                   <p>{worldState?.summary ?? "Not yet available."}</p>
+                </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><ListTodo className="h-4 w-4" />Story Outline</h4>
+                   <ul className="list-disc pl-5">
+                       {worldState?.storyOutline?.map((item, i) => <li key={i}>{item}</li>) ?? <li>Not yet available.</li>}
+                   </ul>
+                </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><History className="h-4 w-4" />Recent Events</h4>
+                   <ul className="list-disc pl-5">
+                       {worldState?.recentEvents?.map((item, i) => <li key={i}>{item}</li>) ?? <li>Not yet available.</li>}
+                   </ul>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="campaign">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
                   <BookText className="h-4 w-4" />
@@ -106,19 +140,16 @@ export function StoryDrawer({
                 </div>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground">
-                Important locations will be tracked here.
-              </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="aspects">
-              <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  <span>Aspects</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">
-                Key story aspects from your game will be noted here.
+                 {worldState?.places && worldState.places.length > 0 ? (
+                    worldState.places.map((place, i) => (
+                        <div key={i} className="text-sm">
+                            <p className="font-bold text-foreground">{place.name}</p>
+                            <p>{place.description}</p>
+                        </div>
+                    ))
+                ) : (
+                     "Important locations will be tracked here as they are discovered."
+                )}
               </AccordionContent>
             </AccordionItem>
             

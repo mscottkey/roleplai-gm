@@ -6,12 +6,14 @@ import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { WorldState } from '@/ai/schemas/world-state-schemas';
 
 type GameViewProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   gameData: GameData;
+  worldState: WorldState | null;
   characters: Character[];
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character) => void;
@@ -24,6 +26,7 @@ export function GameView({
   onSendMessage,
   isLoading,
   gameData,
+  worldState,
   characters,
   activeCharacter,
   setActiveCharacter,
@@ -68,6 +71,7 @@ export function GameView({
             onSendMessage={onSendMessage}
             isLoading={isLoading}
             gameData={gameData}
+            worldState={worldState}
             characters={characters}
             activeCharacter={activeCharacter}
             setActiveCharacter={setActiveCharacter}

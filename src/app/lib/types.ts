@@ -1,4 +1,5 @@
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
+import type { WorldState } from "@/ai/schemas/world-state-schemas";
 
 export type Message = {
   role: 'user' | 'assistant';

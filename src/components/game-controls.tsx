@@ -7,12 +7,14 @@ import { StoryDrawer } from '@/components/story-drawer';
 import { TurnManager } from '@/components/turn-manager';
 
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { WorldState } from '@/ai/schemas/world-state-schemas';
 
 type GameControlsProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   gameData: GameData;
+  worldState: WorldState | null;
   characters: Character[];
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character) => void;
@@ -25,6 +27,7 @@ export function GameControls({
   onSendMessage,
   isLoading,
   gameData,
+  worldState,
   characters,
   activeCharacter,
   setActiveCharacter,
@@ -53,6 +56,7 @@ export function GameControls({
         isOpen={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
         gameData={gameData}
+        worldState={worldState}
         mechanicsVisibility={mechanicsVisibility}
         setMechanicsVisibility={setMechanicsVisibility}
       />

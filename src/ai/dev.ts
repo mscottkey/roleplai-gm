@@ -5,3 +5,4 @@ import '@/ai/flows/generate-new-game.ts';
 import '@/ai/flows/integrate-rules-adapter.ts';
 import '@/ai/flows/narrate-player-actions.ts';
 import '@/ai/flows/generate-character.ts';
+import '@/ai/flows/update-world-state.ts';
