@@ -13,8 +13,9 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Save, Edit, User, Cake, Shield } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type CharacterCreationFormProps = {
   gameData: GameData;
@@ -162,7 +163,19 @@ export function CharacterCreationForm({
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                            <div className="relative">
                               <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input placeholder="Gender" className="pl-8" value={preferences[char.id]?.gender || ''} onChange={e => handlePreferenceChange(char.id, 'gender', e.target.value)} />
+                              <Select value={preferences[char.id]?.gender || ''} onValueChange={value => handlePreferenceChange(char.id, 'gender', value)}>
+                                <SelectTrigger className="pl-8">
+                                  <SelectValue placeholder="Gender" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Female">Female</SelectItem>
+                                  <SelectItem value="Male">Male</SelectItem>
+                                  <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                  <SelectItem value="Gender-fluid">Gender-fluid</SelectItem>
+                                  <SelectItem value="Agender">Agender</SelectItem>
+                                  <SelectItem value="Other">Other / Not Specified</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="relative">
                                <Cake className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
