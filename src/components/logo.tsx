@@ -7,7 +7,7 @@ export const Logo = ({ className, ...props }: LogoProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 100 100"
-    className={cn('h-8 w-8', className)}
+    className={cn('h-12 w-12', className)}
     {...props}
   >
     <defs>
@@ -29,10 +29,10 @@ export const Logo = ({ className, ...props }: LogoProps) => (
       <rect x="45" y="45" width="40" height="40" rx="5" fill="currentColor" />
        <text
         x="65"
-        y="70"
+        y="72"
         fontFamily="Space Grotesk, sans-serif"
         fontWeight="bold"
-        fontSize="24"
+        fontSize="28"
         fill="white"
         textAnchor="middle"
         filter="url(#ai-glow)"

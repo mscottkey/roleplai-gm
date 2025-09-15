@@ -28,7 +28,7 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
       <Card className="w-full max-w-md mx-4 shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-4xl text-primary flex justify-center items-center gap-3">
-            <Logo className="h-10 w-10 text-primary" />
+            <Logo className="h-12 w-12 text-primary" />
             RoleplAI GM
             </CardTitle>
           <CardDescription className="pt-2">

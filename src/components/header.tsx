@@ -11,7 +11,7 @@ export function Header({ onOpenDrawer }: HeaderProps) {
   return (
     <header className="flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
       <div className="flex items-center gap-3">
-        <Logo className="h-7 w-7 text-primary" />
+        <Logo className="h-8 w-8 text-primary" />
         <h1 className="text-xl font-headline font-bold text-primary">RoleplAI GM</h1>
       </div>
       <div className="flex items-center gap-2">
