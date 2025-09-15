@@ -20,18 +20,18 @@ const prompt = ai.definePrompt({
   name: 'generateCharacterPrompt',
   input: {schema: GenerateCharacterInputSchema},
   output: {schema: GenerateCharacterOutputSchema},
-  prompt: `You are an expert game master creating compelling characters for a tabletop RPG. Based on the provided information, generate a unique character for each slot defined in the \`characterSlots\` array. Ensure that all generated character names are unique and do not match any names in the optional \`existingNames\` list.
+  prompt: `You are an expert game master creating compelling characters for a tabletop RPG. Based on the provided information, generate a unique character for each slot defined in the \`characterSlots\` array.
 
 Game Setting: {{{setting}}}
 Game Tone: {{{tone}}}
-{{#if existingNames}}
-Existing Character Names to Avoid:
-{{#each existingNames}}
-- {{{this}}}
+{{#if existingCharacters}}
+Existing Party Members (avoid creating similar characters):
+{{#each existingCharacters}}
+- Name: {{{this.name}}} (Role: {{{this.archetype}}}) - {{{this.description}}}
 {{/each}}
 {{/if}}
 
-For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. Return the original \`slotId\` for each slot so the characters can be matched up.
+For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. The generated character should be thematically distinct from any existing party members. Ensure all generated character names are also unique.
 
 {{#each characterSlots}}
 - Slot ID: {{{this.id}}}

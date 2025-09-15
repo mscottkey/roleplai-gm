@@ -19,11 +19,17 @@ const CharacterSlotSchema = z.object({
   archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").'),
 });
 
+const ExistingCharacterSchema = z.object({
+  name: z.string(),
+  archetype: z.string().optional(),
+  description: z.string(),
+});
+
 export const GenerateCharacterInputSchema = z.object({
   setting: z.string().describe('The game setting description.'),
   tone: z.string().describe('The game tone description.'),
   characterSlots: z.array(CharacterSlotSchema).describe('An array of character slots to be filled, each with its own optional preferences.'),
-  existingNames: z.array(z.string()).optional().describe('An optional list of existing character names to avoid generating duplicates.'),
+  existingCharacters: z.array(ExistingCharacterSchema).optional().describe('An optional list of existing characters in the party to ensure the new character is unique in concept.'),
 });
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 

@@ -138,35 +138,43 @@ export function CharacterCreationForm({
     setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
       const charPrefs = preferences[characterId] || {};
-      const existingNames = characters
+      const existingCharacters = characters
         .filter(c => c.id !== characterId && c.name)
-        .map(c => c.name);
+        .map(c => ({
+            name: c.name,
+            archetype: c.archetype,
+            description: c.description,
+        }));
       
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
         characterSlots: [{ id: characterId, ...charPrefs }],
-        existingNames: existingNames,
+        existingCharacters: existingCharacters,
       });
 
-      const newChar = result.characters[0];
-      setCharacters(prev =>
-        prev.map(c =>
-          c.id === characterId
-            ? { ...c, ...newChar, isCustom: false }
-            : c
-        )
-      );
+      if (result.characters.length > 0) {
+        const newChar = result.characters[0];
+        setCharacters(prev =>
+          prev.map(c =>
+            c.id === characterId
+              ? { ...c, ...newChar, isCustom: false }
+              : c
+          )
+        );
 
-      // Update preferences for the regenerated character
-      setPreferences(prev => ({
-        ...prev,
-        [characterId]: {
-          gender: newChar.gender || '',
-          age: newChar.age || '',
-          archetype: newChar.archetype || '',
-        }
-      }));
+        // Update preferences for the regenerated character
+        setPreferences(prev => ({
+          ...prev,
+          [characterId]: {
+            gender: newChar.gender || '',
+            age: newChar.age || '',
+            archetype: newChar.archetype || '',
+          }
+        }));
+      } else {
+        throw new Error("The AI failed to return a character.");
+      }
 
     } catch (error) {
        const err = error as Error;
@@ -414,7 +422,4 @@ export function CharacterCreationForm({
       </Card>
     </div>
   );
-
-    
-
-
+}
