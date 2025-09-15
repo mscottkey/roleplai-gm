@@ -4,6 +4,9 @@ import { generateNewGame, GenerateNewGameInput, GenerateNewGameOutput } from "@/
 import { resolveAction, ResolveActionInput, ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
+import { classifyIntent, ClassifyIntentOutput, ClassifyIntentInput } from "@/ai/flows/classify-intent";
+import { askQuestion, AskQuestionInput, AskQuestionOutput } from "@/ai/flows/ask-question";
+
 import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
 import type { UpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 
@@ -40,5 +43,23 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   } catch (error) {
     console.error("Error in updateWorldState action:", error);
     throw new Error("Failed to update the world state. Please try again.");
+  }
+}
+
+export async function routePlayerInput(playerInput: string): Promise<ClassifyIntentOutput> {
+  try {
+    return await classifyIntent({ playerInput });
+  } catch (error) {
+    console.error("Error in routePlayerInput action:", error);
+    throw new Error("Failed to classify player intent. Please try again.");
+  }
+}
+
+export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
+  try {
+    return await askQuestion(input);
+  } catch (error) {
+    console.error("Error in getAnswerToQuestion action:", error);
+    throw new Error("Failed to get an answer from the GM. Please try again.");
   }
 }

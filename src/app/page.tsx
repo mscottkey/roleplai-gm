@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -100,7 +100,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
   }
 
 
-  const handleSendMessage = async (playerAction: string) => {
+  const handleSendMessage = async (playerInput: string) => {
     if (!activeCharacter || !worldState) {
         toast({
             variant: "destructive",
@@ -109,49 +109,66 @@ The stage is set, and the heroes are ready. What happens first is up to you.
         });
         return;
     }
-    const userMessageContent = `**${activeCharacter.name} (${activeCharacter.playerName})**: ${playerAction}`;
+    const userMessageContent = `**${activeCharacter.name} (${activeCharacter.playerName})**: ${playerInput}`;
     const newMessages: Message[] = [...messages, { role: 'user', content: userMessageContent }];
     setMessages(newMessages);
     setIsLoading(true);
 
     try {
-      const response = await continueStory({
-        actionDescription: playerAction,
-        worldState,
-        character: activeCharacter,
-        ruleAdapter: 'FateCore', 
-        mechanicsVisibility,
-      });
+      const { intent } = await routePlayerInput(playerInput);
+      
+      let assistantMessage: Message;
 
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.narrativeResult,
-        mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
-      };
+      if (intent === 'Action') {
+        const response = await continueStory({
+          actionDescription: playerInput,
+          worldState,
+          character: activeCharacter,
+          ruleAdapter: 'FateCore', 
+          mechanicsVisibility,
+        });
+
+        assistantMessage = {
+          role: 'assistant',
+          content: response.narrativeResult,
+          mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
+        };
+        
+        // Kick off the world state update in the background.
+        updateWorldState({
+            worldState,
+            playerAction: {
+              characterName: activeCharacter.name,
+              action: playerInput,
+            },
+            gmResponse: response.narrativeResult
+        }).then(newWorldState => {
+            setWorldState(newWorldState);
+        }).catch(err => {
+            console.error("Failed to update world state:", err);
+            // Non-critical, so we just log the error.
+        });
+
+      } else { // Intent is 'Question'
+        const response = await getAnswerToQuestion({
+          question: playerInput,
+          worldState,
+        });
+
+        assistantMessage = {
+          role: 'assistant',
+          content: response.answer,
+        };
+      }
       
       setMessages([...newMessages, assistantMessage]);
 
-      // Kick off the world state update in the background. No need to await it.
-      updateWorldState({
-          worldState,
-          playerAction: {
-            characterName: activeCharacter.name,
-            action: playerAction,
-          },
-          gmResponse: response.narrativeResult
-      }).then(newWorldState => {
-          setWorldState(newWorldState);
-      }).catch(err => {
-          console.error("Failed to update world state:", err);
-          // Non-critical, so we just log the error.
-      });
-
     } catch (error) {
        const err = error as Error;
-       console.error("Failed to get narration:", err);
+       console.error("Failed to process input:", err);
        toast({
          variant: "destructive",
-         title: "Failed to Continue Story",
+         title: "Error",
          description: err.message || "An unknown error occurred.",
        });
        setMessages(messages);
