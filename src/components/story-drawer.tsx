@@ -200,7 +200,7 @@ export function StoryDrawer({
                         </div>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="Full" id="vis-full" />
-                            <Label htmlFor="vis-full">Full (Rolls & resources)</Label>
+                            <Label htmlFor="vis-full">Full (Rolls &amp; resources)</Label>
                         </div>
                     </RadioGroup>
                 </div>

@@ -25,10 +25,7 @@ export type Character = {
 };
 
 export type GameData = GenerateNewGameOutput & {
-  name: string;
   characters?: Character[];
-  places?: any[];
-  aspects?: string[];
   campaignStructure?: CampaignStructure;
 };
 
