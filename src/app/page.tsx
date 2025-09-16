@@ -29,21 +29,30 @@ const normalizeOrderedList = (s: string) => {
 
 const normalizeInlineBulletsInSections = (md: string) => {
   if (!md) return md;
-  // If bullets were jammed inline like: "Key Factions: * A * B * C"
-  // turn them into real list lines ONLY for the named sections.
+  // This function fixes lists that the AI generates "inline", like:
+  // "Key Factions: - Faction A - Faction B"
+  // and turns them into a proper markdown list.
   const fixLine = (title: string, text: string) => {
-    const re = new RegExp(`(${title}:)\\s*(.*)`, 'i');
-    return text.replace(re, (_m, t, rest) => {
-      const fixed = rest
-        // turn " * " or "* " into "\n- " but only in this captured section tail
-        .replace(/\s*\*\s+/g, '\n- ')
-        .trim();
-      return `${t}\n${fixed}`;
+    const re = new RegExp(`(${title}:)(.*)`, 'ims');
+    return text.replace(re, (_m, a, b) => {
+      const listItems = b
+        // Split by either '*' or '-' bullet points, ignoring surrounding whitespace
+        .split(/\s*[\*-]\s*/)
+        // Remove any empty strings that result from the split
+        .filter(item => item.trim().length > 0)
+        // Format each item as a proper markdown list item
+        .map(item => `- ${item.trim()}`)
+        .join('\n');
+      
+      // Return the title followed by the formatted list
+      return `${a.trim()}\n\n${listItems}`;
     });
   };
-  md = fixLine('Key Factions', md);
-  md = fixLine('Notable Locations', md);
-  return md;
+
+  let processedMd = md;
+  processedMd = fixLine('Key Factions', processedMd);
+  processedMd = fixLine('Notable Locations', processedMd);
+  return processedMd;
 };
 
 
