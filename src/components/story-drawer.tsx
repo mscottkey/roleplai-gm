@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -36,6 +37,16 @@ import { Badge } from "./ui/badge";
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
+
+type StoryDrawerProps = {
+    isOpen: boolean;
+    onOpenChange: (isOpen: boolean) => void;
+    gameData: GameData;
+    worldState: WorldState | null;
+    mechanicsVisibility: MechanicsVisibility;
+    setMechanicsVisibility: (value: MechanicsVisibility) => void;
+};
+
 
 export function StoryDrawer({
     isOpen,
@@ -115,7 +126,7 @@ export function StoryDrawer({
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground space-y-4">
                 {gameData.characters && gameData.characters.length > 0 ? (
-                    gameData.characters.map(char => (
+                    gameData.characters.map((char, index) => (
                         <div key={char.id} className="text-sm space-y-2 not-prose">
                             <p className="font-bold text-foreground">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
                             <p>{char.description}</p>
