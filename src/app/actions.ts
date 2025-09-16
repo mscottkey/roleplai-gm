@@ -27,15 +27,11 @@ export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
 
 
 export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput }> {
-  console.log("Attempting to start new game with input:", input.request);
   try {
-    console.log("Calling generateNewGameFlow...");
     const newGame = await generateNewGameFlow({ request: input.request });
-    console.log("Successfully received new game data from AI:", newGame);
     
     const db = getFirestore();
     const gameRef = doc(collection(db, 'games'));
-    console.log("Generated new gameRef with ID:", gameRef.id);
 
     const initialWorldState: z.infer<typeof WorldStateSchema> = {
       summary: `The game is a ${newGame.tone} adventure set in ${newGame.setting}.`,
@@ -45,7 +41,6 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       places: [],
       storyAspects: [],
     };
-    console.log("Constructed initial world state.");
 
     const newGameDocument = {
       userId: input.userId,
@@ -62,9 +57,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       activeCharacterId: null,
     };
     
-    console.log("Attempting to write new game document to Firestore...");
     await setDoc(gameRef, newGameDocument);
-    console.log("Successfully wrote to Firestore.");
 
     return { gameId: gameRef.id, newGame };
 
