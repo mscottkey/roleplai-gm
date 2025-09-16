@@ -1,5 +1,24 @@
 import {z} from 'genkit';
 
+export const SkillSchema = z.object({
+  name: z.string().describe('The name of the skill.'),
+  rank: z.number().int().describe('The numerical rank or bonus for the skill.'),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
+export const StuntSchema = z.object({
+  name: z.string().describe('The name of the stunt or special ability.'),
+  description: z.string().describe('The mechanical description of what the stunt does.'),
+});
+export type Stunt = z.infer<typeof StuntSchema>;
+
+const CharacterStatsSchema = z.object({
+  skills: z.array(SkillSchema).optional().describe("An array of the character's skills, each with a name and rank."),
+  stunts: z.array(StuntSchema).optional().describe("An array of the character's stunts or special abilities."),
+}).describe("A flexible object to hold system-specific character mechanics.");
+export type CharacterStats = z.infer<typeof CharacterStatsSchema>;
+
+
 export const CharacterSchema = z.object({
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
@@ -7,7 +26,7 @@ export const CharacterSchema = z.object({
     gender: z.string().optional().describe("The character's gender."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
-    stats: z.record(z.any()).optional().describe("A flexible object to hold system-specific character mechanics, such as skills, stunts, attributes, etc. For Fate Core, this should contain 'skills' and 'stunts' arrays."),
+    stats: CharacterStatsSchema.optional(),
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });
 export type Character = z.infer<typeof CharacterSchema>;
