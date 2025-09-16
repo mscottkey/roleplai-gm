@@ -122,11 +122,19 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
 }
 
 export async function createCharacter(input: GenerateCharacterInput): Promise<GenerateCharacterOutput> {
+    console.log("Attempting to create character with input:", JSON.stringify(input, null, 2));
     try {
-        return await generateCharacterFlow(input);
+        const result = await generateCharacterFlow(input);
+        console.log("Successfully generated characters:", JSON.stringify(result, null, 2));
+        return result;
     } catch (error) {
-        console.error("Error in createCharacter action:", error);
-        throw new Error("Failed to generate characters. Please try again.");
+        console.error("Full error in createCharacter action:", error);
+        if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
+            throw new Error(`Failed to generate characters: ${error.message}`);
+        }
+        throw new Error("Failed to generate characters. An unknown error occurred.");
     }
 }
 
