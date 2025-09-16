@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -186,7 +185,16 @@ export default function RoleplAIGMPage() {
 
     setIsLoading(true);
     try {
-      const { gameId, newGame } = await startNewGame({ request, userId: user.uid });
+      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid });
+      
+      if (warningMessage) {
+        toast({
+          title: "Request Modified",
+          description: warningMessage,
+          duration: 6000,
+        });
+      }
+
       router.push(`/?game=${gameId}`);
       setActiveGameId(gameId); // This will trigger the snapshot listener
     } catch (error) {

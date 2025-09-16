@@ -8,6 +8,7 @@ import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-i
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { estimateCost as estimateCostFlow, type EstimateCostInput, type EstimateCostOutput } from "@/ai/flows/estimate-cost";
+import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
@@ -48,11 +49,17 @@ const ClassifyIntentInputSchema = z.object({
 export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
 
 
-export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput }> {
+export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
   try {
     console.log("Starting new game for user:", input.userId);
-    
-    const newGame = await generateNewGameFlow({ request: input.request });
+    console.log("Original request:", input.request);
+
+    // 1. Sanitize the request for IP
+    const ipCheck = await sanitizeIpFlow({ request: input.request });
+    console.log("IP Check complete. Sanitized request:", ipCheck.sanitizedRequest);
+
+    // 2. Generate the game using the (potentially sanitized) request
+    const newGame = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
     console.log("Game generated successfully:", newGame);
     
     const app = getServerApp();
@@ -91,7 +98,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     await setDoc(gameRef, newGameDocument);
     console.log("Game document saved successfully!");
 
-    return { gameId: gameRef.id, newGame };
+    // 3. Return the game data and any warning message
+    return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
   } catch (error) {
     console.error("Critical error in startNewGame action:", error);
@@ -180,7 +188,8 @@ export async function routePlayerInput(input: ClassifyIntentInput): Promise<Clas
 export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
   try {
     return await askQuestion(input);
-  } catch (error) {
+  } catch (error)
+{
     console.error("Error in getAnswerToQuestion action:", error);
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
