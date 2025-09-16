@@ -46,7 +46,7 @@ You have a complete memory of the game world. Use it to inform your answer.
 The character asking is: {{{character.name}}}
 Player's Question: {{{question}}}
 
-Address your answer directly to the character asking the question (e.g., "Kaito, you notice...").
+Address your answer directly to the character asking the question (e.g., "Kaito, you notice..."). For any spoken dialogue in your response, you must use double quotes ("").
 
 If the question is open-ended (e.g., "What should we do?", "Where can we go?"), respond like a helpful GM by pointing out the most obvious courses of action for that character and their party based on the Story Outline and Recent Events. You might ask a clarifying question back to the players to help them decide.
 

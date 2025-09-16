@@ -52,7 +52,7 @@ Player Action: {{{actionDescription}}}
 Rules Adapter: {{{ruleAdapter}}}
 Mechanics Visibility: {{{mechanicsVisibility}}}
 
-Based on the world state and the player's action, resolve the action and provide a narrative result. The narration should be evocative, move the story forward, and be consistent with the established world. If mechanics visibility is Full or Minimal, provide mechanics details as well. The narrative result should be from the perspective of the GM, describing what happens.
+Based on the world state and the player's action, resolve the action and provide a narrative result. The narration should be evocative, move the story forward, and be consistent with the established world. For any spoken dialogue in your response, you must use double quotes (""). If mechanics visibility is Full or Minimal, provide mechanics details as well. The narrative result should be from the perspective of the GM, describing what happens.
 `,
 });
 
