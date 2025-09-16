@@ -47,6 +47,18 @@ type StoryDrawerProps = {
     setMechanicsVisibility: (value: MechanicsVisibility) => void;
 };
 
+const getSkillDisplay = (rank: number, visibility: MechanicsVisibility) => {
+    if (visibility === 'Full') {
+        return `+${rank}`;
+    }
+    switch (rank) {
+        case 1: return 'Average';
+        case 2: return 'Fair';
+        case 3: return 'Good';
+        case 4: return 'Great';
+        default: return `+${rank}`;
+    }
+}
 
 export function StoryDrawer({
     isOpen,
@@ -138,7 +150,7 @@ export function StoryDrawer({
                                     <div className="flex flex-wrap gap-1">
                                         {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
                                             <Badge key={skill.name} variant="secondary" className="text-xs">
-                                                {skill.name} +{skill.rank}
+                                                {skill.name} ({getSkillDisplay(skill.rank, mechanicsVisibility)})
                                             </Badge>
                                         ))}
                                     </div>

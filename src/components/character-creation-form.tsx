@@ -55,6 +55,16 @@ type CharacterPreferences = {
   archetype?: string;
 };
 
+const getSkillDisplay = (rank: number) => {
+    switch (rank) {
+        case 1: return 'Average';
+        case 2: return 'Fair';
+        case 3: return 'Good';
+        case 4: return 'Great';
+        default: return `+${rank}`;
+    }
+}
+
 const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
   <div className="space-y-4 text-left">
     <div>
@@ -72,7 +82,7 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
         <div className="flex flex-wrap gap-1">
           {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
             <Badge key={skill.name} variant="secondary" className="text-xs">
-              {skill.name} +{skill.rank}
+              {skill.name} ({getSkillDisplay(skill.rank)})
             </Badge>
           ))}
         </div>
