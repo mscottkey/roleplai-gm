@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
 import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { LoadingSpinner } from '@/components/icons';
+import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
 import { GameSession } from '@/app/lib/types';
 
@@ -84,6 +84,7 @@ export default function RoleplAIGMPage() {
     if (!user) {
       // The login page is now responsible for handling the auth flow.
       // This page assumes a user is logged in.
+      router.push('/login');
       return;
     }
 
@@ -174,15 +175,16 @@ export default function RoleplAIGMPage() {
   
   if (authLoading || step === 'loading') {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <LoadingSpinner className="h-12 w-12" />
+      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+        <BrandedLoadingSpinner className="h-24 w-24" />
+        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
       </div>
     );
   }
   
   if (!user) {
-    // This case should be handled by the /login page,
-    // but as a fallback, show a loading or locked state.
+    // This case is handled by the useEffect above which redirects to /login
+    // It's good practice to have a fallback.
     return <LoginForm />;
   }
 
