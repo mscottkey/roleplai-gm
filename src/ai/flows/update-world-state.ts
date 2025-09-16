@@ -26,8 +26,10 @@ Current World State:
 - Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
 - Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
 - Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
+- All Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
+- Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
+- Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 
 Latest Game Event:
 - Player: {{{playerAction.characterName}}}
@@ -35,12 +37,14 @@ Latest Game Event:
 - GM Narration: {{{gmResponse}}}
 
 Your task is to return a NEW, UPDATED world state object.
-1. summary: Briefly update the summary to reflect the latest major developments.
-2. storyOutline: Review the existing outline. If the latest event addresses or completes a point, remove it. If the event introduces a new clear path, add a new point. Do not add vague points.
-3. recentEvents: Add a new, concise summary of this event to the top of the list. Keep the list to a maximum of 5 events, removing the oldest if necessary.
-4. characters: Do not modify characters. This is handled elsewhere.
-5. places: If the narration introduced a new, significant named location, add it to the list with a brief description.
-6. storyAspects: If the narration introduced a new, important story element, theme, or recurring concept (like a mysterious organization or a strange magical effect), add it to the list.
+1.  **summary**: Briefly update the summary to reflect the latest major developments.
+2.  **storyOutline**: Review the existing outline. If the latest event addresses or completes a point, remove it. If the event introduces a new clear path, add a new point. Do not add vague points.
+3.  **recentEvents**: Add a new, concise summary of this event to the top of the list. Keep the list to a maximum of 5 events, removing the oldest if necessary.
+4.  **characters**: Do not modify characters. This is handled elsewhere.
+5.  **places**: If the narration introduced a new, significant named location, add it to the list with a brief description.
+6.  **knownPlaces**: If the narration or event resulted in the players learning about a new location from the main 'places' list, add it here.
+7.  **knownFactions**: If the narration or event resulted in the players learning about a faction, add it here.
+8.  **storyAspects**: If the narration introduced a new, important story element, theme, or recurring concept (like a mysterious organization or a strange magical effect), add it to the list.
 `,
 });
 
@@ -60,6 +64,8 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.characters = updatedOutput.characters || [];
     updatedOutput.places = updatedOutput.places || [];
     updatedOutput.storyAspects = updatedOutput.storyAspects || [];
+    updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
+    updatedOutput.knownFactions = updatedOutput.knownFactions || [];
 
     return updatedOutput;
   }

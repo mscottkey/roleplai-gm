@@ -18,24 +18,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
-    BookText,
     Users,
     MapPin,
-    Sparkles,
     Settings2,
-    FileText,
-    ListTodo,
-    History,
     GraduationCap,
     Star,
-    Shield,
-    Clock,
-    Flag,
-    Goal
+    Sparkles as StuntIcon,
+    Globe
 } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 import { Badge } from "./ui/badge";
 
 
@@ -72,88 +62,30 @@ export function StoryDrawer({
     mechanicsVisibility,
     setMechanicsVisibility
 }: StoryDrawerProps) {
-    const { campaignStructure } = gameData;
+    const { characters } = gameData;
+    const { knownPlaces, knownFactions } = worldState ?? {};
     
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="p-6 pb-4">
-          <SheetTitle className="font-headline">Story & World</SheetTitle>
-          <SheetDescription>Your campaign's details at a glance.</SheetDescription>
+          <SheetTitle className="font-headline">Player Notes</SheetTitle>
+          <SheetDescription>Your party's characters and discoveries.</SheetDescription>
         </SheetHeader>
         <Separator />
         <div className="flex-1 overflow-y-auto p-6">
-          <Accordion type="multiple" defaultValue={['campaign', 'characters']} className="w-full">
-            
-             <AccordionItem value="campaign">
-              <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                  <BookText className="h-4 w-4" />
-                  <span>Campaign Info</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 pt-2">
-                
-                {campaignStructure ? (
-                    <>
-                        <div>
-                            <h4 className="font-bold text-foreground flex items-center gap-2"><Goal className="h-4 w-4" />Campaign Issues</h4>
-                            <ul className="list-disc pl-5">
-                                {campaignStructure.campaignIssues.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-foreground flex items-center gap-2"><Flag className="h-4 w-4" />Campaign Aspects</h4>
-                            <ul className="list-disc pl-5">
-                                {campaignStructure.campaignAspects.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-foreground flex items-center gap-2"><Shield className="h-4 w-4" />Factions & Clocks</h4>
-                            {campaignStructure.factions.map((faction, i) => (
-                                <div key={i} className="not-prose mt-2">
-                                    <p className="font-semibold text-foreground">{faction.name}</p>
-                                    <p className="text-xs italic">{faction.description}</p>
-                                    <p className="text-xs mt-1 flex items-center gap-1"><Clock className="h-3 w-3"/> <strong>Clock:</strong> {faction.clock.value} / {faction.clock.max} - {faction.clock.objective}</p>
-                                </div>
-                            ))}
-                        </div>
-                         <div>
-                            <h4 className="font-bold text-foreground flex items-center gap-2"><MapPin className="h-4 w-4" />Situation Nodes</h4>
-                            <ul className="list-disc pl-5">
-                                {campaignStructure.nodes.map((node, i) => <li key={i} className="font-semibold">{node.title}</li>)}
-                            </ul>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div>
-                          <h4 className="font-bold text-foreground">Setting</h4>
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.setting}</ReactMarkdown>
-                        </div>
-                         <div>
-                          <h4 className="font-bold text-foreground">Tone</h4>
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.tone}</ReactMarkdown>
-                        </div>
-                         <div>
-                          <h4 className="font-bold text-foreground">Initial Hooks</h4>
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.initialHooks}</ReactMarkdown>
-                        </div>
-                    </>
-                )}
-              </AccordionContent>
-            </AccordionItem>
+          <Accordion type="multiple" defaultValue={['characters']} className="w-full">
 
             <AccordionItem value="characters">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  <span>Characters</span>
+                  <span>The Party</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground space-y-4 pt-2">
-                {gameData.characters && gameData.characters.length > 0 ? (
-                    gameData.characters.map((char, index) => (
+                {characters && characters.length > 0 ? (
+                    characters.map((char, index) => (
                         <div key={char.id} className="text-sm space-y-2 not-prose">
                             <p className="font-bold text-foreground">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
                             <p>{char.description}</p>
@@ -174,7 +106,7 @@ export function StoryDrawer({
 
                              {char.stunts && char.stunts.length > 0 && (
                                 <div>
-                                    <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><Sparkles className="h-3 w-3"/> Stunts</h5>
+                                    <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><StuntIcon className="h-3 w-3"/> Stunts</h5>
                                     <ul className="list-disc pl-4 text-xs space-y-1">
                                       {char.stunts.map(stunt => (
                                         <li key={stunt.name}><strong>{stunt.name}:</strong> {stunt.description}</li>
@@ -182,47 +114,41 @@ export function StoryDrawer({
                                     </ul>
                                 </div>
                             )}
-                            { index < gameData.characters.length - 1 && <Separator className="mt-4" /> }
+                            { index < characters.length - 1 && <Separator className="mt-4" /> }
                         </div>
                     ))
                 ) : (
-                    "Character information will appear here."
+                    "Your party will be assembled soon."
                 )}
               </AccordionContent>
             </AccordionItem>
             
-            <AccordionItem value="world-state">
+            <AccordionItem value="world">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="font-bold">AI Game State</span>
+                  <Globe className="h-4 w-4" />
+                  <span>Known World</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 pt-2">
-                <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" />Summary</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{worldState?.summary ?? "Not yet available."}</ReactMarkdown>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><ListTodo className="h-4 w-4" />Story Outline</h4>
-                   <ul className="list-disc pl-5">
-                       {worldState?.storyOutline?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
-                   </ul>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><History className="h-4 w-4" />Recent Events</h4>
-                   <ul className="list-disc pl-5">
-                       {worldState?.recentEvents?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
-                   </ul>
-                </div>
                  <div>
                   <h4 className="font-bold text-foreground flex items-center gap-2"><MapPin className="h-4 w-4" />Known Places</h4>
-                    {worldState?.places && worldState.places.length > 0 ? (
+                    {(knownPlaces && knownPlaces.length > 0) ? (
                         <ul className="list-disc pl-5">
-                        {worldState.places.map((place, i) => <li key={i}>{place.name}</li>)}
+                        {knownPlaces.map((place, i) => <li key={i}>{place.name}: {place.description}</li>)}
                         </ul>
                     ) : (
                         "No significant places discovered yet."
+                    )}
+                 </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><Users className="h-4 w-4" />Known Factions</h4>
+                    {(knownFactions && knownFactions.length > 0) ? (
+                        <ul className="list-disc pl-5">
+                        {knownFactions.map((faction, i) => <li key={i}>{faction.name}: {faction.description}</li>)}
+                        </ul>
+                    ) : (
+                        "No significant factions discovered yet."
                     )}
                  </div>
               </AccordionContent>

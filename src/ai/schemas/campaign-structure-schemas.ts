@@ -8,11 +8,13 @@ const FactionClockSchema = z.object({
     steps: z.array(z.string()).length(4).describe('An array of 4 strings, where each string describes what happens as the clock ticks from 1 to 4.')
 });
 
-const FactionSchema = z.object({
+export const FactionSchema = z.object({
     name: z.string().describe('The name of the faction or threat.'),
     description: z.string().describe('A one-sentence description of the faction.'),
     clock: FactionClockSchema.describe("The faction's project clock."),
 });
+export type Faction = z.infer<typeof FactionSchema>;
+
 
 const NodeSchema = z.object({
     title: z.string().describe('A clear, evocative name for the node (e.g., "The Gilded Cage Casino").'),
