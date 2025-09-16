@@ -6,6 +6,8 @@ import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-
 import { updateWorldState as updateWorldStateFlow, UpdateWorldStateOutput } from "@/ai/flows/update-world-state";
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
+import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
+
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
 
@@ -178,4 +180,13 @@ export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQ
     console.error("Error in getAnswerToQuestion action:", error);
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
+}
+
+export async function generateCampaign(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
+    try {
+        return await generateCampaignStructureFlow(input);
+    } catch (error) {
+        console.error("Error in generateCampaign action:", error);
+        throw new Error("Failed to generate the campaign structure. Please try again.");
+    }
 }

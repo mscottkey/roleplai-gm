@@ -27,7 +27,11 @@ import {
     ListTodo,
     History,
     GraduationCap,
-    Star
+    Star,
+    Shield,
+    Clock,
+    Flag,
+    Goal
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -68,6 +72,8 @@ export function StoryDrawer({
     mechanicsVisibility,
     setMechanicsVisibility
 }: StoryDrawerProps) {
+    const { campaignStructure } = gameData;
+    
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
@@ -77,55 +83,64 @@ export function StoryDrawer({
         </SheetHeader>
         <Separator />
         <div className="flex-1 overflow-y-auto p-6">
-          <Accordion type="multiple" defaultValue={['world-state', 'campaign', 'characters', 'settings']} className="w-full">
+          <Accordion type="multiple" defaultValue={['campaign', 'characters']} className="w-full">
             
-            <AccordionItem value="world-state">
-              <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="font-bold">AI Game State</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
-                <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" />Summary</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{worldState?.summary ?? "Not yet available."}</ReactMarkdown>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><ListTodo className="h-4 w-4" />Story Outline</h4>
-                   <ul className="list-disc pl-5">
-                       {worldState?.storyOutline?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
-                   </ul>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground flex items-center gap-2"><History className="h-4 w-4" />Recent Events</h4>
-                   <ul className="list-disc pl-5">
-                       {worldState?.recentEvents?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
-                   </ul>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="campaign">
+             <AccordionItem value="campaign">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
                   <BookText className="h-4 w-4" />
                   <span>Campaign Info</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4">
-                <div>
-                  <h4 className="font-bold text-foreground">Setting</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.setting}</ReactMarkdown>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground">Tone</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.tone}</ReactMarkdown>
-                </div>
-                 <div>
-                  <h4 className="font-bold text-foreground">Initial Hooks</h4>
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.initialHooks}</ReactMarkdown>
-                </div>
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 pt-2">
+                
+                {campaignStructure ? (
+                    <>
+                        <div>
+                            <h4 className="font-bold text-foreground flex items-center gap-2"><Goal className="h-4 w-4" />Campaign Issues</h4>
+                            <ul className="list-disc pl-5">
+                                {campaignStructure.campaignIssues.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-foreground flex items-center gap-2"><Flag className="h-4 w-4" />Campaign Aspects</h4>
+                            <ul className="list-disc pl-5">
+                                {campaignStructure.campaignAspects.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-foreground flex items-center gap-2"><Shield className="h-4 w-4" />Factions & Clocks</h4>
+                            {campaignStructure.factions.map((faction, i) => (
+                                <div key={i} className="not-prose mt-2">
+                                    <p className="font-semibold text-foreground">{faction.name}</p>
+                                    <p className="text-xs italic">{faction.description}</p>
+                                    <p className="text-xs mt-1 flex items-center gap-1"><Clock className="h-3 w-3"/> <strong>Clock:</strong> {faction.clock.value} / {faction.clock.max} - {faction.clock.objective}</p>
+                                </div>
+                            ))}
+                        </div>
+                         <div>
+                            <h4 className="font-bold text-foreground flex items-center gap-2"><MapPin className="h-4 w-4" />Situation Nodes</h4>
+                            <ul className="list-disc pl-5">
+                                {campaignStructure.nodes.map((node, i) => <li key={i} className="font-semibold">{node.title}</li>)}
+                            </ul>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div>
+                          <h4 className="font-bold text-foreground">Setting</h4>
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.setting}</ReactMarkdown>
+                        </div>
+                         <div>
+                          <h4 className="font-bold text-foreground">Tone</h4>
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.tone}</ReactMarkdown>
+                        </div>
+                         <div>
+                          <h4 className="font-bold text-foreground">Initial Hooks</h4>
+                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{gameData.initialHooks}</ReactMarkdown>
+                        </div>
+                    </>
+                )}
               </AccordionContent>
             </AccordionItem>
 
@@ -136,7 +151,7 @@ export function StoryDrawer({
                   <span>Characters</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-4">
+              <AccordionContent className="text-muted-foreground space-y-4 pt-2">
                 {gameData.characters && gameData.characters.length > 0 ? (
                     gameData.characters.map((char, index) => (
                         <div key={char.id} className="text-sm space-y-2 not-prose">
@@ -176,24 +191,40 @@ export function StoryDrawer({
               </AccordionContent>
             </AccordionItem>
             
-            <AccordionItem value="places">
+            <AccordionItem value="world-state">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>Places</span>
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="font-bold">AI Game State</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">
-                 {worldState?.places && worldState.places.length > 0 ? (
-                    worldState.places.map((place, i) => (
-                        <div key={i} className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                            <p className="font-bold text-foreground not-prose">{place.name}</p>
-                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{place.description}</ReactMarkdown>
-                        </div>
-                    ))
-                ) : (
-                     "Important locations will be tracked here as they are discovered."
-                )}
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 pt-2">
+                <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" />Summary</h4>
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{worldState?.summary ?? "Not yet available."}</ReactMarkdown>
+                </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><ListTodo className="h-4 w-4" />Story Outline</h4>
+                   <ul className="list-disc pl-5">
+                       {worldState?.storyOutline?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
+                   </ul>
+                </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><History className="h-4 w-4" />Recent Events</h4>
+                   <ul className="list-disc pl-5">
+                       {worldState?.recentEvents?.map((item, i) => <li key={i}><ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{item}</ReactMarkdown></li>) ?? <li>Not yet available.</li>}
+                   </ul>
+                </div>
+                 <div>
+                  <h4 className="font-bold text-foreground flex items-center gap-2"><MapPin className="h-4 w-4" />Known Places</h4>
+                    {worldState?.places && worldState.places.length > 0 ? (
+                        <ul className="list-disc pl-5">
+                        {worldState.places.map((place, i) => <li key={i}>{place.name}</li>)}
+                        </ul>
+                    ) : (
+                        "No significant places discovered yet."
+                    )}
+                 </div>
               </AccordionContent>
             </AccordionItem>
             

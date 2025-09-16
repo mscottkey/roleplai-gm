@@ -47,6 +47,7 @@ type CharacterCreationFormProps = {
   gameData: GameData;
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
+  isLoading: boolean;
 };
 
 type CharacterPreferences = {
@@ -116,6 +117,7 @@ export function CharacterCreationForm({
   gameData,
   onCharactersFinalized,
   generateCharacterSuggestions,
+  isLoading,
 }: CharacterCreationFormProps) {
   const [characters, setCharacters] = useState<FormCharacter[]>(() => [
     {
@@ -490,11 +492,20 @@ archetype: char.archetype || '',
           <Button
             size="lg"
             onClick={handleFinalize}
-            disabled={!allReady || isGeneratingParty || !hasGenerated}
+            disabled={!allReady || isGeneratingParty || !hasGenerated || isLoading}
             className="font-headline text-xl"
           >
-            <Dices className="mr-2 h-5 w-5" />
-            Start Adventure
+             {isLoading ? (
+                <>
+                  <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
+                  Building World...
+                </>
+              ) : (
+                <>
+                  <Dices className="mr-2 h-5 w-5" />
+                  Start Adventure
+                </>
+              )}
           </Button>
         </CardFooter>
       </Card>

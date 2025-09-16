@@ -9,3 +9,5 @@ import '@/ai/flows/generate-character.ts';
 import '@/ai/flows/update-world-state.ts';
 import '@/ai/flows/classify-intent.ts';
 import '@/ai/flows/ask-question.ts';
+import '@/ai/flows/generate-campaign-structure.ts';
+

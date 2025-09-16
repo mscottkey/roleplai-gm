@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, generateCampaign } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -205,76 +205,116 @@ export default function RoleplAIGMPage() {
 
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
+    setIsLoading(true);
+    toast({ title: "Finalizing Characters", description: "Saving your party..." });
 
-    setActiveCharacter(finalCharacters[0]);
-    const updatedGameData = { ...gameData, characters: finalCharacters };
-    const updatedWorldState = {
-      ...worldState!,
-      characters: finalCharacters.map(c => ({
-        name: c.name,
-        description: c.description,
-        aspect: c.aspect,
-        playerName: c.playerName,
-        archetype: c.archetype,
-        gender: c.gender,
-        age: c.age,
-        skills: c.skills,
-        stunts: c.stunts,
-      }))
-    };
+    try {
+        setActiveCharacter(finalCharacters[0]);
+        let updatedGameData = { ...gameData, characters: finalCharacters };
+        
+        await updateWorldState({
+            gameId: activeGameId,
+            updates: {
+                'gameData.characters': finalCharacters,
+                'worldState.characters': finalCharacters.map(c => ({
+                    name: c.name,
+                    description: c.description,
+                    aspect: c.aspect,
+                    playerName: c.playerName,
+                    archetype: c.archetype,
+                    gender: c.gender,
+                    age: c.age,
+                    skills: c.skills,
+                    stunts: c.stunts,
+                })),
+                'activeCharacterId': finalCharacters[0].id,
+            }
+        });
 
-    setGameData(updatedGameData);
-    setWorldState(updatedWorldState);
-    setCharacters(finalCharacters);
-    
-    const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
-    const cleanedSetting = normalizeInlineBulletsInSections(updatedGameData.setting);
-    const cleanedTone = normalizeInlineBulletsInSections(updatedGameData.tone);
-    const cleanedHooks = normalizeOrderedList(updatedGameData.initialHooks);
+        toast({ title: "Generating Campaign...", description: "The AI is weaving a web of intrigue for your adventure." });
 
-    const initialMessageContent = `
+        const campaignStructure = await generateCampaign({
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characters: finalCharacters,
+        });
+
+        updatedGameData = { ...updatedGameData, campaignStructure };
+
+        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+        
+        const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
+        const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
+
+        const initialMessageContent = `
 # Welcome to your adventure!
 
 ## Setting
-${cleanedSetting}
+${normalizeInlineBulletsInSections(updatedGameData.setting)}
 
 ## Tone
-${cleanedTone}
+${normalizeInlineBulletsInSections(updatedGameData.tone)}
 
 ## Your Party
 ${characterList}
 
 ---
 
-## The Adventure Begins...
+${initialScene}
 
-${cleanedHooks}
-
-The stage is set, and the heroes are ready. What happens first is up to you.
+The stage is set. What do you do?
 `.trim();
 
-    const initialMessage: Message = { role: 'assistant', content: initialMessageContent };
-    const newMessages = [initialMessage];
-    const newStoryMessages = [{ content: initialMessageContent }];
-    setMessages(newMessages);
-    setStoryMessages(newStoryMessages);
+        const initialMessage: Message = { role: 'assistant', content: initialMessageContent };
+        const newMessages = [initialMessage];
+        const newStoryMessages = [{ content: initialMessageContent }];
 
-    try {
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: {
-          'gameData.characters': finalCharacters,
-          worldState: updatedWorldState,
-          messages: newMessages,
-          storyMessages: newStoryMessages,
-          step: 'play',
-          activeCharacterId: finalCharacters[0].id,
-        }
-      });
-      setStep('play');
+        await updateWorldState({
+            gameId: activeGameId,
+            updates: {
+                gameData: updatedGameData,
+                'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+                'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
+                'worldState.recentEvents': ["The adventure has just begun."],
+                'worldState.storyAspects': campaignStructure.campaignAspects,
+                messages: newMessages,
+                storyMessages: newStoryMessages,
+                step: 'play',
+            }
+        });
+
+        // The listener will update the state, but we can set it preemptively
+        setGameData(updatedGameData);
+        setWorldState(prev => ({
+            ...prev!,
+            summary: `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+            storyOutline: campaignStructure.nodes.map(n => n.title),
+            recentEvents: ["The adventure has just begun."],
+            storyAspects: campaignStructure.campaignAspects,
+            characters: finalCharacters.map(c => ({
+                    name: c.name,
+                    description: c.description,
+                    aspect: c.aspect,
+                    playerName: c.playerName,
+                    archetype: c.archetype,
+                    gender: c.gender,
+                    age: c.age,
+                    skills: c.skills,
+                    stunts: c.stunts,
+                })),
+        }));
+        setMessages(newMessages);
+        setStoryMessages(newStoryMessages);
+        setCharacters(finalCharacters);
+        setStep('play');
+
+        toast({ title: "Adventure Ready!", description: "Your new campaign is ready to play." });
     } catch (error) {
-      console.error("Failed to save characters:", error);
-      toast({ variant: 'destructive', title: 'Save Error', description: 'Could not save finalized characters.' });
+        const err = error as Error;
+        console.error("Failed to finalize characters and generate campaign:", err);
+        toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -396,6 +436,7 @@ The stage is set, and the heroes are ready. What happens first is up to you.
             gameData={gameData!}
             onCharactersFinalized={handleCharactersFinalized}
             generateCharacterSuggestions={createCharacter}
+            isLoading={isLoading}
           />
         );
       case 'play':
