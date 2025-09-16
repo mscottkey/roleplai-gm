@@ -33,6 +33,7 @@ const prompt = ai.definePrompt({
   name: 'generateNewGamePrompt',
   input: { schema: GenerateNewGameInputSchema },
   output: { schema: GenerateNewGameOutputSchema, format: 'json' },
+  model: 'googleai/gemini-2.5-flash',
   prompt: `
 You are an expert tabletop Game Master and narrative designer.
 
@@ -72,4 +73,5 @@ const generateNewGameFlow = ai.defineFlow(
     return output!;
   }
 );
+
 

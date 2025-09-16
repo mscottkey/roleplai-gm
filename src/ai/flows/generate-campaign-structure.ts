@@ -24,6 +24,7 @@ const prompt = ai.definePrompt({
   name: 'generateCampaignStructurePrompt',
   input: {schema: GenerateCampaignStructureInputSchema},
   output: {schema: CampaignStructureSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are an expert Game Master and narrative designer specializing in the Fate Core system. Your task is to flesh out a compelling campaign starter based on the provided setting, tone, and player characters. Use the "situation web" model, not a linear plot.
 
 ## Game Concept

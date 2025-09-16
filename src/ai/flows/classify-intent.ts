@@ -29,6 +29,7 @@ const prompt = ai.definePrompt({
   name: 'classifyIntentPrompt',
   input: {schema: ClassifyIntentInputSchema},
   output: {schema: ClassifyIntentOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are an intent classification system for a role-playing game. Your task is to determine if the player's input is a declared action for their character to perform, or if it is a question directed to the Game Master (GM).
 
 - An "Action" is when a player describes what their character does, says, or attempts to do. Examples: "I attack the goblin with my sword," "I try to pick the lock," "I ask the bartender for rumors."

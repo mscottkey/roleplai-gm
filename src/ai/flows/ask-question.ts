@@ -33,6 +33,7 @@ const askQuestionPrompt = ai.definePrompt({
   name: 'askQuestionPrompt',
   input: {schema: AskQuestionInputSchema},
   output: {schema: AskQuestionOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are the Game Master for a tabletop RPG. A player controlling a specific character has asked you a question directly. Using your knowledge of the game world, provide a clear and helpful answer from a GM's perspective, addressed to that character. Do not narrate a new scene or advance time, but guide the player.
 
 You have a complete memory of the game world. Use it to inform your answer.

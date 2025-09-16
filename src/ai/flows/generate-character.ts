@@ -20,6 +20,7 @@ const prompt = ai.definePrompt({
   name: 'generateCharacterPrompt',
   input: {schema: GenerateCharacterInputSchema},
   output: {schema: GenerateCharacterOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are an expert game master creating compelling characters for a tabletop RPG based on the Fate Core system. For each character slot, generate a unique character concept including skills and stunts.
 
 Game Setting: {{{setting}}}

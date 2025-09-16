@@ -19,6 +19,7 @@ const prompt = ai.definePrompt({
   name: 'updateWorldStatePrompt',
   input: {schema: UpdateWorldStateInputSchema},
   output: {schema: UpdateWorldStateOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are the memory cortex for an AI Game Master. Your role is to process the latest game event (a player action and a GM response) and update the world state accordingly. Be concise but comprehensive.
 
 Current World State:

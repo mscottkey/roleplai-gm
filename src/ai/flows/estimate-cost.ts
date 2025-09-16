@@ -24,6 +24,7 @@ const prompt = ai.definePrompt({
   name: 'estimateCostPrompt',
   input: {schema: EstimateCostInputSchema},
   output: {schema: EstimateCostOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are an expert AI cost analyst for a tabletop RPG application that uses large language models. Your task is to estimate the token usage and cost for a typical game session based on the provided game data.
 
 ## Model & Pricing

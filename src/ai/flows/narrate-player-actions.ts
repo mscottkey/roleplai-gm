@@ -32,6 +32,7 @@ const narratePlayerActionsPrompt = ai.definePrompt({
   name: 'narratePlayerActionsPrompt',
   input: {schema: NarratePlayerActionsInputSchema},
   output: {schema: NarratePlayerActionsOutputSchema},
+  model: 'googleai/gemini-2.5-flash',
   prompt: `You are the AI Gamemaster for a tabletop RPG.
 
 The player, controlling {{{character.name}}}, has taken the following action: {{{playerAction}}}
