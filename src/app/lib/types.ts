@@ -1,7 +1,6 @@
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
 import type { Timestamp } from "firebase/firestore";
-import type { Skill, Stunt } from "@/ai/schemas/generate-character-schemas";
 import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 
 export type Message = {
@@ -20,8 +19,7 @@ export type Character = {
   archetype?: string;
   gender?: string;
   age?: string;
-  skills?: Skill[];
-  stunts?: Stunt[];
+  stats?: Record<string, any>;
 };
 
 export type GameData = GenerateNewGameOutput & {

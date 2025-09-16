@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType, Skill, Stunt } from '@/ai/schemas/generate-character-schemas';
+import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
 import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -19,7 +19,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Badge } from './ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 const normalizeToneBullets = (s: string) => {
@@ -77,11 +77,11 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
         <p className="text-sm mt-1">{char.description}</p>
     </div>
     
-    {char.skills && char.skills.length > 0 && (
+    {char.stats?.skills && char.stats.skills.length > 0 && (
       <div>
         <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><GraduationCap className="h-4 w-4"/> Skills</h4>
         <div className="flex flex-wrap gap-1">
-          {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
+          {char.stats.skills.sort((a: any, b: any) => b.rank - a.rank).map((skill: any) => (
             <Badge key={skill.name} variant="secondary" className="text-xs">
               {skill.name} ({getSkillDisplay(skill.rank)})
             </Badge>
@@ -90,12 +90,12 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
       </div>
     )}
 
-    {char.stunts && char.stunts.length > 0 && (
+    {char.stats?.stunts && char.stats.stunts.length > 0 && (
        <div>
         <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><StuntIcon className="h-4 w-4"/> Stunts</h4>
         <TooltipProvider>
         <div className="flex flex-wrap gap-1">
-          {char.stunts.map(stunt => (
+          {char.stats.stunts.map((stunt: any) => (
             <Tooltip key={stunt.name}>
               <TooltipTrigger asChild>
                 <Badge variant="outline" className="text-xs cursor-help">{stunt.name}</Badge>
@@ -174,8 +174,6 @@ export function CharacterCreationForm({
                         id: char.id,
                         playerName: char.playerName, 
                         isCustom: false,
-                        skills: newCharData.skills || [],
-                        stunts: newCharData.stunts || [],
                     };
                 }
                 return char;
@@ -188,7 +186,7 @@ export function CharacterCreationForm({
             newPreferences[char.slotId] = {
                 gender: char.gender || '',
                 age: char.age || '',
-archetype: char.archetype || '',
+                archetype: char.archetype || '',
             };
         });
         setPreferences(prev => ({ ...prev, ...newPreferences }));
@@ -237,8 +235,6 @@ archetype: char.archetype || '',
                     id: c.id,
                     playerName: existingPlayerName, 
                     isCustom: false,
-                    skills: newChar.skills || [],
-                    stunts: newChar.stunts || [],
                 };
             }
             return c;
@@ -304,8 +300,7 @@ archetype: char.archetype || '',
                             return {
                                 ...c, // Keep custom name, aspect, desc
                                 isCustom: true, // Remain custom
-                                skills: newMechanics.skills || [],
-                                stunts: newMechanics.stunts || [],
+                                stats: newMechanics.stats || {},
                                 // Also update these from generation
                                 gender: newMechanics.gender,
                                 age: newMechanics.age,
@@ -534,7 +529,7 @@ archetype: char.archetype || '',
                                   Generate Skills & Stunts
                               </Button>
                               <div className="mt-2 text-xs text-center text-muted-foreground italic">
-                                  {char.skills && char.skills.length > 0 ? (
+                                  {char.stats?.skills && char.stats.skills.length > 0 ? (
                                       "Skills & Stunts generated!"
                                   ) : isCustomReadyForMechanics ? (
                                       "Ready to generate mechanics."

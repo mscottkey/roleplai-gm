@@ -113,11 +113,11 @@ export function StoryDrawer({
                             <p>{char.description}</p>
                             <p className="text-xs italic text-muted-foreground/80 flex items-center gap-2"><Star className="h-3 w-3"/> Aspect: {char.aspect}</p>
 
-                            {char.skills && char.skills.length > 0 && (
+                            {char.stats?.skills && char.stats.skills.length > 0 && (
                                 <div>
                                     <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><GraduationCap className="h-3 w-3"/> Skills</h5>
                                     <div className="flex flex-wrap gap-1">
-                                        {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
+                                        {char.stats.skills.sort((a: any,b: any) => b.rank - a.rank).map((skill: any) => (
                                             <Badge key={skill.name} variant="secondary" className="text-xs">
                                                 {skill.name} ({getSkillDisplay(skill.rank, mechanicsVisibility)})
                                             </Badge>
@@ -126,11 +126,11 @@ export function StoryDrawer({
                                 </div>
                             )}
 
-                             {char.stunts && char.stunts.length > 0 && (
+                             {char.stats?.stunts && char.stats.stunts.length > 0 && (
                                 <div>
                                     <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><StuntIcon className="h-3 w-3"/> Stunts</h5>
                                     <ul className="list-disc pl-4 text-xs space-y-1">
-                                      {char.stunts.map(stunt => (
+                                      {char.stats.stunts.map((stunt: any) => (
                                         <li key={stunt.name}><strong>{stunt.name}:</strong> {stunt.description}</li>
                                       ))}
                                     </ul>

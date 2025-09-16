@@ -35,9 +35,9 @@ export async function resolveAction(input: ResolveActionInput): Promise<ResolveA
 
 const resolveActionPrompt = ai.definePrompt({
   name: 'resolveActionPrompt',
+  model: MODEL_GAMEPLAY,
   input: {schema: ResolveActionInputSchema},
   output: {schema: ResolveActionOutputSchema},
-  model: MODEL_GAMEPLAY,
   prompt: `You are the game master, and must resolve an action for a player's character.
 
 You have a complete memory of the game world. Use it to inform your narration.

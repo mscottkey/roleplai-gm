@@ -243,8 +243,7 @@ export default function RoleplAIGMPage() {
                     archetype: c.archetype,
                     gender: c.gender,
                     age: c.age,
-                    skills: c.skills,
-                    stunts: c.stunts,
+                    stats: c.stats,
                 })),
                 'activeCharacterId': finalCharacters[0].id,
             }
@@ -318,8 +317,7 @@ The stage is set. What do you do?
                     archetype: c.archetype,
                     gender: c.gender,
                     age: c.age,
-                    skills: c.skills,
-                    stunts: c.stunts,
+                    stats: c.stats,
                 })),
         }));
         setMessages(newMessages);
