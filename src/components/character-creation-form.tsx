@@ -368,7 +368,7 @@ archetype: char.archetype || '',
                  </Card>
                </TabsContent>
               <TabsContent value="party">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {characters.map((char, index) => (
                     <Card key={char.id} className="flex flex-col relative group">
                       {characters.length > 1 && (
