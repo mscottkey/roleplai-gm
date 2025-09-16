@@ -43,11 +43,12 @@ export function CostEstimator({ characters, campaignGenerated }: CostEstimatorPr
   };
 
   const formatNumber = (num: number) => new Intl.NumberFormat('en-US').format(num);
+  const formatCurrency = (num: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4 }).format(num);
 
   return (
     <div className="space-y-4 text-sm">
       <p className="text-muted-foreground">
-        Get a rough estimate of the token usage for setting up and running this game session. Prices are based on `gemini-2.5-flash` input tokens.
+        Get a rough estimate of the token usage and cost for this game session, based on the `gemini-2.5-flash` model.
       </p>
       <Button onClick={handleEstimate} disabled={isLoading} size="sm" className="w-full">
         {isLoading ? (
@@ -67,23 +68,35 @@ export function CostEstimator({ characters, campaignGenerated }: CostEstimatorPr
         <div className="mt-4 space-y-3 rounded-lg border bg-background p-4 animate-in fade-in-50">
           <div className="flex justify-between items-center">
             <p className="font-semibold">One-Time Setup Cost</p>
-            <Badge variant="secondary">{formatNumber(estimation.setupCost)} tokens</Badge>
+            <div className="flex flex-col items-end">
+                <Badge variant="secondary">{formatNumber(estimation.setupCost)} tokens</Badge>
+                <span className="text-xs font-mono">{formatCurrency(estimation.setupCostUSD)}</span>
+            </div>
           </div>
           <Separator />
            <div className="space-y-2">
             <div className="flex justify-between items-center">
-                <p className="font-semibold">Cost per Player Action</p>
-                <Badge variant="outline">{formatNumber(estimation.perTurnCost)} tokens</Badge>
+                <p>Cost per Player Action</p>
+                <div className="flex flex-col items-end">
+                    <Badge variant="outline">{formatNumber(estimation.perTurnCost)} tokens</Badge>
+                    <span className="text-xs font-mono">{formatCurrency(estimation.perTurnCostUSD)}</span>
+                </div>
             </div>
              <div className="flex justify-between items-center">
-                <p className="font-semibold">Cost per Player Question</p>
-                <Badge variant="outline">{formatNumber(estimation.perQuestionCost)} tokens</Badge>
+                <p>Cost per Player Question</p>
+                <div className="flex flex-col items-end">
+                    <Badge variant="outline">{formatNumber(estimation.perQuestionCost)} tokens</Badge>
+                    <span className="text-xs font-mono">{formatCurrency(estimation.perQuestionCostUSD)}</span>
+                </div>
             </div>
            </div>
           <Separator />
            <div className="flex justify-between items-center">
             <p className="text-lg font-bold text-primary">Est. 2hr Session Cost</p>
-            <Badge className="text-base">{formatNumber(estimation.estimatedSessionCost)} tokens</Badge>
+            <div className="flex flex-col items-end">
+                <Badge className="text-base">{formatNumber(estimation.estimatedSessionCost)} tokens</Badge>
+                <span className="font-mono font-semibold">{formatCurrency(estimation.estimatedSessionCostUSD)}</span>
+            </div>
           </div>
            <p className="text-xs text-muted-foreground pt-2 italic">
             {estimation.sessionCostBreakdown}
