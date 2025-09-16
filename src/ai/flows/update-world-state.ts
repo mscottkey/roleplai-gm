@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import { UpdateWorldStateInputSchema, UpdateWorldStateOutputSchema, PlayerActionSchema, type UpdateWorldStateInput, type UpdateWorldStateOutput } from '../schemas/world-state-schemas';
+import { MODEL_GAMEPLAY } from '../models';
 
 export async function updateWorldState(input: UpdateWorldStateInput): Promise<UpdateWorldStateOutput> {
   return updateWorldStateFlow(input);
@@ -19,7 +20,7 @@ const prompt = ai.definePrompt({
   name: 'updateWorldStatePrompt',
   input: {schema: UpdateWorldStateInputSchema},
   output: {schema: UpdateWorldStateOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GAMEPLAY,
   prompt: `You are the memory cortex for an AI Game Master. Your role is to process the latest game event (a player action and a GM response) and update the world state accordingly. Be concise but comprehensive.
 
 Current World State:

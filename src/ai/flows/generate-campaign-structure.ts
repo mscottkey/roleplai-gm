@@ -15,6 +15,7 @@ import {
   type GenerateCampaignStructureInput,
   type GenerateCampaignStructureOutput,
 } from '@/ai/schemas/campaign-structure-schemas';
+import { MODEL_GENERATION } from '../models';
 
 export async function generateCampaignStructure(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
   return generateCampaignStructureFlow(input);
@@ -24,7 +25,7 @@ const prompt = ai.definePrompt({
   name: 'generateCampaignStructurePrompt',
   input: {schema: GenerateCampaignStructureInputSchema},
   output: {schema: CampaignStructureSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GENERATION,
   prompt: `You are an expert Game Master and narrative designer specializing in the Fate Core system. Your task is to flesh out a compelling campaign starter based on the provided setting, tone, and player characters. Use the "situation web" model, not a linear plot.
 
 ## Game Concept

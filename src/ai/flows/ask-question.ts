@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { WorldStateSchema } from '../schemas/world-state-schemas';
+import { MODEL_GAMEPLAY } from '../models';
 
 const AskQuestionInputSchema = z.object({
   question: z.string().describe('The question the player is asking the GM.'),
@@ -33,7 +34,7 @@ const askQuestionPrompt = ai.definePrompt({
   name: 'askQuestionPrompt',
   input: {schema: AskQuestionInputSchema},
   output: {schema: AskQuestionOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GAMEPLAY,
   prompt: `You are the Game Master for a tabletop RPG. A player controlling a specific character has asked you a question directly. Using your knowledge of the game world, provide a clear and helpful answer from a GM's perspective, addressed to that character. Do not narrate a new scene or advance time, but guide the player.
 
 You have a complete memory of the game world. Use it to inform your answer.

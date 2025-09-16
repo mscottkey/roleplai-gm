@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { MODEL_GENERATION } from '../models';
 
 const GenerateNewGameInputSchema = z.object({
   request: z.string().describe('A simple request describing the desired game, e.g., \'I want to play a cyberpunk heist.\''),
@@ -33,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'generateNewGamePrompt',
   input: { schema: GenerateNewGameInputSchema },
   output: { schema: GenerateNewGameOutputSchema, format: 'json' },
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GENERATION,
   prompt: `
 You are an expert tabletop Game Master and narrative designer.
 

@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { CharacterSchema } from '../schemas/generate-character-schemas';
+import { MODEL_GAMEPLAY } from '../models';
 
 const NarratePlayerActionsInputSchema = z.object({
   playerAction: z.string().describe('The action the player is taking.'),
@@ -32,7 +33,7 @@ const narratePlayerActionsPrompt = ai.definePrompt({
   name: 'narratePlayerActionsPrompt',
   input: {schema: NarratePlayerActionsInputSchema},
   output: {schema: NarratePlayerActionsOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GAMEPLAY,
   prompt: `You are the AI Gamemaster for a tabletop RPG.
 
 The player, controlling {{{character.name}}}, has taken the following action: {{{playerAction}}}

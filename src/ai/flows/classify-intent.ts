@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { MODEL_CLASSIFICATION } from '../models';
 
 const ClassifyIntentInputSchema = z.object({
   playerInput: z.string().describe('The text input from the player.'),
@@ -29,7 +30,7 @@ const prompt = ai.definePrompt({
   name: 'classifyIntentPrompt',
   input: {schema: ClassifyIntentInputSchema},
   output: {schema: ClassifyIntentOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_CLASSIFICATION,
   prompt: `You are an intent classification system for a role-playing game. Your task is to determine if the player's input is a declared action for their character to perform, or if it is a question directed to the Game Master (GM).
 
 - An "Action" is when a player describes what their character does, says, or attempts to do. Examples: "I attack the goblin with my sword," "I try to pick the lock," "I ask the bartender for rumors."

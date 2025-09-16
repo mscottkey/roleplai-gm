@@ -11,3 +11,4 @@ import '@/ai/flows/classify-intent.ts';
 import '@/ai/flows/ask-question.ts';
 import '@/ai/flows/generate-campaign-structure.ts';
 import '@/ai/flows/estimate-cost.ts';
+import '@/ai/models.ts';

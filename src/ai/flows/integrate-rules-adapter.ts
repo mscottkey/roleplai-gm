@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { WorldStateSchema } from '../schemas/world-state-schemas';
+import { MODEL_GAMEPLAY } from '../models';
 
 const ResolveActionInputSchema = z.object({
   actionDescription: z.string().describe('The description of the player action.'),
@@ -36,7 +37,7 @@ const resolveActionPrompt = ai.definePrompt({
   name: 'resolveActionPrompt',
   input: {schema: ResolveActionInputSchema},
   output: {schema: ResolveActionOutputSchema},
-  model: 'googleai/gemini-2.5-flash',
+  model: MODEL_GAMEPLAY,
   prompt: `You are the game master, and must resolve an action for a player's character.
 
 You have a complete memory of the game world. Use it to inform your narration.
