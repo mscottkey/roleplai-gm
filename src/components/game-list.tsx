@@ -29,7 +29,7 @@ export function GameList({ games, activeGameId, onSelectGame }: GameListProps) {
   return (
     <SidebarMenu>
       {games.map((game) => {
-        const title = game.gameData.setting.split('\n')[0].replace(/\*\*/g, '');
+        const title = game.gameData.name || game.gameData.setting.split('\n')[0].replace(/\*\*/g, '');
         return (
           <SidebarMenuItem key={game.id}>
             <SidebarMenuButton
@@ -54,5 +54,3 @@ export function GameList({ games, activeGameId, onSelectGame }: GameListProps) {
     </SidebarMenu>
   );
 }
-
-    

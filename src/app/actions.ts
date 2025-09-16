@@ -72,6 +72,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       userId: input.userId,
       createdAt: serverTimestamp(),
       gameData: {
+        name: newGame.name,
         setting: newGame.setting,
         tone: newGame.tone,
         initialHooks: newGame.initialHooks,

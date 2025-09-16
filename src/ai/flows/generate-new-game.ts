@@ -18,6 +18,7 @@ const GenerateNewGameInputSchema = z.object({
 export type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
 
 const GenerateNewGameOutputSchema = z.object({
+  name: z.string().describe('A short, evocative name for the campaign (4-6 words max).'),
   setting: z.string().describe('A description of the game setting.'),
   tone: z.string().describe('A description of the game tone.'),
   initialHooks: z.string().describe('A few initial hooks to get the game started.'),
@@ -36,13 +37,14 @@ const prompt = ai.definePrompt({
 You are an expert tabletop Game Master and narrative designer.
 
 ## Task
-Given the player's request below, create **three fields**—\`setting\`, \`tone\`, and \`initialHooks\`—as a **single JSON object** that exactly matches the provided schema. **Return only the JSON object**. Do **not** include any preamble, explanations, notes, code fences, or extra keys.
+Given the player's request below, create **four fields**—\`name\`, \`setting\`, \`tone\`, and \`initialHooks\`—as a **single JSON object** that exactly matches the provided schema. **Return only the JSON object**. Do **not** include any preamble, explanations, notes, code fences, or extra keys.
 
 Player request:
 "{{{request}}}"
 
 ## Output Contract (must follow exactly)
 - **Format**: A single JSON object with these keys:
+  - \`name\`: *(string)* - A short, evocative name for the campaign (4-6 words max).
   - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with a short list:
     - **Key Factions:** 2–3 bullets, each starting with \`\n- \`.
     - **Notable Locations:** 2–3 bullets, each starting with \`\n- \`.
@@ -54,13 +56,6 @@ Player request:
 - Keep content **PG-13** by default; avoid slurs and explicit sexual content.
 - If details are missing, make sensible genre-appropriate assumptions—**do not ask questions**.
 - Use original phrasing; avoid copyrighted proper nouns unless they are generic genre terms.
-
-## JSON Shape Reminder (for format only—do not copy text):
-{
-  "setting": "**A bold logline.**\\n\\nParagraph one...\\n\\nParagraph two...\\n\\n**Key Factions:**\\n- Faction A\\n- Faction B\\n\\n**Notable Locations:**\\n- Location X\\n- Location Y",
-  "tone": "**Vibe:** A one-sentence description.\\n\\n- **Pace:** Description.\\n- **Danger:** Description.",
-  "initialHooks": "1. ...\\n2. ...\\n3. ...\\n4. ...\\n5. ..."
-}
 
 **Return ONLY the JSON object.**
   `,
@@ -77,3 +72,4 @@ const generateNewGameFlow = ai.defineFlow(
     return output!;
   }
 );
+
