@@ -11,7 +11,8 @@ import {
   SidebarInset,
   SidebarFooter,
   SidebarSeparator,
-  SidebarMenuButton
+  SidebarMenuButton,
+  SidebarRail
 } from '@/components/ui/sidebar'
 import { Logo } from './logo'
 import { GameList } from './game-list'
@@ -34,10 +35,10 @@ function AppShellHeader() {
         <SidebarHeader>
           <div className="flex items-center justify-between p-2">
              <div className="flex items-center gap-2">
-                <Logo className="w-8 h-8 text-primary" />
-                {state === 'expanded' && <span className="font-headline text-lg font-bold text-primary">RoleplAI GM</span>}
+                <Logo className="w-8 h-8 text-primary group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10" />
+                <span className="font-headline text-lg font-bold text-primary group-data-[collapsible=icon]:hidden">RoleplAI GM</span>
              </div>
-             <SidebarTrigger />
+             <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
           </div>
         </SidebarHeader>
     )
@@ -46,7 +47,8 @@ function AppShellHeader() {
 export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame }: AppShellProps) {
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar collapsible="icon">
+        <SidebarRail />
         <AppShellHeader />
         <SidebarContent>
           <SidebarMenu>
@@ -65,6 +67,7 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
           />
         </SidebarContent>
         <SidebarFooter>
+          <SidebarTrigger className="w-full justify-center" />
           <UserMenu />
         </SidebarFooter>
       </Sidebar>
@@ -74,3 +77,5 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
     </SidebarProvider>
   )
 }
+
+    

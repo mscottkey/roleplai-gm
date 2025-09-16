@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { LogOut, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export function UserMenu() {
   const { user } = useAuth();
@@ -33,25 +34,33 @@ export function UserMenu() {
 
   if (state === 'collapsed') {
     return (
-        <div className="p-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-center h-auto p-2">
-                        <Avatar className="h-8 w-8">
-                        <AvatarFallback><User /></AvatarFallback>
-                        </Avatar>
-                    </Button>
-                </DropdownMenuTrigger>
-                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+      <div className="p-2 w-full flex justify-center">
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-center h-auto p-2">
+                      <Avatar className="h-8 w-8">
+                      <AvatarFallback><User /></AvatarFallback>
+                      </Avatar>
+                  </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" align="center">
+                <p>Guest User</p>
+                <p className="text-xs text-muted-foreground truncate">{user.uid}</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+              </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     )
   }
 
@@ -85,3 +94,5 @@ export function UserMenu() {
     </div>
   );
 }
+
+    

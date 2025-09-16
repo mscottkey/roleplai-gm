@@ -8,6 +8,7 @@ import {
 import type { GameSession } from '@/app/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { Gamepad2 } from 'lucide-react';
+import { useSidebar } from './ui/sidebar';
 
 type GameListProps = {
   games: GameSession[];
@@ -16,8 +17,13 @@ type GameListProps = {
 };
 
 export function GameList({ games, activeGameId, onSelectGame }: GameListProps) {
+  const { state } = useSidebar();
+  
   if (games.length === 0) {
-    return <p className="p-4 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">No past games found.</p>;
+    if (state === 'expanded') {
+        return <p className="p-4 text-sm text-muted-foreground">No past games found.</p>;
+    }
+    return null;
   }
 
   return (
@@ -29,15 +35,15 @@ export function GameList({ games, activeGameId, onSelectGame }: GameListProps) {
             <SidebarMenuButton
               onClick={() => onSelectGame(game.id)}
               isActive={game.id === activeGameId}
-              className="h-auto flex-col items-start p-2"
+              className="h-auto flex-col items-start p-2 group-data-[collapsible=icon]:h-10"
               tooltip={title}
             >
               <div className="flex w-full items-start gap-2">
-                <Gamepad2 className="mt-1" />
-                <div className="flex flex-col">
+                <Gamepad2 className="mt-1 group-data-[collapsible=icon]:mt-0" />
+                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                   <span className="font-medium">{title}</span>
                   <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(game.createdAt.toDate(), { addSuffix: true })}
+                    {game.createdAt.toDate ? formatDistanceToNow(game.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                   </span>
                 </div>
               </div>
@@ -48,3 +54,5 @@ export function GameList({ games, activeGameId, onSelectGame }: GameListProps) {
     </SidebarMenu>
   );
 }
+
+    
