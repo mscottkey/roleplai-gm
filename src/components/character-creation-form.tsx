@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType, Skill, Stunt } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -271,6 +271,68 @@ archetype: char.archetype || '',
     }
   };
 
+    const generateMechanicsForCustomCharacter = async (characterId: string) => {
+        const charToUpdate = characters.find(c => c.id === characterId);
+        if (!charToUpdate) return;
+
+        setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
+        try {
+            const existingCharacters = characters
+                .filter(c => c.id !== characterId && c.name)
+                .map(c => ({
+                    name: c.name,
+                    archetype: c.archetype,
+                    description: c.description,
+                }));
+            
+            // This is a bit of a hack: we use the generate flow, but constrain it with the existing custom data.
+            const result = await generateCharacterSuggestions({
+                setting: gameData.setting,
+                tone: gameData.tone,
+                characterSlots: [{
+                    id: characterId,
+                    archetype: `A character named ${charToUpdate.name} who is described as "${charToUpdate.description}" with a core aspect of "${charToUpdate.aspect}"`
+                }],
+                existingCharacters: existingCharacters,
+            });
+
+            if (result.characters.length > 0) {
+                const newMechanics = result.characters[0];
+                setCharacters(prev =>
+                    prev.map(c => {
+                        if (c.id === characterId) {
+                            return {
+                                ...c, // Keep custom name, aspect, desc
+                                isCustom: true, // Remain custom
+                                skills: newMechanics.skills || [],
+                                stunts: newMechanics.stunts || [],
+                                // Also update these from generation
+                                gender: newMechanics.gender,
+                                age: newMechanics.age,
+                                archetype: newMechanics.archetype,
+                            };
+                        }
+                        return c;
+                    })
+                );
+            } else {
+                throw new Error("The AI failed to return character mechanics.");
+            }
+
+        } catch (error) {
+            const err = error as Error;
+            console.error("Failed to generate mechanics:", err);
+            toast({
+                variant: "destructive",
+                title: "Mechanics Generation Failed",
+                description: err.message || "Could not generate skills and stunts.",
+            });
+        } finally {
+            setIndividualLoading(prev => ({...prev, [characterId]: false}));
+        }
+    };
+
+
   const handlePlayerNameChange = (id: string, name: string) => {
     setCharacters(prev => prev.map(c => (c.id === id ? { ...c, playerName: name } : c)));
   };
@@ -369,7 +431,9 @@ archetype: char.archetype || '',
                </TabsContent>
               <TabsContent value="party">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {characters.map((char, index) => (
+                  {characters.map((char, index) => {
+                     const isCustomReadyForMechanics = char.name && char.description && char.aspect;
+                     return (
                     <Card key={char.id} className="flex flex-col relative group">
                       {characters.length > 1 && (
                         <Button
@@ -452,7 +516,7 @@ archetype: char.archetype || '',
                             )}
                           </TabsContent>
                           <TabsContent value="custom" className="pt-4">
-                              <div className="space-y-2 h-[228px] overflow-y-auto pr-2">
+                              <div className="space-y-2 h-[152px] overflow-y-auto pr-2">
                                   <Label htmlFor={`${formId}-${char.id}-name`}>Name</Label>
                                   <Input id={`${formId}-${char.id}-name`} value={char.name} onChange={(e) => handleCustomFieldChange(char.id, 'name', e.target.value)} placeholder="Character Name" />
                                   <Label htmlFor={`${formId}-${char.id}-aspect`}>Aspect</Label>
@@ -460,14 +524,29 @@ archetype: char.archetype || '',
                                   <Label htmlFor={`${formId}-${char.id}-desc`}>Description</Label>
                                   <Textarea id={`${formId}-${char.id}-desc`} value={char.description} onChange={(e) => handleCustomFieldChange(char.id, 'description', e.target.value)} placeholder="A short description." className="h-24 resize-none" />
                               </div>
-                              <div className="w-full mt-4 text-xs text-center text-muted-foreground italic">
-                                  Custom characters are saved automatically.
+                              <Button
+                                  onClick={() => generateMechanicsForCustomCharacter(char.id)}
+                                  className="w-full mt-2"
+                                  variant="secondary"
+                                  disabled={!isCustomReadyForMechanics || isGeneratingParty || individualLoading[char.id]}
+                              >
+                                  <BrainCircuit className={cn("mr-2 h-4 w-4", individualLoading[char.id] && "animate-spin")} />
+                                  Generate Skills & Stunts
+                              </Button>
+                              <div className="mt-2 text-xs text-center text-muted-foreground italic">
+                                  {char.skills && char.skills.length > 0 ? (
+                                      "Skills & Stunts generated!"
+                                  ) : isCustomReadyForMechanics ? (
+                                      "Ready to generate mechanics."
+                                  ) : (
+                                      "Fill out Name, Aspect, and Description first."
+                                  )}
                               </div>
                           </TabsContent>
                         </Tabs>
                       </CardContent>
                     </Card>
-                  ))}
+                  )})}
                   <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-primary hover:bg-primary transition-colors cursor-pointer" onClick={addNewPlayer} >
                       <CardContent className="p-6 text-center">
                           <div className="h-auto p-4 flex flex-col gap-2 items-center text-primary group-hover:text-primary-foreground">
