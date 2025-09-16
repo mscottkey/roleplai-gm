@@ -24,7 +24,8 @@ import {
     GraduationCap,
     Star,
     Sparkles as StuntIcon,
-    Globe
+    Globe,
+    BookOpen,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
@@ -32,6 +33,8 @@ import { CostEstimator } from "./cost-estimator";
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type StoryDrawerProps = {
     isOpen: boolean;
@@ -63,7 +66,7 @@ export function StoryDrawer({
     mechanicsVisibility,
     setMechanicsVisibility
 }: StoryDrawerProps) {
-    const { characters, campaignStructure } = gameData;
+    const { characters, campaignStructure, setting, tone } = gameData;
     const { knownPlaces, knownFactions } = worldState ?? {};
     
     return (
@@ -75,7 +78,25 @@ export function StoryDrawer({
         </SheetHeader>
         <Separator />
         <div className="flex-1 overflow-y-auto p-6">
-          <Accordion type="multiple" defaultValue={['characters']} className="w-full">
+          <Accordion type="multiple" defaultValue={['briefing', 'characters']} className="w-full">
+            <AccordionItem value="briefing">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Campaign Briefing</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-4 pt-2">
+                <div>
+                  <h4 className="font-bold text-foreground">Setting</h4>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{setting}</ReactMarkdown>
+                </div>
+                <div>
+                  <h4 className="font-bold text-foreground">Tone</h4>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{tone}</ReactMarkdown>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
             <AccordionItem value="characters">
               <AccordionTrigger>
