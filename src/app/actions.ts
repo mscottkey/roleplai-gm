@@ -7,6 +7,7 @@ import { updateWorldState as updateWorldStateFlow, UpdateWorldStateOutput } from
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
+import { estimateCost as estimateCostFlow, type EstimateCostInput, type EstimateCostOutput } from "@/ai/flows/estimate-cost";
 
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
@@ -66,6 +67,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       characters: [],
       places: [],
       storyAspects: [],
+      knownPlaces: [],
+      knownFactions: [],
     };
 
     const newGameDocument = {
@@ -189,5 +192,14 @@ export async function generateCampaign(input: GenerateCampaignStructureInput): P
     } catch (error) {
         console.error("Error in generateCampaign action:", error);
         throw new Error("Failed to generate the campaign structure. Please try again.");
+    }
+}
+
+export async function getCostEstimation(input: EstimateCostInput): Promise<EstimateCostOutput> {
+    try {
+        return await estimateCostFlow(input);
+    } catch (error) {
+        console.error("Error in getCostEstimation action:", error);
+        throw new Error("Failed to get cost estimation. Please try again.");
     }
 }

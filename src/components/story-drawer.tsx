@@ -27,6 +27,7 @@ import {
     Globe
 } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { CostEstimator } from "./cost-estimator";
 
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
@@ -62,7 +63,7 @@ export function StoryDrawer({
     mechanicsVisibility,
     setMechanicsVisibility
 }: StoryDrawerProps) {
-    const { characters } = gameData;
+    const { characters, campaignStructure } = gameData;
     const { knownPlaces, knownFactions } = worldState ?? {};
     
     return (
@@ -161,8 +162,8 @@ export function StoryDrawer({
                   <span>Session Settings</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-2">
+              <AccordionContent className="space-y-6 pt-2">
+                <div className="space-y-4">
                     <h4 className="font-medium text-foreground">Mechanics Visibility</h4>
                     <RadioGroup
                         value={mechanicsVisibility}
@@ -182,6 +183,14 @@ export function StoryDrawer({
                         </div>
                     </RadioGroup>
                 </div>
+                 <Separator />
+                 <div className="space-y-4">
+                    <h4 className="font-medium text-foreground">Cost Estimation</h4>
+                    <CostEstimator 
+                        characters={characters}
+                        campaignGenerated={!!campaignStructure}
+                    />
+                 </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
