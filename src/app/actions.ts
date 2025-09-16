@@ -1,3 +1,4 @@
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -26,11 +27,15 @@ export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
 
 
 export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput }> {
+  console.log("Attempting to start new game with input:", input.request);
   try {
+    console.log("Calling generateNewGameFlow...");
     const newGame = await generateNewGameFlow({ request: input.request });
+    console.log("Successfully received new game data from AI:", newGame);
     
     const db = getFirestore();
     const gameRef = doc(collection(db, 'games'));
+    console.log("Generated new gameRef with ID:", gameRef.id);
 
     const initialWorldState: z.infer<typeof WorldStateSchema> = {
       summary: `The game is a ${newGame.tone} adventure set in ${newGame.setting}.`,
@@ -40,22 +45,31 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       places: [],
       storyAspects: [],
     };
+    console.log("Constructed initial world state.");
 
-    await setDoc(gameRef, {
+    const newGameDocument = {
       userId: input.userId,
       createdAt: serverTimestamp(),
-      gameData: newGame,
+      gameData: {
+        setting: newGame.setting,
+        tone: newGame.tone,
+        initialHooks: newGame.initialHooks,
+      },
       worldState: initialWorldState,
       messages: [],
       storyMessages: [],
       step: 'characters',
       activeCharacterId: null,
-    });
+    };
+    
+    console.log("Attempting to write new game document to Firestore...");
+    await setDoc(gameRef, newGameDocument);
+    console.log("Successfully wrote to Firestore.");
 
     return { gameId: gameRef.id, newGame };
 
   } catch (error) {
-    console.error("Error in startNewGame action:", error);
+    console.error("Critical error in startNewGame action:", JSON.stringify(error, null, 2));
     throw new Error("Failed to generate a new game. Please try again.");
   }
 }
