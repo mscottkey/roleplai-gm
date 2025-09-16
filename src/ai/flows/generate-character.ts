@@ -20,7 +20,7 @@ const prompt = ai.definePrompt({
   name: 'generateCharacterPrompt',
   input: {schema: GenerateCharacterInputSchema},
   output: {schema: GenerateCharacterOutputSchema},
-  prompt: `You are an expert game master creating compelling characters for a tabletop RPG. Based on the provided information, generate a unique character for each slot defined in the \`characterSlots\` array.
+  prompt: `You are an expert game master creating compelling characters for a tabletop RPG based on the Fate Core system. For each character slot, generate a unique character concept including skills and stunts.
 
 Game Setting: {{{setting}}}
 Game Tone: {{{tone}}}
@@ -48,6 +48,8 @@ For each character, provide:
 - A gender.
 - An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient").
 - An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage").
+- A list of 4-5 thematic skills, with ranks from +1 to +3, reflecting their archetype.
+- A list of 2 unique and interesting stunts that grant a specific mechanical benefit, as per Fate Core rules.
 `,
 });
 

@@ -11,13 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users } from 'lucide-react';
+import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType, Skill, Stunt } from '@/ai/schemas/generate-character-schemas';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 const normalizeToneBullets = (s: string) => {
@@ -52,6 +54,53 @@ type CharacterPreferences = {
   age?: string;
   archetype?: string;
 };
+
+const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
+  <div className="space-y-4 text-left">
+    <div>
+        <h3 className="font-bold text-xl">{char.name}</h3>
+        <p className="text-sm italic text-muted-foreground flex items-center gap-2">
+            <Star className="h-3 w-3" />
+            <span>"{char.aspect}"</span>
+        </p>
+        <p className="text-sm mt-1">{char.description}</p>
+    </div>
+    
+    {char.skills && char.skills.length > 0 && (
+      <div>
+        <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><GraduationCap className="h-4 w-4"/> Skills</h4>
+        <div className="flex flex-wrap gap-1">
+          {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
+            <Badge key={skill.name} variant="secondary" className="text-xs">
+              {skill.name} +{skill.rank}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {char.stunts && char.stunts.length > 0 && (
+       <div>
+        <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><StuntIcon className="h-4 w-4"/> Stunts</h4>
+        <TooltipProvider>
+        <div className="flex flex-wrap gap-1">
+          {char.stunts.map(stunt => (
+            <Tooltip key={stunt.name}>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="text-xs cursor-help">{stunt.name}</Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">{stunt.description}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+        </TooltipProvider>
+      </div>
+    )}
+  </div>
+);
+
 
 export function CharacterCreationForm({
   gameData,
@@ -113,6 +162,8 @@ export function CharacterCreationForm({
                         id: char.id,
                         playerName: char.playerName, 
                         isCustom: false,
+                        skills: newCharData.skills || [],
+                        stunts: newCharData.stunts || [],
                     };
                 }
                 return char;
@@ -125,7 +176,7 @@ export function CharacterCreationForm({
             newPreferences[char.slotId] = {
                 gender: char.gender || '',
                 age: char.age || '',
-                archetype: char.archetype || '',
+archetype: char.archetype || '',
             };
         });
         setPreferences(prev => ({ ...prev, ...newPreferences }));
@@ -174,6 +225,8 @@ export function CharacterCreationForm({
                     id: c.id,
                     playerName: existingPlayerName, 
                     isCustom: false,
+                    skills: newChar.skills || [],
+                    stunts: newChar.stunts || [],
                 };
             }
             return c;
@@ -362,25 +415,23 @@ export function CharacterCreationForm({
                                 </div>
                               </div>
                             </div>
+                            <div className="min-h-[220px]">
                             {isGeneratingParty || individualLoading[char.id] ? (
-                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
+                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                                   <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
                                   <p className="text-sm text-muted-foreground">{isGeneratingParty ? 'Crafting the party...' : 'Crafting a hero...'}</p>
                               </div>
                             ) : char.name && !char.isCustom ? (
-                              <div className="space-y-2 h-48">
-                                <h3 className="font-bold text-xl">{char.name}</h3>
-                                <p className="text-sm italic text-muted-foreground">"{char.aspect}"</p>
-                                <p className="text-sm">{char.description}</p>
-                              </div>
+                               <CharacterDisplay char={char} />
                             ) : (
-                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-48">
+                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                                 <Dices className="h-8 w-8 text-muted-foreground" />
                                 <p className="text-sm text-muted-foreground">
                                   {hasGenerated ? "Regenerate to see character" : "Waiting for party generation..."}
                                 </p>
                               </div>
                             )}
+                            </div>
                             {hasGenerated && (
                               <Button onClick={() => regenerateCharacter(char.id)} className="w-full mt-4" variant="outline" disabled={isGeneratingParty || individualLoading[char.id]}>
                                 <RefreshCw className={cn("mr-2 h-4 w-4", individualLoading[char.id] && "animate-spin")} />

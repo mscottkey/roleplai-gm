@@ -1,5 +1,17 @@
 import {z} from 'genkit';
 
+const SkillSchema = z.object({
+    name: z.string().describe("The name of the skill."),
+    rank: z.number().describe("The character's rank in this skill, typically from 1 to 4."),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
+const StuntSchema = z.object({
+    name: z.string().describe("The name of the stunt."),
+    description: z.string().describe("A brief description of what the stunt does."),
+});
+export type Stunt = z.infer<typeof StuntSchema>;
+
 export const CharacterSchema = z.object({
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
@@ -7,6 +19,8 @@ export const CharacterSchema = z.object({
     gender: z.string().optional().describe("The character's gender."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
+    skills: z.array(SkillSchema).optional().describe("A list of the character's primary skills and their ranks."),
+    stunts: z.array(StuntSchema).optional().describe("A list of the character's unique stunts or special abilities."),
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });
 export type Character = z.infer<typeof CharacterSchema>;

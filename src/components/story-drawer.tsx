@@ -24,24 +24,18 @@ import {
     Settings2,
     FileText,
     ListTodo,
-    History
+    History,
+    GraduationCap,
+    Star
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import { Badge } from "./ui/badge";
 
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
-
-type StoryDrawerProps = {
-    isOpen: boolean;
-    onOpenChange: (isOpen: boolean) => void;
-    gameData: GameData;
-    worldState: WorldState | null;
-    mechanicsVisibility: MechanicsVisibility;
-    setMechanicsVisibility: (value: MechanicsVisibility) => void;
-};
 
 export function StoryDrawer({
     isOpen,
@@ -122,10 +116,35 @@ export function StoryDrawer({
               <AccordionContent className="text-muted-foreground space-y-4">
                 {gameData.characters && gameData.characters.length > 0 ? (
                     gameData.characters.map(char => (
-                        <div key={char.id} className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                            <p className="font-bold text-foreground not-prose">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
-                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{char.description}</ReactMarkdown>
-                            <p className="text-xs italic text-muted-foreground/80 not-prose">Aspect: {char.aspect}</p>
+                        <div key={char.id} className="text-sm space-y-2 not-prose">
+                            <p className="font-bold text-foreground">{char.name} <span className="font-normal italic">({char.playerName})</span></p>
+                            <p>{char.description}</p>
+                            <p className="text-xs italic text-muted-foreground/80 flex items-center gap-2"><Star className="h-3 w-3"/> Aspect: {char.aspect}</p>
+
+                            {char.skills && char.skills.length > 0 && (
+                                <div>
+                                    <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><GraduationCap className="h-3 w-3"/> Skills</h5>
+                                    <div className="flex flex-wrap gap-1">
+                                        {char.skills.sort((a,b) => b.rank - a.rank).map(skill => (
+                                            <Badge key={skill.name} variant="secondary" className="text-xs">
+                                                {skill.name} +{skill.rank}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                             {char.stunts && char.stunts.length > 0 && (
+                                <div>
+                                    <h5 className="font-semibold text-foreground text-xs flex items-center gap-2 mb-1"><Sparkles className="h-3 w-3"/> Stunts</h5>
+                                    <ul className="list-disc pl-4 text-xs space-y-1">
+                                      {char.stunts.map(stunt => (
+                                        <li key={stunt.name}><strong>{stunt.name}:</strong> {stunt.description}</li>
+                                      ))}
+                                    </ul>
+                                </div>
+                            )}
+                            { index < gameData.characters.length - 1 && <Separator className="mt-4" /> }
                         </div>
                     ))
                 ) : (

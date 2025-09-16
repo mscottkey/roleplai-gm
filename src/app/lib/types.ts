@@ -1,5 +1,7 @@
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
+import type { Timestamp } from "firebase/firestore";
+import type { Skill, Stunt } from "@/ai/schemas/generate-character-schemas";
 
 export type Message = {
   role: 'user' | 'assistant';
@@ -14,6 +16,11 @@ export type Character = {
   aspect: string;
   playerName: string;
   isCustom: boolean;
+  archetype?: string;
+  gender?: string;
+  age?: string;
+  skills?: Skill[];
+  stunts?: Stunt[];
 };
 
 export type GameData = GenerateNewGameOutput & {
@@ -23,3 +30,19 @@ export type GameData = GenerateNewGameOutput & {
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
+
+export type StoryMessage = {
+  content: string;
+};
+
+export type GameSession = {
+  id: string;
+  userId: string;
+  createdAt: Timestamp;
+  gameData: GameData;
+  worldState: WorldState;
+  messages: Message[];
+  storyMessages: StoryMessage[];
+  step: 'characters' | 'play';
+  activeCharacterId: string | null;
+};

@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
-import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -14,9 +14,10 @@ import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
-import { doc, onSnapshot, getFirestore, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
+import { GameSession } from '@/app/lib/types';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -99,6 +100,13 @@ export default function RoleplAIGMPage() {
       } else if (!currentGameId) {
         setStep('create');
       }
+    }, (error) => {
+      console.error("[Firestore Listener Error]: ", error);
+      toast({
+        variant: "destructive",
+        title: "Database Error",
+        description: "Could not fetch your games. Please check your connection and security rules."
+      })
     });
 
     return () => unsubscribe();
@@ -210,6 +218,8 @@ export default function RoleplAIGMPage() {
         archetype: c.archetype,
         gender: c.gender,
         age: c.age,
+        skills: c.skills,
+        stunts: c.stunts,
       }))
     };
 
@@ -429,5 +439,3 @@ The stage is set, and the heroes are ready. What happens first is up to you.
     </AppShell>
   );
 }
-
-    
