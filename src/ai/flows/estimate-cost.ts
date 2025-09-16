@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
 ## Model & Pricing
 - **Model**: 'gemini-2.5-flash'
 - **Input Pricing**: $0.00000035 per token ($0.35 per 1M tokens)
-- **Output Pricing**: $0.0000007 per token ($0.70 per 1M tokens)
+- **Output Pricing**: $0.0000021 per token ($2.10 per 1M tokens)
 
 ## Token Estimates (Input/Output)
 - New Game Generation: 500 / 1000 tokens
