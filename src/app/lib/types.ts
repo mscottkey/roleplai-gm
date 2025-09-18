@@ -1,3 +1,4 @@
+
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
 import type { Timestamp } from "firebase/firestore";
@@ -26,6 +27,7 @@ export type Character = {
 export type GameData = GenerateNewGameOutput & {
   characters?: Character[];
   campaignStructure?: CampaignStructure;
+  difficulty?: string;
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';

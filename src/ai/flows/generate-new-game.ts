@@ -23,6 +23,7 @@ const GenerateNewGameOutputSchema = z.object({
   setting: z.string().describe('A description of the game setting.'),
   tone: z.string().describe('A description of the game tone.'),
   initialHooks: z.string().describe('A few initial hooks to get the game started.'),
+  difficulty: z.string().describe("A difficulty rating (e.g., 'Easy', 'Medium', 'Hard') and a short description of what it implies for characters."),
 });
 export type GenerateNewGameOutput = z.infer<typeof GenerateNewGameOutputSchema>;
 
@@ -39,7 +40,7 @@ const prompt = ai.definePrompt({
 You are an expert tabletop Game Master and narrative designer.
 
 ## Task
-Given the player's request below, create **four fields**—\`name\`, \`setting\`, \`tone\`, and \`initialHooks\`—as a **single JSON object** that exactly matches the provided schema. **Return only the JSON object**. Do **not** include any preamble, explanations, notes, code fences, or extra keys.
+Given the player's request below, create **five fields**—\`name\`, \`setting\`, \`tone\`, \`initialHooks\`, and \`difficulty\`—as a **single JSON object** that exactly matches the provided schema. **Return only the JSON object**. Do **not** include any preamble, explanations, notes, code fences, or extra keys.
 
 Player request:
 "{{{request}}}"
@@ -52,6 +53,7 @@ Player request:
     - **Notable Locations:** 2–3 bullets, each starting with \`\n- \`.
   - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. Each bullet must start with \`\n- \`.
   - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks. Each hook must be on a new line and start with a number (e.g., "1. ...\\n2. ..."). Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
+  - \`difficulty\`: *(string)* — Start with a rating: "Easy", "Medium", or "Hard". Follow with a colon and a 1-2 sentence explanation of what this implies for the characters (e.g., "Hard: Characters should be resilient veterans; survival is a constant challenge and poor decisions can be lethal.").
 
 ## Style & Safety Rules
 - **Use only Markdown** inside field values (no HTML tags, no code fences).
@@ -74,5 +76,6 @@ const generateNewGameFlow = ai.defineFlow(
     return output!;
   }
 );
+
 
 

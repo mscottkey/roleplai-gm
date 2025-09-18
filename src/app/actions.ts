@@ -1,3 +1,4 @@
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -88,6 +89,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         setting: newGame.setting,
         tone: newGame.tone,
         initialHooks: newGame.initialHooks,
+        difficulty: newGame.difficulty,
       },
       worldState: initialWorldState,
       previousWorldState: null,
