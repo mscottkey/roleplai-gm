@@ -19,7 +19,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 
 type GameViewProps = {
   messages: Message[];
@@ -36,6 +35,15 @@ type GameViewProps = {
   onUndo: () => void;
   canUndo: boolean;
   onRegenerateStoryline: () => void;
+  // TTS Props
+  isSpeaking: boolean;
+  isPaused: boolean;
+  isAutoPlayEnabled: boolean;
+  isTTSSupported: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  onSetAutoPlay: (enabled: boolean) => void;
 };
 
 export function GameView({
@@ -53,19 +61,19 @@ export function GameView({
   onUndo,
   canUndo,
   onRegenerateStoryline,
+  // TTS props
+  isSpeaking,
+  isPaused,
+  isAutoPlayEnabled,
+  isTTSSupported,
+  onPlay,
+  onPause,
+  onStop,
+  onSetAutoPlay,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
-  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
-  
-  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported } = useSpeechSynthesis({
-    onEnd: () => {
-      // Implement playlist logic here if needed in the future
-    }
-  });
-
-  const lastMessageRef = useRef<Message | null>(null);
 
   useEffect(() => {
     if (storyRef.current) {
@@ -75,30 +83,6 @@ export function GameView({
         }
     }
   }, [storyMessages]);
-  
-  const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
-
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (isAutoPlayEnabled && lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
-      const cleanedText = cleanForSpeech(lastMessage.content);
-      if (cleanedText.trim()) {
-        speak(cleanedText);
-      }
-      lastMessageRef.current = lastMessage;
-    }
-  }, [messages, speak, isAutoPlayEnabled]);
-  
-  const handlePlayAll = () => {
-    if (isPaused) {
-      resume();
-    } else if (!isSpeaking) {
-      const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-      if (storyText.trim()) {
-        speak(storyText);
-      }
-    }
-  }
 
   const StoryContent = () => (
     <div className="p-12 text-foreground">
@@ -160,11 +144,11 @@ export function GameView({
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
-            onPlay={handlePlayAll}
-            onPause={pause}
-            onStop={cancel}
-            onSetAutoPlay={setIsAutoPlayEnabled}
-            isTTSSupported={supported}
+            isTTSSupported={isTTSSupported}
+            onPlay={onPlay}
+            onPause={onPause}
+            onStop={onStop}
+            onSetAutoPlay={onSetAutoPlay}
           />
       </div>
     </div>

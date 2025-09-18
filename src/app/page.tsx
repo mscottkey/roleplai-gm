@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, regenerateStoryline } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -19,6 +19,7 @@ import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
 import { GameSession } from '@/app/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -74,6 +75,38 @@ export default function RoleplAIGMPage() {
   const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void; } | null>(null);
 
   const { toast } = useToast();
+
+  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  
+  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported } = useSpeechSynthesis({
+    onEnd: () => {}
+  });
+
+  const lastMessageRef = useState<Message | null>(null);
+
+  const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
+
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (isAutoPlayEnabled && lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
+      const cleanedText = cleanForSpeech(lastMessage.content);
+      if (cleanedText.trim()) {
+        speak(cleanedText);
+      }
+      lastMessageRef.current = lastMessage;
+    }
+  }, [messages, speak, isAutoPlayEnabled, lastMessageRef]);
+
+  const handlePlayAll = () => {
+    if (isPaused) {
+      resume();
+    } else if (!isSpeaking) {
+      const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
+      if (storyText.trim()) {
+        speak(storyText);
+      }
+    }
+  }
 
   useEffect(() => {
     if (authLoading) {
@@ -510,18 +543,82 @@ The stage is set. What do you do?
   };
 
   const handleRegenerateStoryline = async () => {
-    if (!activeGameId) return;
+    if (!activeGameId || !gameData) return;
 
     setIsLoading(true);
     toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
+    
     try {
-        const result = await regenerateStoryline(activeGameId);
-        if (result.success) {
-            toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
-            // The snapshot listener will handle updating the UI.
-        } else {
-            throw new Error(result.message || 'Failed to regenerate the storyline.');
+        const currentCharacters = gameData.characters || [];
+        if (currentCharacters.length === 0) {
+            throw new Error("Cannot regenerate storyline without characters.");
         }
+        
+        const { setting, tone } = gameData;
+        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+
+        // Step 1: Generate Core Concepts
+        toast({ title: 'Regenerating Storyline...', description: 'Generating core campaign concepts...' });
+        const coreConcepts = await generateCore({ setting, tone, characters: currentCharacters });
+
+        // Step 2: Generate Factions
+        toast({ title: 'Regenerating Storyline...', description: 'Designing key factions and threats...' });
+        const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: currentCharacters });
+
+        // Step 3: Generate Nodes
+        toast({ title: 'Regenerating Storyline...', description: 'Building the web of story nodes...' });
+        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: currentCharacters });
+
+        const campaignStructure = {
+            campaignIssues: coreConcepts.campaignIssues,
+            campaignAspects: coreConcepts.campaignAspects,
+            factions,
+            nodes,
+        };
+        
+        const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
+        const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
+
+        const finalInitialMessageContent = `
+# Welcome to your (newly regenerated) adventure!
+
+## Setting
+${setting}
+
+## Tone
+${tone}
+
+## Your Party
+${characterList}
+
+---
+
+${initialScene}
+
+The stage is set. What do you do?
+`.trim();
+
+        const finalInitialMessage = { role: 'assistant', content: finalInitialMessageContent };
+        
+        // Update the campaign structure within gameData and reset world state and messages
+        await updateWorldState({
+            gameId: activeGameId,
+            updates: {
+                'gameData.campaignStructure': campaignStructure,
+                'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+                'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
+                'worldState.recentEvents': ["The adventure has just begun."],
+                'worldState.storyAspects': campaignStructure.campaignAspects,
+                'worldState.knownPlaces': [],
+                'worldState.knownFactions': [],
+                'worldState.places': [], // Reset discovered places from old plot
+                'messages': [finalInitialMessage],
+                'storyMessages': [{ content: finalInitialMessageContent }],
+                previousWorldState: null, // Clear previous state on new campaign
+            }
+        });
+
+        toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
     } catch (error) {
         const err = error as Error;
         console.error("Failed to regenerate storyline:", err);
@@ -567,6 +664,14 @@ The stage is set. What do you do?
             onUndo={handleUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={handleRegenerateStoryline}
+            isSpeaking={isSpeaking}
+            isPaused={isPaused}
+            isAutoPlayEnabled={isAutoPlayEnabled}
+            isTTSSupported={supported}
+            onPlay={handlePlayAll}
+            onPause={pause}
+            onStop={cancel}
+            onSetAutoPlay={setIsAutoPlayEnabled}
           />
         );
       default:
