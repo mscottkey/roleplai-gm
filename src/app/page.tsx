@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, generateCampaign, checkConsequences, undoLastAction } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -247,13 +247,11 @@ export default function RoleplAIGMPage() {
             }
         });
 
-        // The listener will update the local state.
+        // The listener will update the local state to show the 'play' view.
         // Now, generate campaign in the background and update the messages.
-        toast({ title: "Adventure Ready!", description: "Your new campaign is being generated..." });
-        
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
         
-        const placeholderMessageContent = `
+        const generatePlaceholderMessage = (status: string) => `
 # Welcome to your adventure!
 
 ## Setting
@@ -267,25 +265,38 @@ ${characterList}
 
 ---
 
-*The stage is being set. The AI is weaving a web of intrigue for your adventure...*
+*The stage is being set. The AI is ${status}...*
 `.trim();
 
-        const placeholderMessage: Message = { role: 'assistant', content: placeholderMessageContent };
+        const placeholderMessage: Message = { role: 'assistant', content: generatePlaceholderMessage("weaving a web of intrigue") };
 
         await updateWorldState({
             gameId: activeGameId,
             updates: {
                 'messages': [placeholderMessage],
-                'storyMessages': [{ content: placeholderMessageContent }],
+                'storyMessages': [{ content: placeholderMessage.content }],
                 step: 'play'
             }
         });
 
-        const campaignStructure = await generateCampaign({
-            setting: gameData.setting,
-            tone: gameData.tone,
-            characters: finalCharacters,
-        });
+        // Step 1: Generate Core Concepts
+        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("generating core campaign concepts") } });
+        const coreConcepts = await generateCore({ setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+
+        // Step 2: Generate Factions
+        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("designing key factions and threats") } });
+        const factions = await generateFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+
+        // Step 3: Generate Nodes
+        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("building the web of story nodes") } });
+        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+
+        const campaignStructure = {
+            campaignIssues: coreConcepts.campaignIssues,
+            campaignAspects: coreConcepts.campaignAspects,
+            factions,
+            nodes,
+        };
 
         const updatedGameData = { ...gameData, characters: finalCharacters, campaignStructure };
         

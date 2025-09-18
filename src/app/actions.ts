@@ -7,11 +7,13 @@ import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-
 import { updateWorldState as updateWorldStateFlow, UpdateWorldStateOutput } from "@/ai/flows/update-world-state";
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
-import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
+import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
+import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { estimateCost as estimateCostFlow, type EstimateCostInput, type EstimateCostOutput } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences } from "@/ai/flows/assess-consequences";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
+import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node } from "@/ai/schemas/campaign-structure-schemas";
 
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
@@ -71,7 +73,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     console.log("Game document ID will be:", gameRef.id);
 
     const initialWorldState: z.infer<typeof WorldStateSchema> = {
-      summary: `The game is a ${newGame.tone} adventure set in ${newGame.setting}.`,
+      summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
       storyOutline: newGame.initialHooks.split('\n').filter(s => s.length > 0),
       recentEvents: ["The adventure has just begun."],
       characters: [],
@@ -209,12 +211,30 @@ export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQ
   }
 }
 
-export async function generateCampaign(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
+export async function generateCore(input: GenerateCampaignStructureInput): Promise<CampaignCore> {
     try {
-        return await generateCampaignStructureFlow(input);
+        return await generateCampaignCore(input);
     } catch (error) {
-        console.error("Error in generateCampaign action:", error);
-        throw new Error("Failed to generate the campaign structure. Please try again.");
+        console.error("Error in generateCore action:", error);
+        throw new Error("Failed to generate campaign core concepts. Please try again.");
+    }
+}
+
+export async function generateFactionsAction(input: GenerateFactionsInput): Promise<Faction[]> {
+    try {
+        return await generateCampaignFactions(input);
+    } catch (error) {
+        console.error("Error in generateFactionsAction:", error);
+        throw new Error("Failed to generate factions. Please try again.");
+    }
+}
+
+export async function generateNodesAction(input: GenerateNodesInput): Promise<Node[]> {
+    try {
+        return await generateCampaignNodes(input);
+    } catch (error) {
+        console.error("Error in generateNodesAction:", error);
+        throw new Error("Failed to generate situation nodes. Please try again.");
     }
 }
 

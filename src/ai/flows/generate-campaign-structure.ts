@@ -3,13 +3,11 @@
 
 /**
  * @fileOverview Orchestrates the generation of a detailed campaign structure by calling smaller, sequential AI flows.
- *
+ * This flow is the main entry point for creating a campaign. It is now just an orchestrator.
  * - generateCampaignStructure - A function that builds out the campaign web by orchestrating smaller generation flows.
- * - GenerateCampaignStructureInput - The input type for the generateCampaignStructure function.
- * - GenerateCampaignStructureOutput - The return type for the generateCampaignStructure function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai} from 'genkit';
 import {
   CampaignStructureSchema,
   GenerateCampaignStructureInputSchema,

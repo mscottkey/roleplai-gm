@@ -14,5 +14,6 @@ import '@/ai/flows/generate-campaign-pieces.ts';
 import '@/ai/flows/estimate-cost.ts';
 import '@/ai/flows/sanitize-ip.ts';
 import '@/ai/flows/assess-consequences.ts';
+import '@/ai/flows/text-to-speech.ts';
 import '@/ai/schemas/assess-consequences-schemas.ts';
 import '@/ai/models.ts';
