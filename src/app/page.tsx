@@ -38,9 +38,9 @@ const normalizeInlineBulletsInSections = (md: string) => {
             const listItems = b
                 .split(/\s*[\*-]\s*/)
                 .filter(item => item.trim().length > 0)
-                .map(item => `- ${item.trim()}`)
-                .join('\n');
-            return `${a.trim()}\n\n${listItems}`;
+                .map(item => `\n- ${item.trim()}`)
+                .join('');
+            return `${a.trim()}\n${listItems}`;
         });
     };
 
@@ -362,6 +362,7 @@ The stage is set. What do you do?
                     name: activeCharacter.name,
                     description: activeCharacter.description,
                     aspect: activeCharacter.aspect,
+                    // Note: We don't need full stats for consequence checks
                 },
             });
 
@@ -390,6 +391,8 @@ The stage is set. What do you do?
                     name: activeCharacter.name,
                     description: activeCharacter.description,
                     aspect: activeCharacter.aspect,
+                    // Pass full character data for action resolution
+                    ...activeCharacter,
                 },
                 ruleAdapter: 'FateCore',
                 mechanicsVisibility,
@@ -437,6 +440,7 @@ The stage is set. What do you do?
                     name: activeCharacter.name,
                     description: activeCharacter.description,
                     aspect: activeCharacter.aspect,
+                    ...activeCharacter,
                 },
             });
 
