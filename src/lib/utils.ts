@@ -19,13 +19,21 @@ export function cleanMarkdown(text: string): string {
   return text
     // Fix escaped newlines
     .replace(/\\n/g, '\n')
-    // Ensure proper spacing around bullet points and numbered lists
-    .replace(/(\S)([*•-])/g, '$1\n$2') // Ensure newline before a bullet
-    .replace(/(\d+\.)([^\s])/g, '$1 $2') // Ensure space after a numbered list item
-    // Standardize bolding and remove mangled asterisks
+    // Convert old-style bold headers to proper markdown headers
+    .replace(/\*\*(Key Factions|Notable Locations|Tone Levers):\*\*/g, '## $1')
+    .replace(/\*\*(Key Factions|Notable Locations|Tone Levers):\s*/g, '## $1\n\n')
+    // Fix malformed bullet points patterns - be more conservative
+    .replace(/\*\*\*\*\* /g, '* ')
+    .replace(/\*\*\*\* /g, '* ')
+    // Fix mangled asterisks around text
     .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
-    .replace(/ \*\* /g, ' **') // Correct spacing for bold
-    // Ensure titles/headings have space after them, without being too greedy
-    .replace(/(\*\*|##)\s*([^\n]+?)\s*(\*\*|##)/g, '**$2**\n\n')
+    // Clean up excessive whitespace but preserve single spaces
+    .replace(/[ \t]{2,}/g, ' ')
+    // Fix newlines - collapse excessive ones but preserve intentional breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Ensure proper spacing around headers
+    .replace(/\n(##\s+[^\n]+)\n/g, '\n\n$1\n\n')
+    // Ensure bullet points are on new lines if they aren't already
+    .replace(/([^\n])\s*\* /g, '$1\n* ')
     .trim();
 }

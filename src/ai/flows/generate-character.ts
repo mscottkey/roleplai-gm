@@ -37,13 +37,15 @@ For each slot below, generate one character that adheres to the provided prefere
 
 {{#each characterSlots}}
 - Slot ID: {{{this.id}}}
+  {{#if this.name}}Preferred Name: {{{this.name}}}{{/if}}
+  {{#if this.vision}}Character Vision: {{{this.vision}}}{{/if}}
   {{#if this.gender}}Preferred Gender: {{{this.gender}}}{{/if}}
   {{#if this.age}}Preferred Age: {{{this.age}}}{{/if}}
   {{#if this.archetype}}Preferred Archetype: {{{this.archetype}}}{{/if}}
 {{/each}}
 
 For each character, provide:
-- A unique name.
+- A unique name. If a 'Preferred Name' is given, you MUST use it.
 - The original \`slotId\` from the input.
 - A one-sentence description.
 - A core aspect.

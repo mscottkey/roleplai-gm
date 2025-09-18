@@ -34,6 +34,8 @@ export type Character = z.infer<typeof CharacterSchema>;
 
 const CharacterSlotSchema = z.object({
   id: z.string().describe("A unique identifier for this character slot."),
+  name: z.string().optional().describe("A preferred name for the character."),
+  vision: z.string().optional().describe("A player-provided vision or concept for the character."),
   gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),
   age: z.string().optional().describe('A preferred age or age range for the character (e.g., "Young Adult", "Veteran").'),
   archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").'),

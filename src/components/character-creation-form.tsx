@@ -25,15 +25,20 @@ const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
+        // This regex finds a title, captures it, and then captures all the text after it.
+        // It's designed to handle cases where the list items are incorrectly placed on the same line.
         return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            // This regex specifically targets hyphens that are likely bullet points within the text block
-            const listItems = b.replace(/-\s/g, '\n- ').trim();
-            return `${a.trim()}\n${listItems}`;
+            // This replacement ensures that every list marker (* or -) starts on a new line.
+            const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
+            return `${a.trim()}\n\n${listItems}`;
         });
     };
 
     let processedMd = md;
+    // The AI sometimes puts a `*` before the section title. This removes it.
+    processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
+    
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
     processedMd = fixLine('Tone Levers', processedMd);
@@ -54,6 +59,8 @@ type CharacterCreationFormProps = {
 };
 
 type CharacterPreferences = {
+  name?: string;
+  vision?: string;
   gender?: string;
   age?: string;
   archetype?: string;
@@ -71,7 +78,6 @@ const getSkillDisplay = (rank: number) => {
 const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
   <div className="space-y-4 text-left">
     <div>
-        <h3 className="font-bold text-xl">{char.name}</h3>
         <p className="text-sm italic text-muted-foreground flex items-center gap-2">
             <Star className="h-3 w-3" />
             <span>"{char.aspect}"</span>
@@ -158,6 +164,9 @@ export function CharacterCreationForm({
         [field]: value,
       }
     }));
+     if (field === 'name') {
+        setCharacters(prev => prev.map(c => c.id === id ? { ...c, name: value } : c));
+    }
   };
 
   const getPartySuggestions = async () => {
@@ -166,7 +175,8 @@ export function CharacterCreationForm({
 
     const characterSlots = characters.map(char => ({
         id: char.id,
-        ...(preferences[char.id] || {})
+        ...(preferences[char.id] || {}),
+        name: char.name || preferences[char.id]?.name,
     }));
 
     try {
@@ -198,9 +208,11 @@ export function CharacterCreationForm({
         const newPreferences: Record<string, CharacterPreferences> = {};
         result.characters.forEach(char => {
             newPreferences[char.slotId] = {
+                name: char.name || '',
                 gender: char.gender || '',
                 age: char.age || '',
                 archetype: char.archetype || '',
+                vision: preferences[char.slotId]?.vision || '',
             };
         });
         setPreferences(prev => ({ ...prev, ...newPreferences }));
@@ -221,6 +233,7 @@ export function CharacterCreationForm({
   const regenerateCharacter = async (characterId: string) => {
     setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
     try {
+      const charToUpdate = characters.find(c => c.id === characterId);
       const charPrefs = preferences[characterId] || {};
       const existingCharacters = characters
         .filter(c => c.id !== characterId && c.name)
@@ -233,7 +246,11 @@ export function CharacterCreationForm({
       const result = await generateCharacterSuggestions({
         setting: gameData.setting,
         tone: gameData.tone,
-        characterSlots: [{ id: characterId, ...charPrefs }],
+        characterSlots: [{ 
+            id: characterId, 
+            ...charPrefs, 
+            name: charToUpdate?.name || charPrefs.name 
+        }],
         existingCharacters: existingCharacters,
       });
 
@@ -259,9 +276,11 @@ export function CharacterCreationForm({
         setPreferences(prev => ({
           ...prev,
           [characterId]: {
+            name: newChar.name || '',
             gender: newChar.gender || '',
             age: newChar.age || '',
             archetype: newChar.archetype || '',
+            vision: preferences[characterId]?.vision || '',
           }
         }));
       } else {
@@ -301,7 +320,8 @@ export function CharacterCreationForm({
                 tone: gameData.tone,
                 characterSlots: [{
                     id: characterId,
-                    archetype: `A character named ${charToUpdate.name} who is described as "${charToUpdate.description}" with a core aspect of "${charToUpdate.aspect}"`
+                    name: charToUpdate.name,
+                    archetype: `A character described as "${charToUpdate.description}" with a core aspect of "${charToUpdate.aspect}"`
                 }],
                 existingCharacters: existingCharacters,
             });
@@ -472,35 +492,48 @@ export function CharacterCreationForm({
                           </TabsList>
                           <TabsContent value="generate" className="pt-4">
                             <div className="space-y-2 mb-4">
-                              <Label>Regeneration Preferences (Optional)</Label>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <div className="relative">
-                                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Select value={preferences[char.id]?.gender || ''} onValueChange={value => handlePreferenceChange(char.id, 'gender', value)}>
-                                      <SelectTrigger className="pl-8">
-                                        <SelectValue placeholder="Gender" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Female">Female</SelectItem>
-                                        <SelectItem value="Male">Male</SelectItem>
-                                        <SelectItem value="Non-binary">Non-binary</SelectItem>
-                                        <SelectItem value="Gender-fluid">Gender-fluid</SelectItem>
-                                        <SelectItem value="Agender">Agender</SelectItem>
-                                        <SelectItem value="Other">Other / Not Specified</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                              <Label>Generation Preferences (Optional)</Label>
+                              <div className="space-y-2">
+                                <Input 
+                                    placeholder="Character Name (Optional)" 
+                                    value={char.name || preferences[char.id]?.name || ''} 
+                                    onChange={e => handlePreferenceChange(char.id, 'name', e.target.value)}
+                                />
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <div className="relative">
+                                      <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                      <Select value={preferences[char.id]?.gender || ''} onValueChange={value => handlePreferenceChange(char.id, 'gender', value)}>
+                                        <SelectTrigger className="pl-8">
+                                          <SelectValue placeholder="Gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Female">Female</SelectItem>
+                                          <SelectItem value="Male">Male</SelectItem>
+                                          <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                          <SelectItem value="Gender-fluid">Gender-fluid</SelectItem>
+                                          <SelectItem value="Agender">Agender</SelectItem>
+                                          <SelectItem value="Other">Other / Not Specified</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="relative">
+                                      <Cake className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                      <Input placeholder="Age" className="pl-8" value={preferences[char.id]?.age || ''} onChange={e => handlePreferenceChange(char.id, 'age', e.target.value)} />
                                   </div>
                                   <div className="relative">
-                                    <Cake className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input placeholder="Age" className="pl-8" value={preferences[char.id]?.age || ''} onChange={e => handlePreferenceChange(char.id, 'age', e.target.value)} />
+                                      <Shield className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                      <Input placeholder="Archetype" className="pl-8" value={preferences[char.id]?.archetype || ''} onChange={e => handlePreferenceChange(char.id, 'archetype', e.target.value)} />
+                                  </div>
                                 </div>
-                                <div className="relative">
-                                    <Shield className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input placeholder="Archetype" className="pl-8" value={preferences[char.id]?.archetype || ''} onChange={e => handlePreferenceChange(char.id, 'archetype', e.target.value)} />
-                                </div>
+                                <Textarea 
+                                    placeholder="Character Vision (e.g., 'A grizzled ex-soldier with a cybernetic arm who loves kittens...')"
+                                    className="border rounded-md p-2 text-sm"
+                                    value={preferences[char.id]?.vision || ''}
+                                    onChange={e => handlePreferenceChange(char.id, 'vision', e.target.value)}
+                                />
                               </div>
                             </div>
-                            <div className="min-h-[220px]">
+                            <div className="min-h-[170px]">
                             {isGeneratingParty || individualLoading[char.id] ? (
                               <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                                   <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
