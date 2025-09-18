@@ -34,15 +34,20 @@ const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
+        // This regex finds a title, captures it, and then captures all the text after it.
+        // It's designed to handle cases where the list items are incorrectly placed on the same line.
         return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            // This regex specifically targets hyphens that are likely bullet points within the text block
-            const listItems = b.replace(/-\s/g, '\n- ').trim();
-            return `${a.trim()}\n${listItems}`;
+            // This replacement ensures that every list marker (* or -) starts on a new line.
+            const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
+            return `${a.trim()}\n\n${listItems}`;
         });
     };
 
     let processedMd = md;
+    // The AI sometimes puts a `*` before the section title. This removes it.
+    processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
+    
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
     processedMd = fixLine('Tone Levers', processedMd);
