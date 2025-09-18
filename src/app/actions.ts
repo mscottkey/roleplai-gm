@@ -12,10 +12,12 @@ import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes }
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences } from "@/ai/flows/assess-consequences";
+import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node } from "@/ai/schemas/campaign-structure-schemas";
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
+import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
 
 
 import { z } from 'genkit';
@@ -259,6 +261,15 @@ export async function checkConsequences(input: AssessConsequencesInput): Promise
     }
 }
 
+export async function generateRecap(input: GenerateRecapInput): Promise<GenerateRecapOutput> {
+    try {
+        return await generateRecapFlow(input);
+    } catch (error) {
+        console.error("Error in generateRecap action:", error);
+        throw new Error("Failed to generate recap. Please try again.");
+    }
+}
+
 export async function undoLastAction(gameId: string): Promise<{ success: boolean; message?: string }> {
   try {
     const app = getServerApp();
@@ -312,5 +323,3 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
-
-    

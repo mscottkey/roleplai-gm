@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingSpinner } from '@/components/icons';
 import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
-import { SendHorizonal, User, Bot } from 'lucide-react';
+import { SendHorizonal, User, Bot, History } from 'lucide-react';
 import { SpeechInput } from './speech-input';
 
 type ChatInterfaceProps = {
@@ -81,11 +81,12 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6 max-w-4xl mx-auto h-full">
           {messages.map((message, index) => {
-            const isUser = message.content.startsWith('**');
+            const isUser = message.role === 'user';
+            const isSystem = message.role === 'system';
             const contentWithDialogue = formatDialogue(message.content);
             return (
               <div
-                key={index}
+                key={message.id || index}
                 className={cn(
                   'flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
                   isUser ? 'justify-end' : 'justify-start'
@@ -93,7 +94,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
               >
                 {!isUser && (
                   <Avatar className="w-8 h-8 bg-primary text-primary-foreground flex-shrink-0">
-                    <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
+                    <AvatarFallback>{isSystem ? <History className="w-5 h-5" /> : <Bot className="w-5 h-5" />}</AvatarFallback>
                   </Avatar>
                 )}
                 <div
@@ -101,10 +102,15 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                     'max-w-xl rounded-lg p-3.5 shadow-sm relative group',
                      isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
+                      : isSystem 
+                      ? 'w-full max-w-2xl bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100 rounded-lg'
                       : 'bg-background border rounded-bl-none'
                   )}
                 >
-                  <div className="text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2">
+                  <div className={cn(
+                      "text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2",
+                      isSystem && "prose-headings:text-amber-900 dark:prose-headings:text-amber-100"
+                    )}>
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
                       {contentWithDialogue}
                     </ReactMarkdown>

@@ -6,14 +6,15 @@ import type { CharacterStats } from "@/ai/schemas/generate-character-schemas";
 import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 
 export type Message = {
-  role: 'user' | 'assistant';
+  id?: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
   mechanics?: string;
 };
 
 export type Character = {
   id: string;
-  name:string;
+  name: string;
   description:string;
   aspect: string;
   playerName: string;

@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -88,6 +87,7 @@ export default function RoleplAIGMPage() {
   });
 
   const lastMessageRef = useRef<Message | null>(null);
+  const sessionLoadedRef = useRef<string | null>(null);
 
   const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
 
@@ -190,7 +190,10 @@ export default function RoleplAIGMPage() {
         setGameData(game.gameData);
         setWorldState(game.worldState);
         setPreviousWorldState(game.previousWorldState || null);
-        setMessages(game.messages || []);
+
+        const currentMessages = game.messages || [];
+        setMessages(currentMessages);
+
         setStoryMessages(game.storyMessages || []);
         const finalCharacters = game.gameData.characters || [];
         setCharacters(finalCharacters);
@@ -200,6 +203,29 @@ export default function RoleplAIGMPage() {
           const restoredChar = finalCharacters.find(c => c.id === savedActiveCharId) || finalCharacters[0];
           setActiveCharacter(restoredChar);
         }
+
+        if (game.step === 'play' && sessionLoadedRef.current !== activeGameId) {
+          sessionLoadedRef.current = activeGameId;
+          // Check if it's a returning session
+          if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
+            setIsLoading(true);
+            generateRecap({ recentEvents: game.worldState.recentEvents })
+              .then(recapResult => {
+                const recapMessage: Message = {
+                  id: 'recap-message',
+                  role: 'system',
+                  content: `### Previously On...\n\n${recapResult.recap}`
+                };
+                setMessages(prev => [recapMessage, ...prev]);
+              })
+              .catch(err => {
+                console.error("Failed to generate recap:", err);
+                toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
+              })
+              .finally(() => setIsLoading(false));
+          }
+        }
+
 
         setStep(game.step === 'characters' ? 'characters' : 'play');
       } else {
@@ -267,21 +293,22 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Characters", description: "Saving your party..." });
 
     try {
+        const charactersForAI = finalCharacters.map(c => ({
+            name: c.name,
+            description: c.description,
+            aspect: c.aspect,
+            playerName: c.playerName,
+            archetype: c.archetype,
+            gender: c.gender,
+            age: c.age,
+            stats: c.stats,
+        }));
+
         await updateWorldState({
             gameId: activeGameId,
             updates: {
                 'gameData.characters': finalCharacters,
-                'worldState.characters': finalCharacters.map(c => ({
-                    // This maps the client-side Character type to the AI CharacterSchema
-                    name: c.name,
-                    description: c.description,
-                    aspect: c.aspect,
-                    playerName: c.playerName,
-                    archetype: c.archetype,
-                    gender: c.gender,
-                    age: c.age,
-                    stats: c.stats,
-                })),
+                'worldState.characters': charactersForAI,
                 'activeCharacterId': finalCharacters[0].id,
             }
         });
@@ -320,15 +347,15 @@ ${characterList}
 
         // Step 1: Generate Core Concepts
         await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("generating core campaign concepts") } });
-        const coreConcepts = await generateCore({ setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+        const coreConcepts = await generateCore({ setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         // Step 2: Generate Factions
         await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("designing key factions and threats") } });
-        const factions = await generateFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+        const factions = await generateFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         // Step 3: Generate Nodes
         await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("building the web of story nodes") } });
-        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: finalCharacters });
+        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         const campaignStructure = {
             campaignIssues: coreConcepts.campaignIssues,
@@ -342,6 +369,8 @@ ${characterList}
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
+        const newHooks = `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`;
+
         const finalInitialMessageContent = `
 # Welcome to your adventure!
 
@@ -352,7 +381,7 @@ ${normalizeInlineBulletsInSections(updatedGameData.setting)}
 ${normalizeInlineBulletsInSections(updatedGameData.tone)}
 
 ## Initial Hooks
-${normalizeOrderedList(updatedGameData.initialHooks)}
+${normalizeOrderedList(newHooks)}
 
 ## Your Party
 ${characterList}
@@ -370,7 +399,7 @@ The stage is set. What do you do?
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                gameData: updatedGameData,
+                gameData: { ...updatedGameData, initialHooks: newHooks },
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
@@ -400,8 +429,12 @@ The stage is set. What do you do?
         });
         return;
     }
+    
+    // Remove the temporary recap message if it exists
+    const messagesWithoutRecap = messages.filter(m => m.id !== 'recap-message');
+
     const userMessageContent = `**${activeCharacter.name} (${activeCharacter.playerName})**: ${playerInput}`;
-    const newMessages: Message[] = [...messages, { role: 'user', content: userMessageContent }];
+    const newMessages: Message[] = [...messagesWithoutRecap, { role: 'user', content: userMessageContent }];
     setMessages(newMessages); // Optimistic update
     setIsLoading(true);
 
@@ -414,6 +447,7 @@ The stage is set. What do you do?
                 worldState,
                 character: {
                     ...activeCharacter,
+                    stats: activeCharacter.stats || {},
                 },
             });
 
@@ -426,21 +460,23 @@ The stage is set. What do you do?
                     },
                 });
                 // Since we need confirmation, we stop here. Revert the optimistic message update.
-                setMessages(messages);
+                setMessages(messagesWithoutRecap);
                 setIsLoading(false);
                 return;
             }
         }
         
         let assistantMessage: Message;
+        const characterForAI = {
+          ...activeCharacter,
+          stats: activeCharacter.stats || {},
+        };
 
         if (intent === 'Action') {
             const response = await continueStory({
                 actionDescription: playerInput,
                 worldState,
-                character: {
-                    ...activeCharacter,
-                },
+                character: characterForAI,
                 ruleAdapter: 'FateCore',
                 mechanicsVisibility,
             });
@@ -483,9 +519,7 @@ The stage is set. What do you do?
             const response = await getAnswerToQuestion({
                 question: playerInput,
                 worldState,
-                character: {
-                    ...activeCharacter,
-                },
+                character: characterForAI,
             });
 
             assistantMessage = {
@@ -511,7 +545,7 @@ The stage is set. What do you do?
             title: "Error",
             description: err.message || "An unknown error occurred.",
         });
-        setMessages(messages); // Revert optimistic update
+        setMessages(messagesWithoutRecap); // Revert optimistic update
     } finally {
         setIsLoading(false);
     }
@@ -553,20 +587,31 @@ The stage is set. What do you do?
             throw new Error("Cannot regenerate storyline without characters.");
         }
         
+        const charactersForAI = currentCharacters.map(c => ({
+            name: c.name,
+            description: c.description,
+            aspect: c.aspect,
+            playerName: c.playerName,
+            archetype: c.archetype,
+            gender: c.gender,
+            age: c.age,
+            stats: c.stats || {},
+        }));
+
         const { setting, tone } = gameData;
         const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
 
         // Step 1: Generate Core Concepts
         toast({ title: 'Regenerating Storyline...', description: 'Generating core campaign concepts...' });
-        const coreConcepts = await generateCore({ setting, tone, characters: currentCharacters });
+        const coreConcepts = await generateCore({ setting, tone, characters: charactersForAI });
 
         // Step 2: Generate Factions
         toast({ title: 'Regenerating Storyline...', description: 'Designing key factions and threats...' });
-        const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: currentCharacters });
+        const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: charactersForAI });
 
         // Step 3: Generate Nodes
         toast({ title: 'Regenerating Storyline...', description: 'Building the web of story nodes...' });
-        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: currentCharacters });
+        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: charactersForAI });
 
         const campaignStructure = {
             campaignIssues: coreConcepts.campaignIssues,
@@ -604,7 +649,7 @@ ${initialScene}
 The stage is set. What do you do?
 `.trim();
 
-        const finalInitialMessage = { role: 'assistant', content: finalInitialMessageContent };
+        const finalInitialMessage: Message = { role: 'assistant', content: finalInitialMessageContent };
         
         // Update the campaign structure within gameData and reset world state and messages
         await updateWorldState({
@@ -719,7 +764,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    
-
-    
