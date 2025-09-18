@@ -50,6 +50,10 @@ const normalizeInlineBulletsInSections = (md: string) => {
     let processedMd = md;
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
+
+    // General fix for any " - " found in text to format it as a list item
+    processedMd = processedMd.replace(/\s-\s/g, '\n- ');
+
     return processedMd;
 };
 
@@ -713,5 +717,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    
