@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useId, useEffect } from 'react';
@@ -22,21 +21,24 @@ import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 
-const normalizeToneBullets = (s: string) => {
-  if (!s) return s;
-  let out = s.trim();
+const normalizeInlineBulletsInSections = (md: string) => {
+    if (!md) return md;
 
-  // If a bullet follows sentence punctuation (e.g., "...wits.- Pace: ..."), break the line.
-  out = out.replace(/([.!?])\s*-\s+(?=[A-Z][^:]{1,40}:)/g, '$1\n- ');
+    const fixLine = (title: string, text: string) => {
+        return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
+            if (!b) return a;
+            // This regex specifically targets hyphens that are likely bullet points within the text block
+            const listItems = b.replace(/-\s/g, '\n- ').trim();
+            return `${a.trim()}\n${listItems}`;
+        });
+    };
 
-  // If bullets still run together (e.g., "- Pace: …- Danger: …"), break them too.
-  // Safe because it only targets patterns like "- Word:" (capitalized + colon).
-  out = out.replace(/(-\s+[A-Z][^:]{1,40}:)/g, '\n$1');
+    let processedMd = md;
+    processedMd = fixLine('Key Factions', processedMd);
+    processedMd = fixLine('Notable Locations', processedMd);
+    processedMd = fixLine('Tone Levers', processedMd);
 
-  // Ensure a blank line before the first bullet list (helps Markdown start a list block).
-  out = out.replace(/(Vibe:[^\n]*)(\n-)/i, '$1\n\n-');
-
-  return out;
+    return processedMd;
 };
 
 
@@ -423,13 +425,13 @@ export function CharacterCreationForm({
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Setting</h2>
                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                            {gameData.setting}
+                            {normalizeInlineBulletsInSections(gameData.setting)}
                           </ReactMarkdown>
                         </section>
                         <section className="prose prose-sm dark:prose-invert max-w-none">
                           <h2 className="mt-0">Tone</h2>
                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                           {normalizeToneBullets(gameData.tone)}
+                           {normalizeInlineBulletsInSections(gameData.tone)}
                           </ReactMarkdown>
                         </section>
                      </div>
