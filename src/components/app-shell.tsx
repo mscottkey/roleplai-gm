@@ -1,3 +1,4 @@
+
 'use client'
 
 import {
@@ -77,5 +78,3 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
     </SidebarProvider>
   )
 }
-
-    

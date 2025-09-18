@@ -80,14 +80,14 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
     <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6 max-w-4xl mx-auto h-full">
-          {messages.map((message) => {
+          {messages.map((message, index) => {
             const isUser = message.role === 'user';
             const isSystem = message.role === 'system';
             const contentWithDialogue = formatDialogue(message.content);
-            const author = message.authorName || 'GM';
+            const author = message.authorName || (isUser ? activeCharacter?.name || 'Player' : 'GM');
             return (
               <div
-                key={message.id}
+                key={message.id || `message-${index}-${message.role}`}
                 className={cn(
                   'flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
                   isUser ? 'justify-end' : 'justify-start'
@@ -132,7 +132,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
             )
           })}
            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex items-start gap-4 justify-start">
+            <div key="loading-indicator" className="flex items-start gap-4 justify-start">
                <Avatar className="w-8 h-8 bg-primary text-primary-foreground">
                   <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
                 </Avatar>

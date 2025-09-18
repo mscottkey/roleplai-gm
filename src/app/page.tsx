@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
-import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
 import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -17,7 +17,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
-import { GameSession } from '@/app/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
@@ -774,5 +773,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    
