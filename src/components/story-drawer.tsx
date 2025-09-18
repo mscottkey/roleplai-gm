@@ -26,6 +26,7 @@ import {
     Sparkles as StuntIcon,
     Globe,
     BookOpen,
+    History,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
@@ -67,7 +68,7 @@ export function StoryDrawer({
     setMechanicsVisibility
 }: StoryDrawerProps) {
     const { characters, campaignStructure, setting, tone } = gameData;
-    const { knownPlaces, knownFactions } = worldState ?? {};
+    const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
     
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -145,6 +146,24 @@ export function StoryDrawer({
               </AccordionContent>
             </AccordionItem>
             
+            <AccordionItem value="log">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  <span>Game Log</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="prose prose-sm dark:prose-invert text-muted-foreground space-y-2 pt-2">
+                 {(recentEvents && recentEvents.length > 0) ? (
+                    <ul className="list-disc pl-5">
+                    {recentEvents.map((event, i) => <li key={i}>{event}</li>)}
+                    </ul>
+                ) : (
+                    "No recent events to show."
+                )}
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="world">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
