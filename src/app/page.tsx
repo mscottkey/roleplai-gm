@@ -43,16 +43,14 @@ const normalizeInlineBulletsInSections = (md: string) => {
                 .filter(item => item.trim().length > 0)
                 .map(item => `\n- ${item.trim()}`)
                 .join('');
-            return `${a.trim()}\n${listItems}`;
+            return `${a.trim()}${listItems}`;
         });
     };
 
     let processedMd = md;
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
-
-    // General fix for any " - " found in text to format it as a list item
-    processedMd = processedMd.replace(/\s-\s/g, '\n- ');
+    processedMd = fixLine('Tone Levers', processedMd);
 
     return processedMd;
 };
