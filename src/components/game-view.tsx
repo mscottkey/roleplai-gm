@@ -80,7 +80,9 @@ export function GameView({
     const lastMessage = messages[messages.length - 1];
     if (isAutoPlayEnabled && lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
       const cleanedText = cleanForSpeech(lastMessage.content);
-      speak(cleanedText);
+      if (cleanedText.trim()) {
+        speak(cleanedText);
+      }
       lastMessageRef.current = lastMessage;
     }
   }, [messages, speak, isAutoPlayEnabled]);
@@ -90,7 +92,9 @@ export function GameView({
       resume();
     } else {
       const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-      speak(storyText);
+      if (storyText.trim()) {
+        speak(storyText);
+      }
     }
   }
 
