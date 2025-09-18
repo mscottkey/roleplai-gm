@@ -6,8 +6,10 @@ import type { CharacterStats } from "@/ai/schemas/generate-character-schemas";
 import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 
 export type Message = {
-  role: 'user' | 'assistant';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
+  authorName?: string;
   mechanics?: string;
 };
 
@@ -37,7 +39,7 @@ export type StoryMessage = {
 };
 
 export type GameSession = {
-  id: string;
+  id:string;
   userId: string;
   createdAt: Timestamp;
   gameData: GameData;

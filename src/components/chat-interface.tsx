@@ -80,13 +80,14 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
     <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-6 max-w-4xl mx-auto h-full">
-          {messages.map((message, index) => {
+          {messages.map((message) => {
             const isUser = message.role === 'user';
             const isSystem = message.role === 'system';
             const contentWithDialogue = formatDialogue(message.content);
+            const author = message.authorName || 'GM';
             return (
               <div
-                key={message.id || index}
+                key={message.id}
                 className={cn(
                   'flex items-start gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
                   isUser ? 'justify-end' : 'justify-start'
@@ -111,6 +112,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                       "text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2",
                       isSystem && "prose-headings:text-amber-900 dark:prose-headings:text-amber-100"
                     )}>
+                    {isUser && <p className="text-xs font-bold mb-2">{author}</p>}
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
                       {contentWithDialogue}
                     </ReactMarkdown>
@@ -123,7 +125,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                 </div>
                 {isUser && (
                   <Avatar className="w-8 h-8 bg-secondary text-secondary-foreground flex-shrink-0">
-                    <AvatarFallback>{getInitials(message.content.split('(')[1]?.split(')')[0])}</AvatarFallback>
+                    <AvatarFallback>{getInitials(author)}</AvatarFallback>
                   </Avatar>
                 )}
               </div>

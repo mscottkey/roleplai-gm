@@ -87,6 +87,13 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       knownPlaces: [],
       knownFactions: [],
     };
+    
+    const welcomeMessage = {
+        id: `welcome-${Date.now()}`,
+        role: 'system' as const,
+        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\nOnce the party is assembled, the story will begin.`
+    };
+
 
     const newGameDocument = {
       userId: input.userId,
@@ -100,8 +107,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       },
       worldState: initialWorldState,
       previousWorldState: null,
-      messages: [],
-      storyMessages: [],
+      messages: [welcomeMessage],
+      storyMessages: [{content: welcomeMessage.content}],
       step: 'characters',
       activeCharacterId: null,
     };

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { signOut } from 'firebase/auth';
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -32,6 +33,9 @@ export function UserMenu() {
     return null;
   }
 
+  const displayName = user.isAnonymous ? "Guest User" : user.email || "User";
+  const displayId = user.isAnonymous ? user.uid : user.email;
+
   if (state === 'collapsed') {
     return (
       <div className="p-2 w-full flex justify-center">
@@ -41,14 +45,16 @@ export function UserMenu() {
               <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-center h-auto p-2">
                       <Avatar className="h-8 w-8">
-                      <AvatarFallback><User /></AvatarFallback>
+                        <AvatarFallback>
+                          {user.isAnonymous ? <User /> : displayName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                   </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent side="right" align="center">
-                <p>Guest User</p>
-                <p className="text-xs text-muted-foreground truncate">{user.uid}</p>
+                <p>{displayName}</p>
+                <p className="text-xs text-muted-foreground truncate">{displayId}</p>
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -71,12 +77,14 @@ export function UserMenu() {
           <Button variant="ghost" className="w-full justify-start text-left h-auto px-2 py-2">
              <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback><User /></AvatarFallback>
+                  <AvatarFallback>
+                    {user.isAnonymous ? <User /> : displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col text-left">
-                  <span className="text-sm font-medium">Guest User</span>
-                  <span className="text-xs text-muted-foreground truncate w-32">
-                    {user.uid}
+                <div className="flex flex-col text-left overflow-hidden">
+                  <span className="text-sm font-medium truncate">{displayName}</span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {displayId}
                   </span>
                 </div>
              </div>
@@ -94,5 +102,3 @@ export function UserMenu() {
     </div>
   );
 }
-
-    

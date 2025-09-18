@@ -20,39 +20,36 @@ import { LoginForm } from '@/components/login-form';
 import { GameSession } from '@/app/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
+import { cleanMarkdown } from '@/lib/utils';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
-  // Put every "N. " at the start of a new line (keeps the first "1. " as-is)
   return s
     .trim()
-    .replace(/(\d+)\.\s/g, (m, num, offset, full) => (offset === 0 ? `${num}. ` : `\n${num}. `))
-    .replace(/\n{2,}/g, '\n'); // collapse accidental extra blank lines
+    .replace(/(\d+)\.\s/g, '\n$1. ')
+    .replace(/^\s*1\./, '1.')
+    .replace(/\n{2,}/g, '\n');
 };
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
-        // This regex finds a title, captures it, and then captures all the text after it.
-        // It's designed to handle cases where the list items are incorrectly placed on the same line.
         return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            // This replacement ensures that every list marker (* or -) starts on a new line.
             const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
             return `${a.trim()}\n\n${listItems}`;
         });
     };
 
     let processedMd = md;
-    // The AI sometimes puts a `*` before the section title. This removes it.
     processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
     
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
     processedMd = fixLine('Tone Levers', processedMd);
 
-    return processedMd;
+    return cleanMarkdown(processedMd);
 };
 
 
@@ -334,7 +331,7 @@ ${characterList}
 *The stage is being set. The AI is ${status}...*
 `.trim();
 
-        const placeholderMessage: Message = { role: 'assistant', content: generatePlaceholderMessage("weaving a web of intrigue") };
+        const placeholderMessage: Message = { id: `placeholder-${Date.now()}`, role: 'assistant', content: generatePlaceholderMessage("weaving a web of intrigue") };
 
         await updateWorldState({
             gameId: activeGameId,
@@ -393,7 +390,7 @@ ${initialScene}
 The stage is set. What do you do?
 `.trim();
 
-        const finalInitialMessage: Message = { role: 'assistant', content: finalInitialMessageContent };
+        const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
         
         // Replace the placeholder message with the final one
         await updateWorldState({
@@ -421,7 +418,7 @@ The stage is set. What do you do?
 
 
  const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
-    if (!activeCharacter || !worldState || !activeGameId) {
+    if (!activeCharacter || !worldState || !activeGameId || !user) {
         toast({
             variant: "destructive",
             title: "Error",
@@ -432,9 +429,17 @@ The stage is set. What do you do?
     
     // Remove the temporary recap message if it exists
     const messagesWithoutRecap = messages.filter(m => m.id !== 'recap-message');
+    
+    const authorName = activeCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
 
-    const userMessageContent = `**${activeCharacter.name} (${activeCharacter.playerName})**: ${playerInput}`;
-    const newMessages: Message[] = [...messagesWithoutRecap, { role: 'user', content: userMessageContent }];
+    const newMessage: Message = {
+      id: `${user.uid}-${Date.now()}`,
+      role: 'user',
+      content: playerInput,
+      authorName: authorName,
+    };
+
+    const newMessages: Message[] = [...messagesWithoutRecap, newMessage ];
     setMessages(newMessages); // Optimistic update
     setIsLoading(true);
 
@@ -482,6 +487,7 @@ The stage is set. What do you do?
             });
 
             assistantMessage = {
+                id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: response.narrativeResult,
                 mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
@@ -523,6 +529,7 @@ The stage is set. What do you do?
             });
 
             assistantMessage = {
+                id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: response.answer,
             };
@@ -649,7 +656,7 @@ ${initialScene}
 The stage is set. What do you do?
 `.trim();
 
-        const finalInitialMessage: Message = { role: 'assistant', content: finalInitialMessageContent };
+        const finalInitialMessage: Message = { id: `regen-start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
         
         // Update the campaign structure within gameData and reset world state and messages
         await updateWorldState({
