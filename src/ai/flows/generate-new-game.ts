@@ -12,6 +12,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { MODEL_GENERATION } from '../models';
+import { cleanMarkdown } from '@/lib/utils';
 
 const GenerateNewGameInputSchema = z.object({
   request: z.string().describe('A simple request describing the desired game, e.g., \'I want to play a cyberpunk heist.\''),
@@ -83,6 +84,16 @@ const generateNewGameFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error("Failed to generate new game.");
+    }
+    
+    // Sanitize the markdown fields before returning
+    return {
+      ...output,
+      setting: cleanMarkdown(output.setting),
+      tone: cleanMarkdown(output.tone),
+      initialHooks: cleanMarkdown(output.initialHooks),
+    };
   }
 );

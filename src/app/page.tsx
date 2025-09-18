@@ -411,10 +411,7 @@ The stage is set. What do you do?
                 actionDescription: playerInput,
                 worldState,
                 character: {
-                    name: activeCharacter.name,
-                    description: activeCharacter.description,
-                    aspect: activeCharacter.aspect,
-                    // Note: We don't need full stats for consequence checks
+                    ...activeCharacter,
                 },
             });
 
@@ -440,10 +437,6 @@ The stage is set. What do you do?
                 actionDescription: playerInput,
                 worldState,
                 character: {
-                    name: activeCharacter.name,
-                    description: activeCharacter.description,
-                    aspect: activeCharacter.aspect,
-                    // Pass full character data for action resolution
                     ...activeCharacter,
                 },
                 ruleAdapter: 'FateCore',
@@ -489,9 +482,6 @@ The stage is set. What do you do?
                 question: playerInput,
                 worldState,
                 character: {
-                    name: activeCharacter.name,
-                    description: activeCharacter.description,
-                    aspect: activeCharacter.aspect,
                     ...activeCharacter,
                 },
             });
