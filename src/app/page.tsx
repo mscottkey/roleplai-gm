@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -271,6 +272,7 @@ export default function RoleplAIGMPage() {
             updates: {
                 'gameData.characters': finalCharacters,
                 'worldState.characters': finalCharacters.map(c => ({
+                    // This maps the client-side Character type to the AI CharacterSchema
                     name: c.name,
                     description: c.description,
                     aspect: c.aspect,
@@ -717,5 +719,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
 
     
