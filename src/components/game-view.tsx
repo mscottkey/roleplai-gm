@@ -55,7 +55,14 @@ export function GameView({
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
-  const { speak, stop, isSpeaking } = useSpeechSynthesis();
+  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  
+  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported } = useSpeechSynthesis({
+    onEnd: () => {
+      // Implement playlist logic here if needed in the future
+    }
+  });
+
   const lastMessageRef = useRef<Message | null>(null);
 
   useEffect(() => {
@@ -66,15 +73,26 @@ export function GameView({
         }
     }
   }, [storyMessages]);
+  
+  const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
-      const cleanedText = lastMessage.content.replace(/\*\*.*?\*\*\s?:/g, '').replace(/[*_`#]/g, '');
+    if (isAutoPlayEnabled && lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
+      const cleanedText = cleanForSpeech(lastMessage.content);
       speak(cleanedText);
       lastMessageRef.current = lastMessage;
     }
-  }, [messages, speak]);
+  }, [messages, speak, isAutoPlayEnabled]);
+  
+  const handlePlayAll = () => {
+    if (isPaused) {
+      resume();
+    } else {
+      const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
+      speak(storyText);
+    }
+  }
 
   const StoryContent = () => (
     <div className="p-12 text-foreground">
@@ -121,7 +139,6 @@ export function GameView({
             messages={messages}
             onSendMessage={onSendMessage}
             isLoading={isLoading}
-            isSpeaking={isSpeaking}
             gameData={gameData}
             worldState={worldState}
             characters={characters}
@@ -132,8 +149,15 @@ export function GameView({
             onOpenStory={() => setIsStoryOpen(true)}
             onUndo={onUndo}
             canUndo={canUndo}
-            onSpeak={speak}
-            onStopSpeak={stop}
+            // TTS Props
+            isSpeaking={isSpeaking}
+            isPaused={isPaused}
+            isAutoPlayEnabled={isAutoPlayEnabled}
+            onPlay={handlePlayAll}
+            onPause={pause}
+            onStop={cancel}
+            onSetAutoPlay={setIsAutoPlayEnabled}
+            isTTSSupported={supported}
           />
       </div>
     </div>

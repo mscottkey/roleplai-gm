@@ -13,19 +13,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingSpinner } from '@/components/icons';
 import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
-import { SendHorizonal, User, Bot, Volume2 } from 'lucide-react';
+import { SendHorizonal, User, Bot } from 'lucide-react';
 import { SpeechInput } from './speech-input';
 
 type ChatInterfaceProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
-  isSpeaking: boolean;
   activeCharacter: Character | null;
-  onSpeak: (text: string) => void;
 };
 
-export function ChatInterface({ messages, onSendMessage, isLoading, isSpeaking, activeCharacter, onSpeak }: ChatInterfaceProps) {
+export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -78,14 +76,6 @@ export function ChatInterface({ messages, onSendMessage, isLoading, isSpeaking, 
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'P';
   }
 
-  const cleanMessageForSpeech = (content: string) => {
-    // Remove markdown and character attribution for cleaner speech
-    return content
-      .replace(/\*\*.*?\*\*\s?:/g, '') // Remove **Character Name (Player Name):**
-      .replace(/[*_`#]/g, ''); // Remove other markdown characters
-  };
-
-
   return (
     <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -123,17 +113,6 @@ export function ChatInterface({ messages, onSendMessage, isLoading, isSpeaking, 
                     <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/30">
                       <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">{message.mechanics}</p>
                     </div>
-                  )}
-                   {!isUser && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute -bottom-2 -right-2 h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => onSpeak(cleanMessageForSpeech(message.content))}
-                      disabled={isSpeaking}
-                    >
-                      <Volume2 className="h-4 w-4" />
-                    </Button>
                   )}
                 </div>
                 {isUser && (

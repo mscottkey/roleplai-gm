@@ -16,7 +16,6 @@ type GameControlsProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
-  isSpeaking: boolean;
   gameData: GameData;
   worldState: WorldState | null;
   characters: Character[];
@@ -27,15 +26,21 @@ type GameControlsProps = {
   onOpenStory: () => void;
   onUndo: () => void;
   canUndo: boolean;
-  onSpeak: (text: string) => void;
-  onStopSpeak: () => void;
+  // TTS Props
+  isSpeaking: boolean;
+  isPaused: boolean;
+  isAutoPlayEnabled: boolean;
+  isTTSSupported: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  onSetAutoPlay: (enabled: boolean) => void;
 };
 
 export function GameControls({
   messages,
   onSendMessage,
   isLoading,
-  isSpeaking,
   gameData,
   worldState,
   characters,
@@ -46,8 +51,15 @@ export function GameControls({
   onOpenStory,
   onUndo,
   canUndo,
-  onSpeak,
-  onStopSpeak,
+  // TTS Props
+  isSpeaking,
+  isPaused,
+  isAutoPlayEnabled,
+  isTTSSupported,
+  onPlay,
+  onPause,
+  onStop,
+  onSetAutoPlay,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -57,7 +69,13 @@ export function GameControls({
         onOpenDrawer={() => setIsDrawerOpen(true)} 
         onOpenStory={onOpenStory} 
         isSpeaking={isSpeaking}
-        onStopSpeak={onStopSpeak}
+        isPaused={isPaused}
+        isAutoPlayEnabled={isAutoPlayEnabled}
+        isTTSSupported={isTTSSupported}
+        onPlay={onPlay}
+        onPause={onPause}
+        onStop={onStop}
+        onSetAutoPlay={onSetAutoPlay}
       />
       <TurnManager 
         characters={characters}
@@ -69,9 +87,7 @@ export function GameControls({
           messages={messages}
           onSendMessage={onSendMessage}
           isLoading={isLoading}
-          isSpeaking={isSpeaking}
           activeCharacter={activeCharacter}
-          onSpeak={onSpeak}
         />
       </div>
       {canUndo && (

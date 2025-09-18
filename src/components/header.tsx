@@ -1,20 +1,32 @@
 
 import { Button } from "@/components/ui/button";
-import { BookText, PanelLeft, Volume2, XCircle } from 'lucide-react';
+import { BookText, PanelLeft } from 'lucide-react';
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { TTSControls } from "./tts-controls";
 
 type HeaderProps = {
   onOpenDrawer: () => void;
   onOpenStory: () => void;
+  // TTS Props
   isSpeaking: boolean;
-  onStopSpeak: () => void;
+  isPaused: boolean;
+  isAutoPlayEnabled: boolean;
+  isTTSSupported: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  onSetAutoPlay: (enabled: boolean) => void;
 };
 
-export function Header({ onOpenDrawer, onOpenStory, isSpeaking, onStopSpeak }: HeaderProps) {
+export function Header({
+  onOpenDrawer,
+  onOpenStory,
+  ...ttsProps
+}: HeaderProps) {
   const isMobile = useIsMobile();
   return (
-    <header className="flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
+    <header className="flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm h-20">
        {isMobile && (
         <Button variant="ghost" size="icon" onClick={onOpenStory} aria-label="Open story view">
           <PanelLeft className="h-5 w-5" />
@@ -22,12 +34,7 @@ export function Header({ onOpenDrawer, onOpenStory, isSpeaking, onStopSpeak }: H
       )}
 
       <div className="flex-1 flex items-center gap-2 h-9">
-        {isSpeaking && (
-            <Button variant="outline" size="sm" onClick={onStopSpeak}>
-                <XCircle className="h-4 w-4 mr-2" />
-                Stop
-            </Button>
-        )}
+        <TTSControls {...ttsProps} />
       </div>
 
       <div className="flex items-center gap-2">
