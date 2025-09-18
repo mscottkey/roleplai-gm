@@ -31,7 +31,7 @@ const normalizeToneBullets = (s: string) => {
 
   // If bullets still run together (e.g., "- Pace: …- Danger: …"), break them too.
   // Safe because it only targets patterns like "- Word:" (capitalized + colon).
-  out = out.replace(/-\s+(?=[A-Z][^:]{1,40}:)/g, '\n- ');
+  out = out.replace(/(-\s+[A-Z][^:]{1,40}:)/g, '\n$1');
 
   // Ensure a blank line before the first bullet list (helps Markdown start a list block).
   out = out.replace(/(Vibe:[^\n]*)(\n-)/i, '$1\n\n-');

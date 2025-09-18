@@ -48,10 +48,12 @@ Player request:
 ## Output Contract (must follow exactly)
 - **Format**: A single JSON object with these keys:
   - \`name\`: *(string)* - A short, evocative name for the campaign (4-6 words max).
-  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with a short list:
-    - **Key Factions:** 2–3 bullets, each starting with \`\n- \`.
-    - **Notable Locations:** 2–3 bullets, each starting with \`\n- \`.
-  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. Each bullet must start with \`\n- \`.
+  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with two bulleted lists. Each list must start with a heading (e.g., \`**Key Factions:**\`) followed by a blank line, and then 2–3 bullet points, each on a new line starting with \`- \`. Example:
+    **Key Factions:**
+    
+    - The Arcane Technocracy
+    - The Iron Guild
+  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. The list must start on a new line, and each bullet must start with \`- \`.
   - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks. Each hook must be on a new line and start with a number (e.g., "1. ...\\n2. ..."). Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
   - \`difficulty\`: *(string)* — Start with a rating: "Easy", "Medium", or "Hard". Follow with a colon and a 1-2 sentence explanation of what this implies for the characters (e.g., "Hard: Characters should be resilient veterans; survival is a constant challenge and poor decisions can be lethal.").
 
@@ -76,6 +78,3 @@ const generateNewGameFlow = ai.defineFlow(
     return output!;
   }
 );
-
-
-
