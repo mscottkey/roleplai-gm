@@ -11,6 +11,12 @@ export function useSpeechSynthesis() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       setSupported(true);
     }
+    // Clean up on unmount
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, []);
 
   const speak = useCallback((text: string) => {
@@ -27,5 +33,11 @@ export function useSpeechSynthesis() {
     window.speechSynthesis.speak(utterance);
   }, [supported, isSpeaking]);
 
-  return { isSpeaking, speak, supported };
+  const stop = useCallback(() => {
+    if (!supported) return;
+    window.speechSynthesis.cancel();
+    // onend will fire, which will set isSpeaking to false.
+  }, [supported]);
+
+  return { isSpeaking, speak, stop, supported };
 }

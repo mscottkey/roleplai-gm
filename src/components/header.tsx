@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { BookText, PanelLeft, Volume2, VolumeX } from 'lucide-react';
+import { BookText, PanelLeft, Volume2, XCircle } from 'lucide-react';
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -8,9 +8,10 @@ type HeaderProps = {
   onOpenDrawer: () => void;
   onOpenStory: () => void;
   isSpeaking: boolean;
+  onStopSpeak: () => void;
 };
 
-export function Header({ onOpenDrawer, onOpenStory, isSpeaking }: HeaderProps) {
+export function Header({ onOpenDrawer, onOpenStory, isSpeaking, onStopSpeak }: HeaderProps) {
   const isMobile = useIsMobile();
   return (
     <header className="flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
@@ -20,11 +21,12 @@ export function Header({ onOpenDrawer, onOpenStory, isSpeaking }: HeaderProps) {
         </Button>
       )}
 
-      <div className="flex-1 flex items-center gap-2">
-        {isSpeaking ? (
-            <Volume2 className="h-5 w-5 text-accent animate-pulse" />
-        ) : (
-            <VolumeX className="h-5 w-5 text-muted-foreground" />
+      <div className="flex-1 flex items-center gap-2 h-9">
+        {isSpeaking && (
+            <Button variant="outline" size="sm" onClick={onStopSpeak}>
+                <XCircle className="h-4 w-4 mr-2" />
+                Stop
+            </Button>
         )}
       </div>
 

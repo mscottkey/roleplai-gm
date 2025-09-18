@@ -53,7 +53,7 @@ Player request:
     
     - The Arcane Technocracy
     - The Iron Guild
-  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. The list must start on a new line, and each bullet must start with \`- \`.
+  - \`tone\`: *(Markdown string)* — 60–120 words. Start with **Vibe:** one sentence. Then a bullet list of 4 **Tone Levers** (e.g., pace, danger, humor, grit) describing how to tune scenes. The list must start on a new line, and each bullet must start with \`* \`.
   - \`initialHooks\`: *(Markdown string)* — **exactly five** hooks. Each hook must be on a new line and start with a number (e.g., "1. ...\\n2. ..."). Each hook should be one or two sentences, start with a **bold inciting element**, and clearly state **stakes** or **complication**. Hooks should vary across modes (e.g., social, stealth, exploration, mystery, combat).
   - \`difficulty\`: *(string)* — Start with a rating: "Easy", "Medium", or "Hard". Follow with a colon and a 1-2 sentence explanation of what this implies for the characters (e.g., "Hard: Characters should be resilient veterans; survival is a constant challenge and poor decisions can be lethal.").
 

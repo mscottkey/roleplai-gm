@@ -55,7 +55,7 @@ export function GameView({
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
-  const { speak, isSpeaking } = useSpeechSynthesis();
+  const { speak, stop, isSpeaking } = useSpeechSynthesis();
   const lastMessageRef = useRef<Message | null>(null);
 
   useEffect(() => {
@@ -133,6 +133,7 @@ export function GameView({
             onUndo={onUndo}
             canUndo={canUndo}
             onSpeak={speak}
+            onStopSpeak={stop}
           />
       </div>
     </div>

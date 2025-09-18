@@ -28,6 +28,7 @@ type GameControlsProps = {
   onUndo: () => void;
   canUndo: boolean;
   onSpeak: (text: string) => void;
+  onStopSpeak: () => void;
 };
 
 export function GameControls({
@@ -46,12 +47,18 @@ export function GameControls({
   onUndo,
   canUndo,
   onSpeak,
+  onStopSpeak,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">
-      <Header onOpenDrawer={() => setIsDrawerOpen(true)} onOpenStory={onOpenStory} isSpeaking={isSpeaking} />
+      <Header 
+        onOpenDrawer={() => setIsDrawerOpen(true)} 
+        onOpenStory={onOpenStory} 
+        isSpeaking={isSpeaking}
+        onStopSpeak={onStopSpeak}
+      />
       <TurnManager 
         characters={characters}
         activeCharacter={activeCharacter}
