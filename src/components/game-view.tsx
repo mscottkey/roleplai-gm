@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 
 type GameViewProps = {
   messages: Message[];
@@ -52,8 +54,9 @@ export function GameView({
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [isStoryOpen, setIsStoryOpen] =
-  useState(false);
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const { speak, isSpeaking } = useSpeechSynthesis();
+  const lastMessageRef = useRef<Message | null>(null);
 
   useEffect(() => {
     if (storyRef.current) {
@@ -63,6 +66,15 @@ export function GameView({
         }
     }
   }, [storyMessages]);
+
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
+      const cleanedText = lastMessage.content.replace(/\*\*.*?\*\*\s?:/g, '').replace(/[*_`#]/g, '');
+      speak(cleanedText);
+      lastMessageRef.current = lastMessage;
+    }
+  }, [messages, speak]);
 
   const StoryContent = () => (
     <div className="p-12 text-foreground">
@@ -109,6 +121,7 @@ export function GameView({
             messages={messages}
             onSendMessage={onSendMessage}
             isLoading={isLoading}
+            isSpeaking={isSpeaking}
             gameData={gameData}
             worldState={worldState}
             characters={characters}
@@ -119,6 +132,7 @@ export function GameView({
             onOpenStory={() => setIsStoryOpen(true)}
             onUndo={onUndo}
             canUndo={canUndo}
+            onSpeak={speak}
           />
       </div>
     </div>

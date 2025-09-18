@@ -258,7 +258,6 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     const messages = gameData.messages || [];
     const storyMessages = gameData.storyMessages || [];
     
-    // Remove the last user message and the last two assistant messages (action result + consequence check, if any)
     // A simpler logic is to find the last user message and slice everything after it.
     let lastUserIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {

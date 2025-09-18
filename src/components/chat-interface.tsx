@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -12,16 +13,19 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingSpinner } from '@/components/icons';
 import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
-import { SendHorizonal, User, Bot } from 'lucide-react';
+import { SendHorizonal, User, Bot, Volume2 } from 'lucide-react';
+import { SpeechInput } from './speech-input';
 
 type ChatInterfaceProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  isSpeaking: boolean;
   activeCharacter: Character | null;
+  onSpeak: (text: string) => void;
 };
 
-export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter }: ChatInterfaceProps) {
+export function ChatInterface({ messages, onSendMessage, isLoading, isSpeaking, activeCharacter, onSpeak }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -74,6 +78,14 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'P';
   }
 
+  const cleanMessageForSpeech = (content: string) => {
+    // Remove markdown and character attribution for cleaner speech
+    return content
+      .replace(/\*\*.*?\*\*\s?:/g, '') // Remove **Character Name (Player Name):**
+      .replace(/[*_`#]/g, ''); // Remove other markdown characters
+  };
+
+
   return (
     <div className="flex flex-col h-full bg-card">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -96,7 +108,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                 )}
                 <div
                   className={cn(
-                    'max-w-xl rounded-lg p-3.5 shadow-sm',
+                    'max-w-xl rounded-lg p-3.5 shadow-sm relative group',
                      isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
                       : 'bg-background border rounded-bl-none'
@@ -111,6 +123,17 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                     <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/30">
                       <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">{message.mechanics}</p>
                     </div>
+                  )}
+                   {!isUser && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -bottom-2 -right-2 h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => onSpeak(cleanMessageForSpeech(message.content))}
+                      disabled={isSpeaking}
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
                 {isUser && (
@@ -137,18 +160,21 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
         </div>
       </ScrollArea>
       <div className="p-4 border-t bg-card/80 backdrop-blur-sm">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-end gap-2">
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-end gap-2 relative">
           <Textarea
             ref={textareaRef}
             value={input}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={activeCharacter ? `What does ${activeCharacter.name} do?` : "Select a character to act"}
-            className="flex-1 resize-none max-h-48"
+            className="flex-1 resize-none max-h-48 pr-12"
             rows={1}
             disabled={isLoading || !activeCharacter}
             aria-label="Chat input"
           />
+          <div className="absolute right-12 bottom-2">
+            <SpeechInput onTranscript={setInput} disabled={isLoading || !activeCharacter} />
+          </div>
           <Button type="submit" size="icon" disabled={isLoading || !input.trim() || !activeCharacter} className="flex-shrink-0 bg-accent hover:bg-accent/90">
             <SendHorizonal className="h-5 w-5" />
             <span className="sr-only">Send</span>

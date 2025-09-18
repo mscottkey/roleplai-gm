@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,6 +16,7 @@ type GameControlsProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  isSpeaking: boolean;
   gameData: GameData;
   worldState: WorldState | null;
   characters: Character[];
@@ -25,12 +27,14 @@ type GameControlsProps = {
   onOpenStory: () => void;
   onUndo: () => void;
   canUndo: boolean;
+  onSpeak: (text: string) => void;
 };
 
 export function GameControls({
   messages,
   onSendMessage,
   isLoading,
+  isSpeaking,
   gameData,
   worldState,
   characters,
@@ -41,12 +45,13 @@ export function GameControls({
   onOpenStory,
   onUndo,
   canUndo,
+  onSpeak,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">
-      <Header onOpenDrawer={() => setIsDrawerOpen(true)} onOpenStory={onOpenStory} />
+      <Header onOpenDrawer={() => setIsDrawerOpen(true)} onOpenStory={onOpenStory} isSpeaking={isSpeaking} />
       <TurnManager 
         characters={characters}
         activeCharacter={activeCharacter}
@@ -57,7 +62,9 @@ export function GameControls({
           messages={messages}
           onSendMessage={onSendMessage}
           isLoading={isLoading}
+          isSpeaking={isSpeaking}
           activeCharacter={activeCharacter}
+          onSpeak={onSpeak}
         />
       </div>
       {canUndo && (
