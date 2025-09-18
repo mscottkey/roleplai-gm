@@ -25,7 +25,7 @@ export function cleanMarkdown(text: string): string {
     // Standardize bolding and remove mangled asterisks
     .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
     .replace(/ \*\* /g, ' **') // Correct spacing for bold
-    // Ensure titles/headings have space after them
-    .replace(/(\*\*|##)\s*([^\n]+)\s*(\*\*|##)/g, '**$2**\n\n')
+    // Ensure titles/headings have space after them, without being too greedy
+    .replace(/(\*\*|##)\s*([^\n]+?)\s*(\*\*|##)/g, '**$2**\n\n')
     .trim();
 }
