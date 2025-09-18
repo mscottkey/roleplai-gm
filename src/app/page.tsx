@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -35,15 +34,11 @@ const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
-        const re = new RegExp(`(${title}:)(.*)`, 'ims');
-        return text.replace(re, (_m, a, b) => {
+        return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            const listItems = b
-                .split(/\s*[\*-]\s*/)
-                .filter(item => item.trim().length > 0)
-                .map(item => `\n- ${item.trim()}`)
-                .join('');
-            return `${a.trim()}${listItems}`;
+            // This regex specifically targets hyphens that are likely bullet points within the text block
+            const listItems = b.replace(/-\s/g, '\n- ').trim();
+            return `${a.trim()}\n${listItems}`;
         });
     };
 
@@ -54,6 +49,7 @@ const normalizeInlineBulletsInSections = (md: string) => {
 
     return processedMd;
 };
+
 
 
 export default function RoleplAIGMPage() {
@@ -348,6 +344,9 @@ ${normalizeInlineBulletsInSections(updatedGameData.setting)}
 ## Tone
 ${normalizeInlineBulletsInSections(updatedGameData.tone)}
 
+## Initial Hooks
+${normalizeOrderedList(updatedGameData.initialHooks)}
+
 ## Your Party
 ${characterList}
 
@@ -582,6 +581,10 @@ The stage is set. What do you do?
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
+        // Synthesize hooks from the new structure
+        const newHooks = `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`;
+
+
         const finalInitialMessageContent = `
 # Welcome to your (newly regenerated) adventure!
 
@@ -590,6 +593,9 @@ ${setting}
 
 ## Tone
 ${tone}
+
+## Initial Hooks
+${newHooks}
 
 ## Your Party
 ${characterList}
@@ -608,6 +614,7 @@ The stage is set. What do you do?
             gameId: activeGameId,
             updates: {
                 'gameData.campaignStructure': campaignStructure,
+                'gameData.initialHooks': newHooks, // Save the new hooks as well
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
@@ -715,3 +722,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
