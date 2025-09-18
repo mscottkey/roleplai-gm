@@ -29,7 +29,7 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
       };
       
       const handleError = (e: SpeechSynthesisErrorEvent) => {
-        console.error("Speech synthesis error", e);
+        console.error("Speech synthesis error", e.error);
         setIsSpeaking(false);
         setIsPaused(false);
       };
@@ -80,7 +80,7 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
         setIsSpeaking(true);
     };
     utterance.onerror = (e) => {
-        console.error("Speech synthesis error", e);
+        console.error("Speech synthesis error", e.error);
         setIsSpeaking(false);
         setIsPaused(false);
     };
