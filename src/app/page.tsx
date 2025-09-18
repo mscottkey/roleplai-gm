@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
@@ -82,7 +83,7 @@ export default function RoleplAIGMPage() {
     onEnd: () => {}
   });
 
-  const lastMessageRef = useState<Message | null>(null);
+  const lastMessageRef = useRef<Message | null>(null);
 
   const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
 
@@ -95,7 +96,7 @@ export default function RoleplAIGMPage() {
       }
       lastMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled, lastMessageRef]);
+  }, [messages, speak, isAutoPlayEnabled]);
 
   const handlePlayAll = () => {
     if (isPaused) {
@@ -151,7 +152,7 @@ export default function RoleplAIGMPage() {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, router, searchParams]);
+  }, [user, authLoading, router, searchParams, toast]);
 
   useEffect(() => {
     const gameId = searchParams.get('game');
@@ -712,3 +713,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
