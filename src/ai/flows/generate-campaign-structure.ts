@@ -49,13 +49,18 @@ Based on the provided information, generate a structured campaign object. Follow
     *   Provide a name and a one-sentence description.
     *   Create a 4-step "Project Clock" with a clear objective. For each step of the clock, write a short sentence describing what happens if the players ignore this faction and their clock advances.
 4.  **Nodes (5-7):** Create a web of 5 to 7 interconnected situation nodes (these can be people, places, or problems). For each node:
-    *   **Title:** A clear, evocative name (e.g., "The Rustgate Smugglers' Den," "Councilwoman Valerius's Secret").
-    *   **Description:** A one-paragraph description of the situation at this node.
+    *   **title:** A clear, evocative name (e.g., "The Rustgate Smugglers' Den," "Councilwoman Valerius's Secret").
+    *   **description:** A one-paragraph description of the situation at this node.
     *   **isStartingNode:** Designate **exactly one** node as the starting point for the campaign by setting this to \`true\`. This should be the most logical and exciting entry point for the created party. All other nodes must have this set to \`false\`.
-    *   **Leads:** List 2-3 other nodes that this node provides clear leads to. This creates the "web."
-    *   **Stakes:** Briefly describe what changes if the PCs succeed, fail, or get delayed at this node. Focus on consequences, not specific paths.
-    *   **Faces (1-2):** Name 1 or 2 key NPCs at this node, each with a one-sentence descriptor.
-    *   **Aspects (2):** Provide two Fate Aspects specific to this node.
+    *   **leads:** List 2-3 other nodes that this node provides clear leads to. This creates the "web."
+    *   **stakes:** Briefly describe what changes if the PCs succeed, fail, or get delayed at this node. Focus on consequences, not specific paths.
+    *   **challenges (2-3):** Provide 2-3 general challenges, obstacles, or groups of minions present at this node. These are not key NPCs. Examples: "A squad of jumpy corporate guards", "A flimsy, rusted catwalk over a chasm", "Basic security camera network", "A handful of skeletal defenders".
+    *   **faces (1-2):** Name 1 or 2 key NPCs at this node. For each Face, provide:
+        *   **name:** The NPC's name.
+        *   **role:** Their job or function at this node (e.g., "Lead Investigator", "Security Chief").
+        *   **aspect:** A descriptive aspect implying their skills and challenge (e.g., "Heavily-Armored Veteran", "Deceptive Diplomat").
+        *   **description:** A one-sentence descriptor.
+    *   **aspects (2):** Provide two Fate Aspects specific to this node.
 
 Ensure the entire output is a single, valid JSON object that conforms to the schema.
 `,

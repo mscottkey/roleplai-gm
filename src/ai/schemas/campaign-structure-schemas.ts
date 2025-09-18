@@ -15,6 +15,13 @@ export const FactionSchema = z.object({
 });
 export type Faction = z.infer<typeof FactionSchema>;
 
+const FaceSchema = z.object({
+    name: z.string().describe('The name of the NPC.'),
+    role: z.string().describe('The role or job of the NPC at this node (e.g., "Lead Investigator", "Security Chief", "Bartender").'),
+    aspect: z.string().describe("A descriptive aspect that implies their capabilities and challenge level (e.g., 'Heavily-Armored Veteran', 'Deceptive Diplomat', 'Quick-Fingered Pickpocket')."),
+    description: z.string().describe('A one-sentence description of the NPC.'),
+});
+
 
 const NodeSchema = z.object({
     title: z.string().describe('A clear, evocative name for the node (e.g., "The Gilded Cage Casino").'),
@@ -22,7 +29,8 @@ const NodeSchema = z.object({
     isStartingNode: z.boolean().describe('Set to true for exactly one node, which will be the campaign entry point.'),
     leads: z.array(z.string()).describe('A list of 2-3 titles of other nodes this one provides leads to.'),
     stakes: z.string().describe('What changes if the PCs succeed, fail, or get delayed here.'),
-    faces: z.array(z.object({ name: z.string(), description: z.string() })).describe('1-2 key NPCs at this node.'),
+    challenges: z.array(z.string()).describe("A list of 2-3 general challenges, obstacles, or minion groups at this node (e.g., 'A squad of jumpy corporate guards', 'A flimsy, rusted catwalk')."),
+    faces: z.array(FaceSchema).describe('1-2 key NPCs at this node, with their roles and aspects.'),
     aspects: z.array(z.string()).describe('Two Fate Aspects specific to this node.'),
 });
 
