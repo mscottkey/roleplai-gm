@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -62,7 +63,7 @@ Based on the provided information, generate a structured campaign object. Follow
         *   **description:** A one-sentence descriptor.
     *   **aspects (2):** Provide two Fate Aspects specific to this node.
 
-Ensure the entire output is a single, valid JSON object that conforms to the schema.
+Ensure the entire output is a single, valid JSON object that conforms to the schema. Do not include any extra text or explanations.
 `,
 });
 
