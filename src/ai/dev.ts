@@ -12,4 +12,6 @@ import '@/ai/flows/ask-question.ts';
 import '@/ai/flows/generate-campaign-structure.ts';
 import '@/ai/flows/estimate-cost.ts';
 import '@/ai/flows/sanitize-ip.ts';
+import '@/ai/flows/assess-consequences.ts';
+import '@/ai/schemas/assess-consequences-schemas.ts';
 import '@/ai/models.ts';

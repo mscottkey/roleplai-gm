@@ -31,6 +31,8 @@ type GameViewProps = {
   setActiveCharacter: (character: Character) => void;
   mechanicsVisibility: MechanicsVisibility;
   setMechanicsVisibility: (value: MechanicsVisibility) => void;
+  onUndo: () => void;
+  canUndo: boolean;
 };
 
 export function GameView({
@@ -45,6 +47,8 @@ export function GameView({
   setActiveCharacter,
   mechanicsVisibility,
   setMechanicsVisibility,
+  onUndo,
+  canUndo,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -113,6 +117,8 @@ export function GameView({
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
             onOpenStory={() => setIsStoryOpen(true)}
+            onUndo={onUndo}
+            canUndo={canUndo}
           />
       </div>
     </div>

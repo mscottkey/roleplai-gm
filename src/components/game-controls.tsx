@@ -5,6 +5,8 @@ import { Header } from '@/components/header';
 import { ChatInterface } from '@/components/chat-interface';
 import { StoryDrawer } from '@/components/story-drawer';
 import { TurnManager } from '@/components/turn-manager';
+import { Button } from './ui/button';
+import { RotateCcw } from 'lucide-react';
 
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
@@ -21,6 +23,8 @@ type GameControlsProps = {
   mechanicsVisibility: MechanicsVisibility;
   setMechanicsVisibility: (value: MechanicsVisibility) => void;
   onOpenStory: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 };
 
 export function GameControls({
@@ -35,6 +39,8 @@ export function GameControls({
   mechanicsVisibility,
   setMechanicsVisibility,
   onOpenStory,
+  onUndo,
+  canUndo,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -54,6 +60,14 @@ export function GameControls({
           activeCharacter={activeCharacter}
         />
       </div>
+      {canUndo && (
+         <div className="p-2 border-t bg-card/80 backdrop-blur-sm flex justify-center">
+            <Button variant="ghost" size="sm" onClick={onUndo} disabled={isLoading}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Undo Last Action
+            </Button>
+        </div>
+      )}
       <StoryDrawer
         isOpen={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}

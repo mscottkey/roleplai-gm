@@ -9,13 +9,15 @@ import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { estimateCost as estimateCostFlow, type EstimateCostInput, type EstimateCostOutput } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
+import { assessConsequences } from "@/ai/flows/assess-consequences";
+import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
 
@@ -88,6 +90,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         initialHooks: newGame.initialHooks,
       },
       worldState: initialWorldState,
+      previousWorldState: null,
       messages: [],
       storyMessages: [],
       step: 'characters',
@@ -168,6 +171,7 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
 
       await updateDoc(gameRef, {
         worldState: newWorldState,
+        previousWorldState: currentWorldState,
         ...updates
       });
       return newWorldState;
@@ -219,4 +223,68 @@ export async function getCostEstimation(input: EstimateCostInput): Promise<Estim
         console.error("Error in getCostEstimation action:", error);
         throw new Error("Failed to get cost estimation. Please try again.");
     }
+}
+
+export async function checkConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {
+    try {
+        return await assessConsequences(input);
+    } catch (error) {
+        console.error("Error in checkConsequences action:", error);
+        throw new Error("Failed to assess consequences. Please try again.");
+    }
+}
+
+export async function undoLastAction(gameId: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const app = getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, 'games', gameId);
+
+    const gameDoc = await getDoc(gameRef);
+    if (!gameDoc.exists()) {
+      throw new Error("Game not found.");
+    }
+
+    const gameData = gameDoc.data();
+    const previousWorldState = gameData.previousWorldState;
+
+    if (!previousWorldState) {
+      return { success: false, message: "No previous state available to undo to." };
+    }
+
+    // Also roll back messages
+    const messages = gameData.messages || [];
+    const storyMessages = gameData.storyMessages || [];
+    
+    // Remove the last user message and the last two assistant messages (action result + consequence check, if any)
+    // A simpler logic is to find the last user message and slice everything after it.
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    const rolledBackMessages = lastUserIndex !== -1 ? messages.slice(0, lastUserIndex) : messages;
+    
+    // For story messages, just remove the last one.
+    const rolledBackStoryMessages = storyMessages.length > 0 ? storyMessages.slice(0, -1) : [];
+    
+
+    await updateDoc(gameRef, {
+      worldState: previousWorldState,
+      previousWorldState: null, // Can only undo once
+      messages: rolledBackMessages,
+      storyMessages: rolledBackStoryMessages,
+      // We don't need to change the active character, as it's part of the world state that's being restored.
+      // But we should reset the activeCharacterId at the top level
+      activeCharacterId: previousWorldState.characters.find((c: any) => c.name === gameData.worldState.activeCharacterName)?.id || gameData.activeCharacterId,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in undoLastAction action:", error);
+    const message = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message };
+  }
 }

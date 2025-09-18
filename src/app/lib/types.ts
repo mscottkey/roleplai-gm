@@ -12,7 +12,7 @@ export type Message = {
 
 export type Character = {
   id: string;
-  name: string;
+  name:string;
   description:string;
   aspect: string;
   playerName: string;
@@ -40,6 +40,7 @@ export type GameSession = {
   createdAt: Timestamp;
   gameData: GameData;
   worldState: WorldState;
+  previousWorldState: WorldState | null;
   messages: Message[];
   storyMessages: StoryMessage[];
   step: 'characters' | 'play';

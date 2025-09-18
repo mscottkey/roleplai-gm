@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, generateCampaign } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, generateCampaign, checkConsequences, undoLastAction } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -17,6 +17,7 @@ import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Times
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
 import { GameSession } from '@/app/lib/types';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -28,31 +29,25 @@ const normalizeOrderedList = (s: string) => {
 };
 
 const normalizeInlineBulletsInSections = (md: string) => {
-  if (!md) return md;
-  // This function fixes lists that the AI generates "inline", like:
-  // "Key Factions: - Faction A - Faction B"
-  // and turns them into a proper markdown list.
-  const fixLine = (title: string, text: string) => {
-    const re = new RegExp(`(${title}:)(.*)`, 'ims');
-    return text.replace(re, (_m, a, b) => {
-      const listItems = b
-        // Split by either '*' or '-' bullet points, ignoring surrounding whitespace
-        .split(/\s*[\*-]\s*/)
-        // Remove any empty strings that result from the split
-        .filter(item => item.trim().length > 0)
-        // Format each item as a proper markdown list item
-        .map(item => `- ${item.trim()}`)
-        .join('\n');
-      
-      // Return the title followed by the formatted list
-      return `${a.trim()}\n\n${listItems}`;
-    });
-  };
+    if (!md) return md;
 
-  let processedMd = md;
-  processedMd = fixLine('Key Factions', processedMd);
-  processedMd = fixLine('Notable Locations', processedMd);
-  return processedMd;
+    const fixLine = (title: string, text: string) => {
+        const re = new RegExp(`(${title}:)(.*)`, 'ims');
+        return text.replace(re, (_m, a, b) => {
+            if (!b) return a;
+            const listItems = b
+                .split(/\s*[\*-]\s*/)
+                .filter(item => item.trim().length > 0)
+                .map(item => `- ${item.trim()}`)
+                .join('\n');
+            return `${a.trim()}\n\n${listItems}`;
+        });
+    };
+
+    let processedMd = md;
+    processedMd = fixLine('Key Factions', processedMd);
+    processedMd = fixLine('Notable Locations', processedMd);
+    return processedMd;
 };
 
 
@@ -66,6 +61,7 @@ export default function RoleplAIGMPage() {
   
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
+  const [previousWorldState, setPreviousWorldState] = useState<WorldState | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [storyMessages, setStoryMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +69,8 @@ export default function RoleplAIGMPage() {
   const [step, setStep] = useState<'create' | 'characters' | 'play' | 'loading'>('loading');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+
+  const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void; } | null>(null);
 
   const { toast } = useToast();
 
@@ -130,6 +128,7 @@ export default function RoleplAIGMPage() {
       setActiveGameId(null);
       setGameData(null);
       setWorldState(null);
+      setPreviousWorldState(null);
       setMessages([]);
       setStoryMessages([]);
       setCharacters([]);
@@ -151,6 +150,7 @@ export default function RoleplAIGMPage() {
         const game = doc.data() as GameSession;
         setGameData(game.gameData);
         setWorldState(game.worldState);
+        setPreviousWorldState(game.previousWorldState);
         setMessages(game.messages || []);
         setStoryMessages(game.storyMessages || []);
         const finalCharacters = game.gameData.characters || [];
@@ -298,6 +298,7 @@ The stage is set. What do you do?
                 messages: newMessages,
                 storyMessages: newStoryMessages,
                 step: 'play',
+                previousWorldState: null, // Clear previous state on new campaign
             }
         });
 
@@ -336,7 +337,7 @@ The stage is set. What do you do?
   };
 
 
-  const handleSendMessage = async (playerInput: string) => {
+ const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!activeCharacter || !worldState || !activeGameId) {
         toast({
             variant: "destructive",
@@ -351,95 +352,144 @@ The stage is set. What do you do?
     setIsLoading(true);
 
     try {
-      const { intent } = await routePlayerInput({ playerInput });
-      
-      let assistantMessage: Message;
+        const { intent } = await routePlayerInput({ playerInput });
 
-      if (intent === 'Action') {
-        const response = await continueStory({
-          actionDescription: playerInput,
-          worldState,
-          character: {
-            name: activeCharacter.name,
-            description: activeCharacter.description,
-            aspect: activeCharacter.aspect,
-          },
-          ruleAdapter: 'FateCore', 
-          mechanicsVisibility,
-        });
+        if (intent === 'Action' && !confirmed) {
+            const consequenceResult = await checkConsequences({
+                actionDescription: playerInput,
+                worldState,
+                character: {
+                    name: activeCharacter.name,
+                    description: activeCharacter.description,
+                    aspect: activeCharacter.aspect,
+                },
+            });
 
-        assistantMessage = {
-          role: 'assistant',
-          content: response.narrativeResult,
-          mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
-        };
-
-        const newStoryMessages = [...storyMessages, {content: response.narrativeResult}];
-        setStoryMessages(newStoryMessages);
-        
-        // Auto-advance turn
-        const currentIndex = characters.findIndex(c => c.id === activeCharacter.id);
-        const nextIndex = (currentIndex + 1) % characters.length;
-        const nextCharacter = characters[nextIndex];
-        setActiveCharacter(nextCharacter);
-        
-        // Update world state in the background.
-        updateWorldState({
-            gameId: activeGameId,
-            playerAction: {
-              characterName: activeCharacter.name,
-              action: playerInput,
-            },
-            gmResponse: response.narrativeResult,
-            currentWorldState: worldState,
-            updates: {
-              messages: [...newMessages, assistantMessage],
-              storyMessages: newStoryMessages,
-              activeCharacterId: nextCharacter.id,
+            if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
+                setConfirmation({
+                    message: consequenceResult.confirmationMessage,
+                    onConfirm: () => {
+                        setConfirmation(null);
+                        handleSendMessage(playerInput, true); // Resend with confirmation
+                    },
+                });
+                // Since we need confirmation, we stop here. Revert the optimistic message update.
+                setMessages(messages);
+                setIsLoading(false);
+                return;
             }
-        }).catch(err => {
-            console.error("Failed to update world state:", err);
-            // Non-critical, so we just log the error.
-        });
-
-      } else { // Intent is 'Question'
-        const response = await getAnswerToQuestion({
-          question: playerInput,
-          worldState,
-          character: {
-            name: activeCharacter.name,
-            description: activeCharacter.description,
-            aspect: activeCharacter.aspect,
-          },
-        });
-
-        assistantMessage = {
-          role: 'assistant',
-          content: response.answer,
-        };
+        }
         
-        // Save question and answer to message history
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-              messages: [...newMessages, assistantMessage],
-            }
-        });
-      }
-      
-      setMessages(prev => [...prev, assistantMessage]);
+        let assistantMessage: Message;
+
+        if (intent === 'Action') {
+            const response = await continueStory({
+                actionDescription: playerInput,
+                worldState,
+                character: {
+                    name: activeCharacter.name,
+                    description: activeCharacter.description,
+                    aspect: activeCharacter.aspect,
+                },
+                ruleAdapter: 'FateCore',
+                mechanicsVisibility,
+            });
+
+            assistantMessage = {
+                role: 'assistant',
+                content: response.narrativeResult,
+                mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
+            };
+
+            const newStoryMessages = [...storyMessages, { content: response.narrativeResult }];
+            setStoryMessages(newStoryMessages);
+
+            const currentIndex = characters.findIndex(c => c.id === activeCharacter.id);
+            const nextIndex = (currentIndex + 1) % characters.length;
+            const nextCharacter = characters[nextIndex];
+
+            // Update world state in the background. Note: we are saving the *current* worldState as previousWorldState
+            updateWorldState({
+                gameId: activeGameId,
+                playerAction: {
+                    characterName: activeCharacter.name,
+                    action: playerInput,
+                },
+                gmResponse: response.narrativeResult,
+                currentWorldState: worldState,
+                updates: {
+                    messages: [...newMessages, assistantMessage],
+                    storyMessages: newStoryMessages,
+                    activeCharacterId: nextCharacter.id,
+                }
+            }).then(() => {
+                setActiveCharacter(nextCharacter); // Set active character only after successful state update
+            }).catch(err => {
+                console.error("Failed to update world state:", err);
+                // Non-critical, so we just log the error.
+            });
+
+        } else { // Intent is 'Question'
+            const response = await getAnswerToQuestion({
+                question: playerInput,
+                worldState,
+                character: {
+                    name: activeCharacter.name,
+                    description: activeCharacter.description,
+                    aspect: activeCharacter.aspect,
+                },
+            });
+
+            assistantMessage = {
+                role: 'assistant',
+                content: response.answer,
+            };
+
+            await updateWorldState({
+                gameId: activeGameId,
+                updates: {
+                    messages: [...newMessages, assistantMessage],
+                }
+            });
+        }
+
+        setMessages(prev => [...prev, assistantMessage]);
 
     } catch (error) {
-       const err = error as Error;
-       console.error("Failed to process input:", err);
-       toast({
-         variant: "destructive",
-         title: "Error",
-         description: err.message || "An unknown error occurred.",
-       });
-       setMessages(messages); // Revert optimistic update
+        const err = error as Error;
+        console.error("Failed to process input:", err);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: err.message || "An unknown error occurred.",
+        });
+        setMessages(messages); // Revert optimistic update
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
+    }
+};
+
+
+  const handleUndo = async () => {
+    if (!activeGameId || !previousWorldState) {
+        toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
+        return;
+    }
+    setIsLoading(true);
+    try {
+        const result = await undoLastAction(activeGameId);
+        if (result.success) {
+            toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
+            // The snapshot listener will handle the state updates automatically.
+        } else {
+            throw new Error(result.message || 'Failed to undo the last action.');
+        }
+    } catch (error) {
+        const err = error as Error;
+        console.error("Failed to undo:", err);
+        toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -475,6 +525,8 @@ The stage is set. What do you do?
             }}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
+            onUndo={handleUndo}
+            canUndo={!!previousWorldState}
           />
         );
       default:
@@ -487,13 +539,31 @@ The stage is set. What do you do?
   };
 
   return (
-    <AppShell
-      games={games}
-      activeGameId={activeGameId}
-      onNewGame={() => router.push('/')}
-      onSelectGame={(gameId) => router.push(`/?game=${gameId}`)}
-    >
-      {renderContent()}
-    </AppShell>
+    <>
+      <AppShell
+        games={games}
+        activeGameId={activeGameId}
+        onNewGame={() => router.push('/')}
+        onSelectGame={(gameId) => router.push(`/?game=${gameId}`)}
+      >
+        {renderContent()}
+      </AppShell>
+      {confirmation && (
+        <AlertDialog open onOpenChange={() => setConfirmation(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirmation.message}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmation(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmation.onConfirm}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   );
 }
