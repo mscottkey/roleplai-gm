@@ -54,8 +54,8 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
         setIsSpeaking(true);
     };
     utterance.onerror = (e) => {
-        if (e.error === 'interrupted') {
-            return; // Don't log interruptions as errors
+        if (e.error === 'interrupted' || e.error === 'canceled' || e.error === 'not-allowed') {
+            return; // Don't log common, expected interruptions as errors
         }
         console.error("Speech synthesis error", e.error);
         setIsSpeaking(false);
