@@ -1,11 +1,10 @@
+
 'use server';
 
 /**
  * @fileOverview Flow for estimating the token cost of a game session.
  *
  * - estimateCost - A function that estimates token usage.
- * - EstimateCostInput - The input type for the estimateCost function.
- * - EstimateCostOutput - The return type for the estimateCost function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -68,3 +67,5 @@ const estimateCostFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
