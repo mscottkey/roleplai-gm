@@ -4,7 +4,7 @@
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import { resolveAction, ResolveActionInput, ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
-import { updateWorldState as updateWorldStateFlow, UpdateWorldStateOutput } from "@/ai/flows/update-world-state";
+import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
@@ -14,6 +14,8 @@ import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/
 import { assessConsequences } from "@/ai/flows/assess-consequences";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node } from "@/ai/schemas/campaign-structure-schemas";
+import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
+
 
 import { z } from 'genkit';
 import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
