@@ -11,7 +11,9 @@ import { GameControls } from '@/components/game-controls';
 import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
-import { formatDialogue } from '@/lib/utils';
+import { Button } from './ui/button';
+import { ArrowDown } from 'lucide-react';
+import { cn, formatDialogue } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Sheet,
@@ -72,20 +74,69 @@ export function GameView({
   onSetAutoPlay,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
+  const storyContentRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const isInitialStoryLoad = useRef(true);
+  
+  const [showSmartScroll, setShowSmartScroll] = useState(false);
 
   useEffect(() => {
-    if (storyRef.current) {
-        const viewport = storyRef.current.querySelector('div');
-        if (viewport) {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
-        }
+    const viewport = storyRef.current?.querySelector('div');
+    if (viewport) {
+      if (isInitialStoryLoad.current) {
+        viewport.scrollTo({ top: 0 });
+        isInitialStoryLoad.current = false;
+      } else {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+      }
     }
   }, [storyMessages]);
+  
+  const handleSmartScroll = () => {
+    const viewport = storyRef.current?.querySelector('div');
+    const content = storyContentRef.current;
+    if (!viewport || !content) return;
+
+    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')) as HTMLElement[];
+    const scrollBottom = viewport.scrollTop + viewport.clientHeight;
+    
+    // Find the next heading that is below the current viewport bottom
+    const nextHeading = headings.find(h => h.offsetTop > viewport.scrollTop + 20);
+
+    if (nextHeading) {
+      viewport.scrollTo({ top: nextHeading.offsetTop, behavior: 'smooth' });
+    } else {
+      // If no next heading, either scroll to bottom or back to top
+      if (scrollBottom < viewport.scrollHeight - 50) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+      } else {
+        viewport.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const handleScroll = () => {
+    const viewport = storyRef.current?.querySelector('div');
+    if (viewport) {
+        const isScrollable = viewport.scrollHeight > viewport.clientHeight;
+        const isAtBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 50;
+        setShowSmartScroll(isScrollable && !isAtBottom);
+    }
+  };
+
+  useEffect(() => {
+    const viewport = storyRef.current?.querySelector('div');
+    if (viewport) {
+        viewport.addEventListener('scroll', handleScroll);
+        // Initial check
+        handleScroll();
+        return () => viewport.removeEventListener('scroll', handleScroll);
+    }
+  }, [storyMessages]); // Re-check when content changes
 
   const StoryContent = () => (
-    <div className="p-12 text-foreground">
+    <div className="p-12 text-foreground" ref={storyContentRef}>
         <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
             {storyMessages.map((message, index) => {
               const contentWithDialogue = formatDialogue(message.content);
@@ -116,10 +167,19 @@ export function GameView({
           </SheetContent>
         </Sheet>
       ) : (
-        <div className="h-full hidden md:flex flex-col overflow-hidden bg-background">
+        <div className="h-full hidden md:flex flex-col overflow-hidden bg-background relative">
           <ScrollArea className="flex-1" ref={storyRef}>
               <StoryContent />
           </ScrollArea>
+          {showSmartScroll && (
+              <Button 
+                size="icon"
+                className="absolute bottom-6 right-6 z-10 rounded-full h-12 w-12 bg-primary/80 backdrop-blur-sm shadow-lg animate-[bounce-down_2s_ease-out_infinite]"
+                onClick={handleSmartScroll}
+              >
+                  <ArrowDown className="h-6 w-6" />
+              </Button>
+          )}
         </div>
       )}
 
