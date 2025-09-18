@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, regenerateStoryline } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -509,6 +509,28 @@ The stage is set. What do you do?
     }
   };
 
+  const handleRegenerateStoryline = async () => {
+    if (!activeGameId) return;
+
+    setIsLoading(true);
+    toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
+    try {
+        const result = await regenerateStoryline(activeGameId);
+        if (result.success) {
+            toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
+            // The snapshot listener will handle updating the UI.
+        } else {
+            throw new Error(result.message || 'Failed to regenerate the storyline.');
+        }
+    } catch (error) {
+        const err = error as Error;
+        console.error("Failed to regenerate storyline:", err);
+        toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const renderContent = () => {
     switch (step) {
       case 'create':
@@ -544,6 +566,7 @@ The stage is set. What do you do?
             setMechanicsVisibility={setMechanicsVisibility}
             onUndo={handleUndo}
             canUndo={!!previousWorldState}
+            onRegenerateStoryline={handleRegenerateStoryline}
           />
         );
       default:

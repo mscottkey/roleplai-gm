@@ -311,3 +311,89 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
+
+
+export async function regenerateStoryline(gameId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+        const app = getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+
+        const gameDoc = await getDoc(gameRef);
+        if (!gameDoc.exists()) {
+            throw new Error("Game not found.");
+        }
+
+        const game = gameDoc.data();
+        const { gameData } = game;
+        const { setting, tone, characters } = gameData;
+        
+        if (!characters || characters.length === 0) {
+            throw new Error("Cannot regenerate storyline without characters.");
+        }
+
+        const characterList = characters.map((c: any) => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+
+        // This is a simplified version of the logic in page.tsx handleCharactersFinalized
+        // Step 1: Generate Core Concepts
+        const coreConcepts = await generateCore({ setting, tone, characters });
+
+        // Step 2: Generate Factions
+        const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters });
+
+        // Step 3: Generate Nodes
+        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters });
+
+        const campaignStructure = {
+            campaignIssues: coreConcepts.campaignIssues,
+            campaignAspects: coreConcepts.campaignAspects,
+            factions,
+            nodes,
+        };
+        
+        const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
+        const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
+
+        const finalInitialMessageContent = `
+# Welcome to your (newly regenerated) adventure!
+
+## Setting
+${gameData.setting}
+
+## Tone
+${gameData.tone}
+
+## Your Party
+${characterList}
+
+---
+
+${initialScene}
+
+The stage is set. What do you do?
+`.trim();
+
+        const finalInitialMessage = { role: 'assistant', content: finalInitialMessageContent };
+        
+        // Replace the placeholder message with the final one
+        await updateDoc(gameRef, {
+            'gameData.campaignStructure': campaignStructure,
+            'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+            'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
+            'worldState.recentEvents': ["The adventure has just begun."],
+            'worldState.storyAspects': campaignStructure.campaignAspects,
+            'worldState.knownPlaces': [],
+            'worldState.knownFactions': [],
+            'messages': [finalInitialMessage],
+            'storyMessages': [{ content: finalInitialMessageContent }],
+            previousWorldState: null, // Clear previous state on new campaign
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error in regenerateStoryline action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred while regenerating the storyline.";
+        return { success: false, message };
+    }
+}

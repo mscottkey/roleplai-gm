@@ -35,6 +35,7 @@ type GameViewProps = {
   setMechanicsVisibility: (value: MechanicsVisibility) => void;
   onUndo: () => void;
   canUndo: boolean;
+  onRegenerateStoryline: () => void;
 };
 
 export function GameView({
@@ -51,6 +52,7 @@ export function GameView({
   setMechanicsVisibility,
   onUndo,
   canUndo,
+  onRegenerateStoryline,
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -153,6 +155,7 @@ export function GameView({
             onOpenStory={() => setIsStoryOpen(true)}
             onUndo={onUndo}
             canUndo={canUndo}
+            onRegenerateStoryline={onRegenerateStoryline}
             // TTS Props
             isSpeaking={isSpeaking}
             isPaused={isPaused}

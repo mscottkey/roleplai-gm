@@ -26,6 +26,7 @@ type GameControlsProps = {
   onOpenStory: () => void;
   onUndo: () => void;
   canUndo: boolean;
+  onRegenerateStoryline: () => void;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -51,6 +52,7 @@ export function GameControls({
   onOpenStory,
   onUndo,
   canUndo,
+  onRegenerateStoryline,
   // TTS Props
   isSpeaking,
   isPaused,
@@ -105,6 +107,8 @@ export function GameControls({
         worldState={worldState}
         mechanicsVisibility={mechanicsVisibility}
         setMechanicsVisibility={setMechanicsVisibility}
+        onRegenerateStoryline={onRegenerateStoryline}
+        isLoading={isLoading}
       />
     </div>
   );
