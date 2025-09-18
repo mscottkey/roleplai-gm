@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useId } from 'react';
+import { useState, useId, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
+import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType, CharacterStats } from '@/ai/schemas/generate-character-schemas';
 import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -41,10 +41,11 @@ const normalizeToneBullets = (s: string) => {
 
 
 // Combine custom fields with generated ones for the form's character state
-type FormCharacter = CustomCharacterType & Omit<Partial<GenCharacterType>, 'name' | 'description' | 'aspect'>;
+type FormCharacter = CustomCharacterType;
 
 type CharacterCreationFormProps = {
   gameData: GameData;
+  initialCharacters?: FormCharacter[];
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
@@ -80,7 +81,7 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
       <div>
         <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><GraduationCap className="h-4 w-4"/> Skills</h4>
         <div className="flex flex-wrap gap-1">
-          {char.stats.skills.sort((a: any, b: any) => b.rank - a.rank).map((skill: any) => (
+          {char.stats.skills.sort((a, b) => b.rank - a.rank).map((skill) => (
             <Badge key={skill.name} variant="secondary" className="text-xs">
               {skill.name} ({getSkillDisplay(skill.rank)})
             </Badge>
@@ -94,7 +95,7 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
         <h4 className="font-semibold text-sm flex items-center gap-2 mb-2"><StuntIcon className="h-4 w-4"/> Stunts</h4>
         <TooltipProvider>
         <div className="flex flex-wrap gap-1">
-          {char.stats.stunts.map((stunt: any) => (
+          {char.stats.stunts.map((stunt) => (
             <Tooltip key={stunt.name}>
               <TooltipTrigger asChild>
                 <Badge variant="outline" className="text-xs cursor-help">{stunt.name}</Badge>
@@ -114,11 +115,13 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
 
 export function CharacterCreationForm({
   gameData,
+  initialCharacters = [],
   onCharactersFinalized,
   generateCharacterSuggestions,
   isLoading,
 }: CharacterCreationFormProps) {
-  const [characters, setCharacters] = useState<FormCharacter[]>(() => [
+  const [characters, setCharacters] = useState<FormCharacter[]>(() => 
+    initialCharacters.length > 0 ? initialCharacters : [
     {
       id: `player-0-${Date.now()}`,
       name: '',
@@ -134,6 +137,16 @@ export function CharacterCreationForm({
   const [hasGenerated, setHasGenerated] = useState(false);
   const { toast } = useToast();
   const formId = useId();
+  
+  useEffect(() => {
+    // This effect syncs the internal state with props, useful for reloads.
+    if (initialCharacters.length > 0) {
+      setCharacters(initialCharacters);
+      if (initialCharacters.some(c => c.name !== '')) {
+        setHasGenerated(true);
+      }
+    }
+  }, [initialCharacters]);
 
   const handlePreferenceChange = (id: string, field: keyof CharacterPreferences, value: string) => {
     setPreferences(prev => ({
@@ -161,7 +174,7 @@ export function CharacterCreationForm({
             characterSlots: characterSlots,
         });
 
-        const newCharacters = new Map(result.characters.map(c => [c.slotId, c]));
+        const newCharacters = new Map(result.characters.map(c => [c.slotId, c as (GenCharacterType & { slotId: string })]));
 
         setCharacters(prev => 
             prev.map(char => {

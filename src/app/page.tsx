@@ -150,7 +150,7 @@ export default function RoleplAIGMPage() {
         const game = doc.data() as GameSession;
         setGameData(game.gameData);
         setWorldState(game.worldState);
-        setPreviousWorldState(game.previousWorldState);
+        setPreviousWorldState(game.previousWorldState || null);
         setMessages(game.messages || []);
         setStoryMessages(game.storyMessages || []);
         const finalCharacters = game.gameData.characters || [];
@@ -228,9 +228,31 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Characters", description: "Saving your party..." });
 
     try {
+        await updateWorldState({
+            gameId: activeGameId,
+            updates: {
+                'gameData.characters': finalCharacters,
+                'worldState.characters': finalCharacters.map(c => ({
+                    name: c.name,
+                    description: c.description,
+                    aspect: c.aspect,
+                    playerName: c.playerName,
+                    archetype: c.archetype,
+                    gender: c.gender,
+                    age: c.age,
+                    stats: c.stats,
+                })),
+                'activeCharacterId': finalCharacters[0].id,
+            }
+        });
+
+        // The listener will update the local state.
+        // Now, generate campaign in the background and update the messages.
+        toast({ title: "Adventure Ready!", description: "Your new campaign is being generated..." });
+        
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
         
-        const initialMessageContent = `
+        const placeholderMessageContent = `
 # Welcome to your adventure!
 
 ## Setting
@@ -247,36 +269,17 @@ ${characterList}
 *The stage is being set. The AI is weaving a web of intrigue for your adventure...*
 `.trim();
 
-        const initialMessage: Message = { role: 'assistant', content: initialMessageContent };
-        
-        // Immediately update state to show the character list and move to 'play'
+        const placeholderMessage: Message = { role: 'assistant', content: placeholderMessageContent };
+
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                'gameData.characters': finalCharacters,
-                'worldState.characters': finalCharacters.map(c => ({
-                    name: c.name,
-                    description: c.description,
-                    aspect: c.aspect,
-                    playerName: c.playerName,
-                    archetype: c.archetype,
-                    gender: c.gender,
-                    age: c.age,
-                    stats: c.stats,
-                })),
-                'activeCharacterId': finalCharacters[0].id,
-                'messages': [initialMessage],
-                'storyMessages': [{ content: initialMessageContent }],
+                'messages': [placeholderMessage],
+                'storyMessages': [{ content: placeholderMessageContent }],
                 step: 'play'
             }
         });
-        
-        // The listener will pick up the changes, but we can set the step locally.
-        setStep('play');
-        setActiveCharacter(finalCharacters[0]);
-        toast({ title: "Adventure Ready!", description: "Your new campaign is being generated in the background." });
 
-        // Now, generate the campaign in the background
         const campaignStructure = await generateCampaign({
             setting: gameData.setting,
             tone: gameData.tone,
@@ -498,6 +501,7 @@ The stage is set. What do you do?
          return (
           <CharacterCreationForm
             gameData={gameData!}
+            initialCharacters={characters}
             onCharactersFinalized={handleCharactersFinalized}
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
