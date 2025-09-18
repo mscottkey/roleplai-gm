@@ -228,9 +228,28 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Characters", description: "Saving your party..." });
 
     try {
-        setActiveCharacter(finalCharacters[0]);
-        let updatedGameData = { ...gameData, characters: finalCharacters };
+        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
         
+        const initialMessageContent = `
+# Welcome to your adventure!
+
+## Setting
+${normalizeInlineBulletsInSections(gameData.setting)}
+
+## Tone
+${normalizeInlineBulletsInSections(gameData.tone)}
+
+## Your Party
+${characterList}
+
+---
+
+*The stage is being set. The AI is weaving a web of intrigue for your adventure...*
+`.trim();
+
+        const initialMessage: Message = { role: 'assistant', content: initialMessageContent };
+        
+        // Immediately update state to show the character list and move to 'play'
         await updateWorldState({
             gameId: activeGameId,
             updates: {
@@ -246,25 +265,30 @@ export default function RoleplAIGMPage() {
                     stats: c.stats,
                 })),
                 'activeCharacterId': finalCharacters[0].id,
+                'messages': [initialMessage],
+                'storyMessages': [{ content: initialMessageContent }],
+                step: 'play'
             }
         });
+        
+        // The listener will pick up the changes, but we can set the step locally.
+        setStep('play');
+        setActiveCharacter(finalCharacters[0]);
+        toast({ title: "Adventure Ready!", description: "Your new campaign is being generated in the background." });
 
-        toast({ title: "Generating Campaign...", description: "The AI is weaving a web of intrigue for your adventure." });
-
+        // Now, generate the campaign in the background
         const campaignStructure = await generateCampaign({
             setting: gameData.setting,
             tone: gameData.tone,
             characters: finalCharacters,
         });
 
-        updatedGameData = { ...updatedGameData, campaignStructure };
-
-        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+        const updatedGameData = { ...gameData, characters: finalCharacters, campaignStructure };
         
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
-        const initialMessageContent = `
+        const finalInitialMessageContent = `
 # Welcome to your adventure!
 
 ## Setting
@@ -283,10 +307,9 @@ ${initialScene}
 The stage is set. What do you do?
 `.trim();
 
-        const initialMessage: Message = { role: 'assistant', content: initialMessageContent };
-        const newMessages = [initialMessage];
-        const newStoryMessages = [{ content: initialMessageContent }];
-
+        const finalInitialMessage: Message = { role: 'assistant', content: finalInitialMessageContent };
+        
+        // Replace the placeholder message with the final one
         await updateWorldState({
             gameId: activeGameId,
             updates: {
@@ -295,38 +318,12 @@ The stage is set. What do you do?
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
                 'worldState.storyAspects': campaignStructure.campaignAspects,
-                messages: newMessages,
-                storyMessages: newStoryMessages,
-                step: 'play',
+                'messages': [finalInitialMessage],
+                'storyMessages': [{ content: finalInitialMessageContent }],
                 previousWorldState: null, // Clear previous state on new campaign
             }
         });
 
-        // The listener will update the state, but we can set it preemptively
-        setGameData(updatedGameData);
-        setWorldState(prev => ({
-            ...prev!,
-            summary: `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-            storyOutline: campaignStructure.nodes.map(n => n.title),
-            recentEvents: ["The adventure has just begun."],
-            storyAspects: campaignStructure.campaignAspects,
-            characters: finalCharacters.map(c => ({
-                    name: c.name,
-                    description: c.description,
-                    aspect: c.aspect,
-                    playerName: c.playerName,
-                    archetype: c.archetype,
-                    gender: c.gender,
-                    age: c.age,
-                    stats: c.stats,
-                })),
-        }));
-        setMessages(newMessages);
-        setStoryMessages(newStoryMessages);
-        setCharacters(finalCharacters);
-        setStep('play');
-
-        toast({ title: "Adventure Ready!", description: "Your new campaign is ready to play." });
     } catch (error) {
         const err = error as Error;
         console.error("Failed to finalize characters and generate campaign:", err);
