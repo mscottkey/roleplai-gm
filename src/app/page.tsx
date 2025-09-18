@@ -21,6 +21,7 @@ import { GameSession } from '@/app/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
+import type { Character as AICharacter } from '@/ai/schemas/generate-character-schemas';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -44,6 +45,7 @@ const normalizeInlineBulletsInSections = (md: string) => {
 
     let processedMd = md;
     processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
+    processedMd = processedMd.replace(/^\s*-\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
     
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
@@ -209,7 +211,7 @@ export default function RoleplAIGMPage() {
             generateRecap({ recentEvents: game.worldState.recentEvents })
               .then(recapResult => {
                 const recapMessage: Message = {
-                  id: 'recap-message',
+                  id: `recap-${Date.now()}`,
                   role: 'system',
                   content: `### Previously On...\n\n${recapResult.recap}`
                 };
@@ -290,7 +292,7 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Characters", description: "Saving your party..." });
 
     try {
-        const charactersForAI = finalCharacters.map(c => ({
+        const charactersForAI: AICharacter[] = finalCharacters.map(c => ({
             name: c.name,
             description: c.description,
             aspect: c.aspect,
@@ -366,6 +368,7 @@ ${characterList}
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
+        // Synthesize hooks from the new structure
         const newHooks = `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`;
 
         const finalInitialMessageContent = `
@@ -428,7 +431,7 @@ The stage is set. What do you do?
     }
     
     // Remove the temporary recap message if it exists
-    const messagesWithoutRecap = messages.filter(m => m.id !== 'recap-message');
+    const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
     const authorName = activeCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
 
@@ -594,7 +597,7 @@ The stage is set. What do you do?
             throw new Error("Cannot regenerate storyline without characters.");
         }
         
-        const charactersForAI = currentCharacters.map(c => ({
+        const charactersForAI: AICharacter[] = currentCharacters.map(c => ({
             name: c.name,
             description: c.description,
             aspect: c.aspect,
@@ -602,7 +605,7 @@ The stage is set. What do you do?
             archetype: c.archetype,
             gender: c.gender,
             age: c.age,
-            stats: c.stats || {},
+            stats: c.stats,
         }));
 
         const { setting, tone } = gameData;
@@ -638,13 +641,13 @@ The stage is set. What do you do?
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
-${setting}
+${normalizeInlineBulletsInSections(setting)}
 
 ## Tone
-${tone}
+${normalizeInlineBulletsInSections(tone)}
 
 ## Initial Hooks
-${newHooks}
+${normalizeOrderedList(newHooks)}
 
 ## Your Party
 ${characterList}
