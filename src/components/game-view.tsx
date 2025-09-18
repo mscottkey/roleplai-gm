@@ -90,7 +90,7 @@ export function GameView({
   const handlePlayAll = () => {
     if (isPaused) {
       resume();
-    } else {
+    } else if (!isSpeaking) {
       const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
       if (storyText.trim()) {
         speak(storyText);

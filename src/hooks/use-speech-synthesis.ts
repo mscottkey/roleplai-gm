@@ -18,45 +18,15 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
       setSupported(true);
       const synth = window.speechSynthesis;
       
-      const handleBoundary = () => {
-        // Can be used to highlight words as they are spoken.
-      };
-      
-      const handleEnd = () => {
-        setIsSpeaking(false);
-        setIsPaused(false);
-        onEnd();
-      };
-      
-      const handleError = (e: SpeechSynthesisErrorEvent) => {
-        if (e.error === 'interrupted') {
-          return; // Don't log interruptions as errors
-        }
-        console.error("Speech synthesis error", e.error);
-        setIsSpeaking(false);
-        setIsPaused(false);
-      };
-
-      if(utteranceRef.current) {
-        utteranceRef.current.addEventListener('boundary', handleBoundary);
-        utteranceRef.current.addEventListener('end', handleEnd);
-        utteranceRef.current.addEventListener('error', handleError);
-      }
-      
       return () => {
-        if(utteranceRef.current) {
-          utteranceRef.current.removeEventListener('boundary', handleBoundary);
-          utteranceRef.current.removeEventListener('end', handleEnd);
-          utteranceRef.current.removeEventListener('error', handleError);
-        }
         synth.cancel();
       };
     }
-  }, [onEnd]);
+  }, []);
 
   const speak = useCallback((text: string) => {
     if (!supported) return;
-    if (isSpeaking) {
+    if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
 
@@ -77,7 +47,7 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
     };
      utterance.onpause = () => {
         setIsPaused(true);
-        setIsSpeaking(true);
+        setIsSpeaking(true); // isSpeaking should remain true during pause
     };
     utterance.onresume = () => {
         setIsPaused(false);
@@ -93,17 +63,17 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
     };
     
     synth.speak(utterance);
-  }, [supported, isSpeaking, onEnd]);
+  }, [supported, onEnd]);
 
   const pause = useCallback(() => {
-    if (!supported || !isSpeaking || isPaused) return;
+    if (!supported || !window.speechSynthesis.speaking || isPaused) return;
     window.speechSynthesis.pause();
-  }, [supported, isSpeaking, isPaused]);
+  }, [supported, isPaused]);
 
   const resume = useCallback(() => {
-    if (!supported || !isSpeaking || !isPaused) return;
+    if (!supported || !window.speechSynthesis.speaking || !isPaused) return;
     window.speechSynthesis.resume();
-  }, [supported, isSpeaking, isPaused]);
+  }, [supported, isPaused]);
 
   const cancel = useCallback(() => {
     if (!supported) return;

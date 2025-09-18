@@ -37,6 +37,14 @@ export function TTSControls({
     );
   }
 
+  const handlePlayPause = () => {
+    if (isSpeaking && !isPaused) {
+      onPause();
+    } else {
+      onPlay();
+    }
+  }
+
   return (
     <TooltipProvider>
     <div className="flex items-center gap-4">
@@ -46,15 +54,14 @@ export function TTSControls({
             <Button
               variant="ghost"
               size="icon"
-              onClick={isSpeaking && !isPaused ? onPause : onPlay}
-              disabled={isSpeaking && isPaused} // Disable play if paused, resume is implicit
+              onClick={handlePlayPause}
             >
               {isSpeaking && !isPaused ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               <span className="sr-only">{isSpeaking && !isPaused ? 'Pause' : 'Play'}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{isSpeaking && !isPaused ? 'Pause Narration' : 'Play Story Aloud'}</p>
+            <p>{isSpeaking && !isPaused ? 'Pause Narration' : (isPaused ? 'Resume Narration' : 'Play Story Aloud')}</p>
           </TooltipContent>
         </Tooltip>
 
