@@ -23,7 +23,7 @@ const FaceSchema = z.object({
 });
 
 
-const NodeSchema = z.object({
+export const NodeSchema = z.object({
     title: z.string().describe('A clear, evocative name for the node (e.g., "The Gilded Cage Casino").'),
     description: z.string().describe('A one-paragraph description of the situation at this node.'),
     isStartingNode: z.boolean().describe('Set to true for exactly one node, which will be the campaign entry point.'),
@@ -33,6 +33,7 @@ const NodeSchema = z.object({
     faces: z.array(FaceSchema).describe('1-2 key NPCs at this node, with their roles and aspects.'),
     aspects: z.array(z.string()).describe('Two Fate Aspects specific to this node.'),
 });
+export type Node = z.infer<typeof NodeSchema>;
 
 export const CampaignStructureSchema = z.object({
     campaignIssues: z.array(z.string()).length(2).describe('Two high-level, unresolved tensions for the campaign.'),
@@ -51,3 +52,18 @@ export const GenerateCampaignStructureInputSchema = z.object({
 export type GenerateCampaignStructureInput = z.infer<typeof GenerateCampaignStructureInputSchema>;
 
 export type GenerateCampaignStructureOutput = CampaignStructure;
+
+// Schemas for decomposed flows
+export const CampaignCoreSchema = z.object({
+    campaignIssues: z.array(z.string()).length(2).describe('Two high-level, unresolved tensions for the campaign.'),
+    campaignAspects: z.array(z.string()).min(3).max(5).describe('3-5 overarching Fate Aspects for the campaign world.'),
+});
+export type CampaignCore = z.infer<typeof CampaignCoreSchema>;
+
+export const GenerateFactionsInputSchema = GenerateCampaignStructureInputSchema.merge(CampaignCoreSchema);
+export type GenerateFactionsInput = z.infer<typeof GenerateFactionsInputSchema>;
+
+export const GenerateNodesInputSchema = GenerateFactionsInputSchema.extend({
+    factions: z.array(FactionSchema),
+});
+export type GenerateNodesInput = z.infer<typeof GenerateNodesInputSchema>;

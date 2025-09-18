@@ -48,7 +48,7 @@ Player request:
 ## Output Contract (must follow exactly)
 - **Format**: A single JSON object with these keys:
   - \`name\`: *(string)* - A short, evocative name for the campaign (4-6 words max).
-  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with two bulleted lists. Each list must start with a heading (e.g., \`**Key Factions:**\`) followed by a blank line, and then 2–3 bullet points, each on a new line starting with \`- \`. Example:
+  - \`setting\`: *(Markdown string)* — 150–250 words. Start with a short **logline** (one sentence in bold, using Markdown's asterisks like **this**), followed by 1–2 vivid paragraphs. End with two bulleted lists in Markdown (* not -). Each list must start with a heading (e.g., \`**Key Factions:**\`) followed by a blank line, and then 2–3 bullet points, each on a new line starting with \`* \`. Example:
     **Key Factions:**
     
     - The Arcane Technocracy
