@@ -325,8 +325,10 @@ export async function regenerateStoryline(gameId: string): Promise<{ success: bo
         }
 
         const game = gameDoc.data();
+        // This is a critical change: we need the characters from gameData.characters, not the worldState version.
         const { gameData } = game;
-        const { setting, tone, characters } = gameData;
+        const { setting, tone } = gameData;
+        const characters = gameData.characters || [];
         
         if (!characters || characters.length === 0) {
             throw new Error("Cannot regenerate storyline without characters.");
@@ -334,7 +336,6 @@ export async function regenerateStoryline(gameId: string): Promise<{ success: bo
 
         const characterList = characters.map((c: any) => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
 
-        // This is a simplified version of the logic in page.tsx handleCharactersFinalized
         // Step 1: Generate Core Concepts
         const coreConcepts = await generateCore({ setting, tone, characters });
 
@@ -375,7 +376,7 @@ The stage is set. What do you do?
 
         const finalInitialMessage = { role: 'assistant', content: finalInitialMessageContent };
         
-        // Replace the placeholder message with the final one
+        // Update the campaign structure within gameData and reset world state and messages
         await updateDoc(gameRef, {
             'gameData.campaignStructure': campaignStructure,
             'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
@@ -384,6 +385,7 @@ The stage is set. What do you do?
             'worldState.storyAspects': campaignStructure.campaignAspects,
             'worldState.knownPlaces': [],
             'worldState.knownFactions': [],
+            'worldState.places': [], // Reset discovered places from old plot
             'messages': [finalInitialMessage],
             'storyMessages': [{ content: finalInitialMessageContent }],
             previousWorldState: null, // Clear previous state on new campaign
