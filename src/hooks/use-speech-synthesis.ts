@@ -29,6 +29,9 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
       };
       
       const handleError = (e: SpeechSynthesisErrorEvent) => {
+        if (e.error === 'interrupted') {
+          return; // Don't log interruptions as errors
+        }
         console.error("Speech synthesis error", e.error);
         setIsSpeaking(false);
         setIsPaused(false);
@@ -52,12 +55,13 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
   }, [onEnd]);
 
   const speak = useCallback((text: string) => {
-    if (!supported || isSpeaking) return;
+    if (!supported) return;
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+    }
+
 
     const synth = window.speechSynthesis;
-    // Cancel any previous speech
-    synth.cancel();
-
     const utterance = new SpeechSynthesisUtterance(text);
     utteranceRef.current = utterance;
 
@@ -80,6 +84,9 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
         setIsSpeaking(true);
     };
     utterance.onerror = (e) => {
+        if (e.error === 'interrupted') {
+            return; // Don't log interruptions as errors
+        }
         console.error("Speech synthesis error", e.error);
         setIsSpeaking(false);
         setIsPaused(false);
