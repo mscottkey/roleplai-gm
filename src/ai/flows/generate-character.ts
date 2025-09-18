@@ -33,19 +33,10 @@ Existing Party Members (avoid creating similar characters):
 {{/each}}
 {{/if}}
 
-For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. The generated character should be thematically distinct from any existing party members. Ensure all generated character names are also unique.
-
-{{#each characterSlots}}
-- Slot ID: {{{this.id}}}
-  {{#if this.name}}Preferred Name: {{{this.name}}}{{/if}}
-  {{#if this.vision}}Character Vision: {{{this.vision}}}{{/if}}
-  {{#if this.gender}}Preferred Gender: {{{this.gender}}}{{/if}}
-  {{#if this.age}}Preferred Age: {{{this.age}}}{{/if}}
-  {{#if this.archetype}}Preferred Archetype: {{{this.archetype}}}{{/if}}
-{{/each}}
+For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. The generated character should be thematically distinct from any existing party members.
 
 For each character, provide:
-- A unique name. If a 'Preferred Name' is given, you MUST use it.
+- A unique name. If a 'Preferred Name' is given, you MUST use it. Otherwise, generate a diverse name appropriate to the game's setting and avoid using common or repeated names.
 - The original \`slotId\` from the input.
 - A one-sentence description.
 - A core aspect.
@@ -55,6 +46,15 @@ For each character, provide:
 - A \`stats\` object containing the character's game mechanics. For the Fate Core system, this object MUST contain:
   - A 'skills' property: an array of exactly 6 skills, distributed in a pyramid: one skill at rank 3 (Good), two skills at rank 2 (Fair), and three skills at rank 1 (Average). The skills should be thematic to the character's archetype.
   - A 'stunts' property: an array of 2 unique and interesting stunt objects, each with a 'name' and a 'description' that grants a specific mechanical benefit, as per Fate Core rules.
+
+{{#each characterSlots}}
+- Slot ID: {{{this.id}}}
+  {{#if this.name}}Preferred Name: {{{this.name}}}{{/if}}
+  {{#if this.vision}}Character Vision: {{{this.vision}}}{{/if}}
+  {{#if this.gender}}Preferred Gender: {{{this.gender}}}{{/if}}
+  {{#if this.age}}Preferred Age: {{{this.age}}}{{/if}}
+  {{#if this.archetype}}Preferred Archetype: {{{this.archetype}}}{{/if}}
+{{/each}}
 `,
 });
 
