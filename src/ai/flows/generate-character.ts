@@ -51,7 +51,7 @@ For each character, provide:
 - An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient").
 - An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage").
 - A \`stats\` object containing the character's game mechanics. For the Fate Core system, this object MUST contain:
-  - A 'skills' property: an array of 4-5 thematic skills objects, each with 'name' and 'rank' (from 1 to 3), reflecting their archetype.
+  - A 'skills' property: an array of exactly 6 skills, distributed in a pyramid: one skill at rank 3 (Good), two skills at rank 2 (Fair), and three skills at rank 1 (Average). The skills should be thematic to the character's archetype.
   - A 'stunts' property: an array of 2 unique and interesting stunt objects, each with a 'name' and a 'description' that grants a specific mechanical benefit, as per Fate Core rules.
 `,
 });

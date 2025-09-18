@@ -61,8 +61,7 @@ const getSkillDisplay = (rank: number) => {
         case 1: return 'Average';
         case 2: return 'Fair';
         case 3: return 'Good';
-        case 4: return 'Great';
-        default: return `+${rank}`;
+        default: return `Rank ${rank}`;
     }
 }
 
