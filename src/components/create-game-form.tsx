@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,46 +6,74 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/icons';
-import { ArrowRight } from 'lucide-react';
-import { Logo } from './logo';
+import { ArrowRight, Users, User } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Label } from './ui/label';
 
 type CreateGameFormProps = {
-  onSubmit: (request: string) => void;
+  onSubmit: (request: string, playMode: 'local' | 'remote') => void;
   isLoading: boolean;
 };
 
 export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
   const [request, setRequest] = useState('');
+  const [playMode, setPlayMode] = useState<'local' | 'remote'>('remote');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (request.trim()) {
-      onSubmit(request.trim());
+      onSubmit(request.trim(), playMode);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-full w-full bg-background p-4">
-      <Card className="w-full max-w-md mx-4 shadow-2xl">
+      <Card className="w-full max-w-lg mx-4 shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="font-headline text-3xl text-primary flex justify-center items-center gap-3">
             Create a New Adventure
             </CardTitle>
           <CardDescription className="pt-2">
-            What kind of story do you want to tell?
+            What kind of story do you want to tell, and how do you want to play?
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="text"
-              value={request}
-              onChange={(e) => setRequest(e.target.value)}
-              placeholder="e.g., 'A neon-fantasy heist...'"
-              aria-label="Your adventure idea"
-              disabled={isLoading}
-              className="h-12 text-center text-base"
-            />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+                <Label className="text-center dbock w-full">1. Choose your play style</Label>
+                 <RadioGroup value={playMode} onValueChange={(v) => setPlayMode(v as 'local' | 'remote')} className="grid grid-cols-2 gap-4">
+                    <div>
+                        <RadioGroupItem value="remote" id="mode-remote" className="peer sr-only" />
+                        <Label htmlFor="mode-remote" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <Users className="mb-3 h-6 w-6" />
+                            Remote
+                            <span className="text-xs text-muted-foreground mt-1 text-center">Online Multiplayer</span>
+                        </Label>
+                    </div>
+                    <div>
+                        <RadioGroupItem value="local" id="mode-local" className="peer sr-only" />
+                        <Label htmlFor="mode-local" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <User className="mb-3 h-6 w-6" />
+                            Local
+                            <span className="text-xs text-muted-foreground mt-1 text-center">Hot Seat / Solo</span>
+                        </Label>
+                    </div>
+                </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+                 <Label className="text-center dbock w-full">2. Describe your adventure</Label>
+                <Input
+                  type="text"
+                  value={request}
+                  onChange={(e) => setRequest(e.target.value)}
+                  placeholder="e.g., 'A neon-fantasy heist...'"
+                  aria-label="Your adventure idea"
+                  disabled={isLoading}
+                  className="h-12 text-center text-base"
+                />
+            </div>
+
             <Button type="submit" className="w-full h-12" disabled={isLoading || !request.trim()}>
               {isLoading ? (
                 <>
@@ -64,3 +93,5 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
     </div>
   );
 }
+
+    

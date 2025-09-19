@@ -251,7 +251,7 @@ export default function RoleplAIGMPage() {
     return <LoginForm />;
   }
 
-  const handleCreateGame = async (request: string) => {
+  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
     if (!user) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
       return;
@@ -259,7 +259,7 @@ export default function RoleplAIGMPage() {
 
     setIsLoading(true);
     try {
-      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid });
+      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
       
       if (warningMessage) {
         toast({
@@ -812,3 +812,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    

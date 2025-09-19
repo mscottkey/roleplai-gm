@@ -24,12 +24,14 @@ export type Character = {
   gender?: string;
   age?: string;
   stats?: CharacterStats;
+  claimedBy?: string; // User ID of the player who claimed this character
 };
 
 export type GameData = GenerateNewGameOutput & {
   characters?: Character[];
   campaignStructure?: CampaignStructure;
   difficulty?: string;
+  playMode?: 'local' | 'remote';
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
@@ -50,3 +52,5 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
+
+    

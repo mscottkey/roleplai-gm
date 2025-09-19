@@ -49,6 +49,7 @@ function getServerApp() {
 const GenerateNewGameInputSchema = z.object({
   request: z.string(),
   userId: z.string(),
+  playMode: z.enum(['local', 'remote']),
 });
 type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
 
@@ -104,6 +105,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         tone: newGame.tone,
         initialHooks: newGame.initialHooks,
         difficulty: newGame.difficulty,
+        playMode: input.playMode,
       },
       worldState: initialWorldState,
       previousWorldState: null,
@@ -403,3 +405,5 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
+
+    
