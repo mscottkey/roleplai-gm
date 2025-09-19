@@ -156,9 +156,11 @@ export function CharacterCreationForm({
 
   useEffect(() => {
     // This effect syncs the internal state with props, useful for reloads.
-    setCharacters(initialCharacters);
-    if (initialCharacters.length > 0) {
-      setHasGenerated(true);
+    if (initialCharacters) {
+      setCharacters(initialCharacters);
+      if (initialCharacters.length > 0) {
+        setHasGenerated(true);
+      }
     }
   }, [initialCharacters]);
 
@@ -265,11 +267,11 @@ export function CharacterCreationForm({
     let currentDescription = editDescription;
 
     const malePronouns = { subject: 'he', object: 'him', possessive: 'his' };
-    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' };
+    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; // Note: 'her' can be object or possessive
     const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their' };
     
-    // Regex to find any of the pronouns, case-insensitive, as whole words.
-    const allPronouns = ['he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'their', 'theirs'];
+    // Order matters: hers before her, theirs before their.
+    const allPronouns = ['he', 'him', 'his', 'she', 'hers', 'her', 'they', 'them', 'theirs', 'their'];
     const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
 
     const updatedDescription = currentDescription.replace(pronounRegex, (match) => {
@@ -278,12 +280,12 @@ export function CharacterCreationForm({
 
         if (newGender === 'Male') {
             if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
-            else if (['them'].includes(lowerMatch)) replacement = malePronouns.object; // "her" is ambiguous
-            else if (['her', 'hers', 'their', 'theirs'].includes(lowerMatch)) replacement = malePronouns.possessive;
+            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object; // 'her' becomes 'him'
+            else if (['hers', 'theirs', 'their'].includes(lowerMatch)) replacement = malePronouns.possessive;
         } else if (newGender === 'Female') {
             if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
             else if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
-            else if (['his', 'their', 'theirs'].includes(lowerMatch)) replacement = femalePronouns.possessive;
+            else if (['his', 'theirs', 'their'].includes(lowerMatch)) replacement = femalePronouns.possessive;
         } else { // Non-binary, Agender, Other
             if (['he', 'she'].includes(lowerMatch)) replacement = neutralPronouns.subject;
             else if (['him', 'her'].includes(lowerMatch)) replacement = neutralPronouns.object;
@@ -305,11 +307,12 @@ export function CharacterCreationForm({
 
   const handleSaveDetails = () => {
     if (!editingCharacter) return;
+    const details = { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName };
 
     if (gameData.playMode === 'remote') {
-        onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription }, 'claim');
+        onUpdateCharacter(editingCharacter.id, details, 'claim');
     } else { // local mode
-        onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName }, 'update');
+        onUpdateCharacter(editingCharacter.id, details, 'update');
     }
 
     setEditingCharacter(null);
@@ -600,7 +603,5 @@ export function CharacterCreationForm({
     </div>
   );
 }
-
-    
 
     

@@ -248,11 +248,9 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
       let charToUpdate = { ...characters[charIndex], ...updates };
 
       if (claim) {
-        // Check if anyone else has claimed this character
         if (charToUpdate.claimedBy && charToUpdate.claimedBy !== claim.userId) {
           throw new Error("Character is already claimed by another player.");
         }
-        // Check if this user has claimed another character
         if (characters.some(c => c.claimedBy === claim.userId && c.id !== characterId)) {
           throw new Error("You have already claimed another character in this game.");
         }
@@ -265,22 +263,17 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
         charToUpdate.claimedBy = null;
         charToUpdate.playerName = ""; // Clear player name on unclaim
       } else {
-        // This is a local assignment, just update the player name if provided
         charToUpdate.playerName = updates.playerName ?? charToUpdate.playerName;
       }
-
-      characters[charIndex] = charToUpdate;
       
-      // Also update the characters array in gameData for consistency
-      const gameDataCharacters = gameData.gameData.characters || [];
-      const gameDataCharIndex = gameDataCharacters.findIndex((c: any) => c.id === characterId);
-      if(gameDataCharIndex !== -1) {
-          gameDataCharacters[gameDataCharIndex] = charToUpdate;
-      }
+      const updatedCharacters = [...characters];
+      updatedCharacters[charIndex] = charToUpdate;
+
+      // Ensure we are only writing plain objects to Firestore
+      const plainCharacters = updatedCharacters.map(c => JSON.parse(JSON.stringify(c)));
 
       transaction.update(gameRef, { 
-        'worldState.characters': characters,
-        'gameData.characters': gameDataCharacters
+        'worldState.characters': plainCharacters,
       });
     });
 
@@ -419,3 +412,5 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
+
+    
