@@ -21,13 +21,13 @@ import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/gener
 
 
 import { z } from 'genkit';
-import { WorldStateSchema } from "@/ai/schemas/world-state-schemas";
+import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-schemas";
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction } from 'firebase/firestore';
 
-import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput, GenerateCharacterOutput, Character } from "@/ai/schemas/generate-character-schemas";
 
 // Initialize Firebase for server actions
 const firebaseConfig = {
@@ -166,7 +166,7 @@ type UpdateWorldStateInput = {
     action: string;
   };
   gmResponse?: string;
-  currentWorldState?: z.infer<typeof WorldStateSchema>;
+  currentWorldState?: WorldState;
 };
 
 export async function updateWorldState(input: UpdateWorldStateInput): Promise<UpdateWorldStateOutput | void> {
@@ -200,6 +200,74 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   } catch (error) {
     console.error("Error in updateWorldState action:", error);
     throw new Error("Failed to update the world state. Please try again.");
+  }
+}
+
+type ClaimCharacterInput = {
+  gameId: string;
+  characterId: string;
+  user: {
+    uid: string;
+    name: string;
+  };
+  claim: boolean; // true to claim, false to unclaim
+};
+
+export async function claimCharacter(input: ClaimCharacterInput): Promise<{ success: boolean; message?: string }> {
+  const { gameId, characterId, user, claim } = input;
+
+  try {
+    const app = getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, "games", gameId);
+
+    await runTransaction(db, async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
+      if (!gameDoc.exists()) {
+        throw new Error("Game not found.");
+      }
+
+      const gameData = gameDoc.data();
+      const characters: any[] = gameData.gameData.characters || [];
+      const charIndex = characters.findIndex(c => c.id === characterId);
+
+      if (charIndex === -1) {
+        throw new Error("Character not found.");
+      }
+
+      const characterToUpdate = characters[charIndex];
+      
+      if (claim) {
+        if (characterToUpdate.claimedBy && characterToUpdate.claimedBy !== user.uid) {
+          throw new Error("Character is already claimed by another player.");
+        }
+        if (characters.some(c => c.claimedBy === user.uid && c.id !== characterId)) {
+          throw new Error("You have already claimed another character in this game.");
+        }
+        characters[charIndex] = {
+          ...characterToUpdate,
+          claimedBy: user.uid,
+          playerName: user.name,
+        };
+      } else { // Unclaim
+        if (characterToUpdate.claimedBy !== user.uid) {
+          throw new Error("You cannot unclaim a character you haven't claimed.");
+        }
+         characters[charIndex] = {
+          ...characterToUpdate,
+          claimedBy: null,
+          playerName: "",
+        };
+      }
+
+      transaction.update(gameRef, { 'gameData.characters': characters });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in claimCharacter action:", error);
+    const message = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message };
   }
 }
 

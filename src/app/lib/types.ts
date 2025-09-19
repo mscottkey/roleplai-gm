@@ -6,9 +6,10 @@ import type { CharacterStats } from "@/ai/schemas/generate-character-schemas";
 import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 
 export type Message = {
-  id?: string;
+  id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  authorName?: string;
   mechanics?: string;
 };
 
@@ -23,6 +24,7 @@ export type Character = {
   gender?: string;
   age?: string;
   stats?: CharacterStats;
+  claimedBy?: string; // User ID of the player who claimed this character
 };
 
 export type GameData = GenerateNewGameOutput & {
@@ -38,7 +40,7 @@ export type StoryMessage = {
 };
 
 export type GameSession = {
-  id: string;
+  id:string;
   userId: string;
   createdAt: Timestamp;
   gameData: GameData;

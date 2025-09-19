@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType, CharacterStats } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit } from 'lucide-react';
+import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit, UserCheck, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -20,24 +20,21 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
-        // This regex finds a title, captures it, and then captures all the text after it.
-        // It's designed to handle cases where the list items are incorrectly placed on the same line.
         return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            // This replacement ensures that every list marker (* or -) starts on a new line.
             const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
             return `${a.trim()}\n\n${listItems}`;
         });
     };
 
     let processedMd = md;
-    // The AI sometimes puts a `*` before the section title. This removes it.
     processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
     
     processedMd = fixLine('Key Factions', processedMd);
@@ -47,8 +44,6 @@ const normalizeInlineBulletsInSections = (md: string) => {
     return processedMd;
 };
 
-
-// Combine custom fields with generated ones for the form's character state
 type FormCharacter = CustomCharacterType;
 
 type CharacterCreationFormProps = {
@@ -57,6 +52,8 @@ type CharacterCreationFormProps = {
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
+  onClaimCharacter: (characterId: string, claim: boolean) => void;
+  currentUser: FirebaseUser | null;
 };
 
 type CharacterPreferences = {
@@ -79,6 +76,7 @@ const getSkillDisplay = (rank: number) => {
 const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
   <div className="space-y-4 text-left">
     <div>
+        <h3 className="font-semibold text-lg">{char.name}</h3>
         <p className="text-sm italic text-muted-foreground flex items-center gap-2">
             <Star className="h-3 w-3" />
             <span>"{char.aspect}"</span>
@@ -128,56 +126,31 @@ export function CharacterCreationForm({
   onCharactersFinalized,
   generateCharacterSuggestions,
   isLoading,
+  onClaimCharacter,
+  currentUser,
 }: CharacterCreationFormProps) {
-  const [characters, setCharacters] = useState<FormCharacter[]>(() => 
-    initialCharacters.length > 0 ? initialCharacters : [
-    {
-      id: `player-0-${Date.now()}`,
-      name: '',
-      description: '',
-      aspect: '',
-      playerName: '',
-      isCustom: false
-    }
-  ]);
-  const [preferences, setPreferences] = useState<Record<string, CharacterPreferences>>({});
-  const [isGeneratingParty, setIsGeneratingParty] = useState(false);
-  const [individualLoading, setIndividualLoading] = useState<Record<string, boolean>>({});
-  const [hasGenerated, setHasGenerated] = useState(false);
+  const [partySize, setPartySize] = useState(initialCharacters.length || 4);
+  const [characters, setCharacters] = useState<FormCharacter[]>(initialCharacters);
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(initialCharacters.length > 0);
   const { toast } = useToast();
-  const formId = useId();
   
   useEffect(() => {
     // This effect syncs the internal state with props, useful for reloads.
+    setCharacters(initialCharacters);
     if (initialCharacters.length > 0) {
-      setCharacters(initialCharacters);
-      if (initialCharacters.some(c => c.name !== '')) {
-        setHasGenerated(true);
-      }
+      setHasGenerated(true);
     }
   }, [initialCharacters]);
 
-  const handlePreferenceChange = (id: string, field: keyof CharacterPreferences, value: string) => {
-    setPreferences(prev => ({
-      ...prev,
-      [id]: {
-        ...(prev[id] || {}),
-        [field]: value,
-      }
-    }));
-     if (field === 'name') {
-        setCharacters(prev => prev.map(c => c.id === id ? { ...c, name: value } : c));
-    }
-  };
 
   const getPartySuggestions = async () => {
-    setIsGeneratingParty(true);
-    setHasGenerated(true);
+    setIsGenerating(true);
+    setHasGenerated(false); // Reset this flag
 
-    const characterSlots = characters.map(char => ({
-        id: char.id,
-        ...(preferences[char.id] || {}),
-        name: char.name || preferences[char.id]?.name,
+    const characterSlots = Array.from({ length: partySize }, (_, i) => ({
+        id: `slot-${i}-${Date.now()}`,
     }));
 
     try {
@@ -187,36 +160,22 @@ export function CharacterCreationForm({
             characterSlots: characterSlots,
         });
 
-        const newCharacters = new Map(result.characters.map(c => [c.slotId, c as (GenCharacterType & { slotId: string })]));
+        const newCharacters: FormCharacter[] = result.characters.map(c => ({
+            ...c,
+            id: c.slotId,
+            playerName: '',
+            isCustom: false,
+            claimedBy: '',
+        }));
 
-        setCharacters(prev => 
-            prev.map(char => {
-                const newCharData = newCharacters.get(char.id);
-                 if (newCharData) {
-                    // Preserve playerName while updating the rest
-                    return {
-                        ...newCharData,
-                        id: char.id,
-                        playerName: char.playerName, 
-                        isCustom: false,
-                    };
-                }
-                return char;
-            })
-        );
-        
-        // Update preferences for all characters based on what was generated
-        const newPreferences: Record<string, CharacterPreferences> = {};
-        result.characters.forEach(char => {
-            newPreferences[char.slotId] = {
-                name: char.name || '',
-                gender: char.gender || '',
-                age: char.age || '',
-                archetype: char.archetype || '',
-                vision: preferences[char.slotId]?.vision || '',
-            };
+        // Replace the current characters in the database
+        await updateWorldState({
+            gameId: (new URLSearchParams(window.location.search)).get('game')!,
+            updates: { 'gameData.characters': newCharacters }
         });
-        setPreferences(prev => ({ ...prev, ...newPreferences }));
+        
+        // The onSnapshot listener will update the local state.
+        setHasGenerated(true);
 
     } catch (error) {
         const err = error as Error;
@@ -227,180 +186,15 @@ export function CharacterCreationForm({
             description: err.message || "Could not generate characters. Please try again.",
         });
     } finally {
-        setIsGeneratingParty(false);
+        setIsGenerating(false);
     }
   };
 
-  const regenerateCharacter = async (characterId: string) => {
-    setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
-    try {
-      const charToUpdate = characters.find(c => c.id === characterId);
-      const charPrefs = preferences[characterId] || {};
-      const existingCharacters = characters
-        .filter(c => c.id !== characterId && c.name)
-        .map(c => ({
-            name: c.name,
-            archetype: c.archetype,
-            description: c.description,
-        }));
-      
-      const result = await generateCharacterSuggestions({
-        setting: gameData.setting,
-        tone: gameData.tone,
-        characterSlots: [{ 
-            id: characterId, 
-            ...charPrefs, 
-            name: charToUpdate?.name || charPrefs.name 
-        }],
-        existingCharacters: existingCharacters,
-      });
-
-      if (result.characters.length > 0) {
-        const newChar = result.characters[0];
-        setCharacters(prev =>
-          prev.map(c => {
-            if (c.id === characterId) {
-                // Preserve playerName while updating the rest
-                const existingPlayerName = c.playerName;
-                return {
-                    ...newChar,
-                    id: c.id,
-                    playerName: existingPlayerName, 
-                    isCustom: false,
-                };
-            }
-            return c;
-          })
-        );
-
-        // Update preferences for the regenerated character
-        setPreferences(prev => ({
-          ...prev,
-          [characterId]: {
-            name: newChar.name || '',
-            gender: newChar.gender || '',
-            age: newChar.age || '',
-            archetype: newChar.archetype || '',
-            vision: preferences[characterId]?.vision || '',
-          }
-        }));
-      } else {
-        throw new Error("The AI failed to return a character.");
-      }
-
-    } catch (error) {
-       const err = error as Error;
-       console.error("Failed to regenerate character:", err);
-       toast({
-         variant: "destructive",
-         title: "Character Generation Failed",
-         description: err.message || "Could not generate a character suggestion.",
-       });
-    } finally {
-      setIndividualLoading(prev => ({ ...prev, [characterId]: false }));
-    }
-  };
-
-    const generateMechanicsForCustomCharacter = async (characterId: string) => {
-        const charToUpdate = characters.find(c => c.id === characterId);
-        if (!charToUpdate) return;
-
-        setIndividualLoading(prev => ({ ...prev, [characterId]: true }));
-        try {
-            const existingCharacters = characters
-                .filter(c => c.id !== characterId && c.name)
-                .map(c => ({
-                    name: c.name,
-                    archetype: c.archetype,
-                    description: c.description,
-                }));
-            
-            // This is a bit of a hack: we use the generate flow, but constrain it with the existing custom data.
-            const result = await generateCharacterSuggestions({
-                setting: gameData.setting,
-                tone: gameData.tone,
-                characterSlots: [{
-                    id: characterId,
-                    name: charToUpdate.name,
-                    archetype: `A character described as "${charToUpdate.description}" with a core aspect of "${charToUpdate.aspect}"`
-                }],
-                existingCharacters: existingCharacters,
-            });
-
-            if (result.characters.length > 0) {
-                const newMechanics = result.characters[0];
-                setCharacters(prev =>
-                    prev.map(c => {
-                        if (c.id === characterId) {
-                            return {
-                                ...c, // Keep custom name, aspect, desc
-                                isCustom: true, // Remain custom
-                                stats: newMechanics.stats || {},
-                                // Also update these from generation
-                                gender: newMechanics.gender,
-                                age: newMechanics.age,
-                                archetype: newMechanics.archetype,
-                            };
-                        }
-                        return c;
-                    })
-                );
-            } else {
-                throw new Error("The AI failed to return character mechanics.");
-            }
-
-        } catch (error) {
-            const err = error as Error;
-            console.error("Failed to generate mechanics:", err);
-            toast({
-                variant: "destructive",
-                title: "Mechanics Generation Failed",
-                description: err.message || "Could not generate skills and stunts.",
-            });
-        } finally {
-            setIndividualLoading(prev => ({...prev, [characterId]: false}));
-        }
-    };
+  // Import the updateWorldState action
+  const { updateWorldState } = require('@/app/actions');
 
 
-  const handlePlayerNameChange = (id: string, name: string) => {
-    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, playerName: name } : c)));
-  };
-  
-  const handleCustomFieldChange = (id: string, field: 'name' | 'aspect' | 'description', value: string) => {
-    setCharacters(prev => prev.map(c => (c.id === id ? { ...c, [field]: value, isCustom: true } : c)));
-  }
-
-  const addNewPlayer = () => {
-    const newPlayer: FormCharacter = {
-      id: `player-${characters.length}-${Date.now()}`,
-      name: '',
-      description: '',
-      aspect: '',
-      playerName: '',
-      isCustom: false
-    };
-    
-    setCharacters(prev => [...prev, newPlayer]);
-
-    if (hasGenerated) {
-      // If we've already generated, create a new character for the new player immediately.
-      regenerateCharacter(newPlayer.id);
-    }
-  };
-
-  const removePlayer = (id: string) => {
-    if (characters.length > 1) {
-      setCharacters(prev => prev.filter(c => c.id !== id));
-      setPreferences(prev => {
-        const newPrefs = {...prev};
-        delete newPrefs[id];
-        return newPrefs;
-      });
-    }
-  };
-
-  const allReady = characters.every(c => c.name && c.playerName);
+  const allReady = characters.every(c => c.claimedBy);
 
   const handleFinalize = () => {
     if (!hasGenerated) {
@@ -416,10 +210,12 @@ export function CharacterCreationForm({
       toast({
         variant: "destructive",
         title: "Not Ready Yet",
-        description: "Please make sure every player has a name and a character.",
+        description: "Please make sure every character has been claimed by a player.",
       });
     }
   };
+
+  const currentUserClaim = characters.find(c => c.claimedBy === currentUser?.uid);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
@@ -430,7 +226,7 @@ export function CharacterCreationForm({
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-            Review the story summary, add players, then generate a unique party. You can regenerate individual characters or customize them.
+            Generate a new party and have each player claim their character.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -460,161 +256,78 @@ export function CharacterCreationForm({
                  </Card>
                </TabsContent>
               <TabsContent value="party">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {characters.map((char, index) => {
-                     const isCustomReadyForMechanics = char.name && char.description && char.aspect;
-                     return (
-                    <Card key={char.id} className="flex flex-col relative group">
-                      {characters.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-6 w-6 z-10 text-muted-foreground hover:text-destructive-foreground hover:bg-destructive"
-                          onClick={() => removePlayer(char.id)}
-                          aria-label="Remove player"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <CardHeader>
-                        <Input
-                          placeholder={`Player ${index + 1} Name`}
-                          value={char.playerName}
-                          onChange={e => handlePlayerNameChange(char.id, e.target.value)}
-                          className="text-center font-bold text-lg"
-                          aria-label={`Player ${index + 1} Name`}
-                        />
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                        <Tabs defaultValue="generate" className="w-full">
-                          <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="generate"><Wand2 className="mr-2 h-4 w-4"/>Generated</TabsTrigger>
-                            <TabsTrigger value="custom"><Edit className="mr-2 h-4 w-4"/>Custom</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="generate" className="pt-4">
-                            <div className="space-y-2 mb-4">
-                              <Label>Generation Preferences (Optional)</Label>
-                              <div className="space-y-2">
-                                <Input 
-                                    placeholder="Character Name (Optional)" 
-                                    value={char.name || preferences[char.id]?.name || ''} 
-                                    onChange={e => handlePreferenceChange(char.id, 'name', e.target.value)}
-                                />
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                  <div className="relative">
-                                      <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                      <Select value={preferences[char.id]?.gender || ''} onValueChange={value => handlePreferenceChange(char.id, 'gender', value)}>
-                                        <SelectTrigger className="pl-8">
-                                          <SelectValue placeholder="Gender" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="Female">Female</SelectItem>
-                                          <SelectItem value="Male">Male</SelectItem>
-                                          <SelectItem value="Non-binary">Non-binary</SelectItem>
-                                          <SelectItem value="Gender-fluid">Gender-fluid</SelectItem>
-                                          <SelectItem value="Agender">Agender</SelectItem>
-                                          <SelectItem value="Other">Other / Not Specified</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="relative">
-                                      <Cake className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                      <Input placeholder="Age" className="pl-8" value={preferences[char.id]?.age || ''} onChange={e => handlePreferenceChange(char.id, 'age', e.target.value)} />
-                                  </div>
-                                  <div className="relative">
-                                      <Shield className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                      <Input placeholder="Archetype" className="pl-8" value={preferences[char.id]?.archetype || ''} onChange={e => handlePreferenceChange(char.id, 'archetype', e.target.value)} />
-                                  </div>
-                                </div>
-                                <Textarea 
-                                    placeholder="Character Vision (e.g., 'A grizzled ex-soldier with a cybernetic arm who loves kittens...')"
-                                    className="border rounded-md p-2 text-sm"
-                                    value={preferences[char.id]?.vision || ''}
-                                    onChange={e => handlePreferenceChange(char.id, 'vision', e.target.value)}
-                                />
-                              </div>
-                            </div>
-                            <div className="min-h-[170px]">
-                            {isGeneratingParty || individualLoading[char.id] ? (
-                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
-                                  <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
-                                  <p className="text-sm text-muted-foreground">{isGeneratingParty ? 'Crafting the party...' : 'Crafting a hero...'}</p>
-                              </div>
-                            ) : char.name && !char.isCustom ? (
-                               <CharacterDisplay char={char} />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
-                                <Dices className="h-8 w-8 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  {hasGenerated ? "Regenerate to see character" : "Waiting for party generation..."}
-                                </p>
-                              </div>
-                            )}
-                            </div>
-                            {hasGenerated && (
-                              <Button onClick={() => regenerateCharacter(char.id)} className="w-full mt-4" variant="outline" disabled={isGeneratingParty || individualLoading[char.id]}>
-                                <RefreshCw className={cn("mr-2 h-4 w-4", individualLoading[char.id] && "animate-spin")} />
-                                Regenerate
-                              </Button>
-                            )}
-                          </TabsContent>
-                          <TabsContent value="custom" className="pt-4">
-                              <div className="space-y-2 h-[152px] overflow-y-auto pr-2">
-                                  <Label htmlFor={`${formId}-${char.id}-name`}>Name</Label>
-                                  <Input id={`${formId}-${char.id}-name`} value={char.name} onChange={(e) => handleCustomFieldChange(char.id, 'name', e.target.value)} placeholder="Character Name" />
-                                  <Label htmlFor={`${formId}-${char.id}-aspect`}>Aspect</Label>
-                                  <Input id={`${formId}-${char.id}-aspect`} value={char.aspect} onChange={(e) => handleCustomFieldChange(char.id, 'aspect', e.target.value)} placeholder="e.g., 'Haunted by the ghost of a cyborg...'" />
-                                  <Label htmlFor={`${formId}-${char.id}-desc`}>Description</Label>
-                                  <Textarea id={`${formId}-${char.id}-desc`} value={char.description} onChange={(e) => handleCustomFieldChange(char.id, 'description', e.target.value)} placeholder="A short description." className="h-24 resize-none" />
-                              </div>
-                              <Button
-                                  onClick={() => generateMechanicsForCustomCharacter(char.id)}
-                                  className="w-full mt-2"
-                                  variant="secondary"
-                                  disabled={!isCustomReadyForMechanics || isGeneratingParty || individualLoading[char.id]}
-                              >
-                                  <BrainCircuit className={cn("mr-2 h-4 w-4", individualLoading[char.id] && "animate-spin")} />
-                                  Generate Skills & Stunts
-                              </Button>
-                              <div className="mt-2 text-xs text-center text-muted-foreground italic">
-                                  {char.stats?.skills && char.stats.skills.length > 0 ? (
-                                      "Skills & Stunts generated!"
-                                  ) : isCustomReadyForMechanics ? (
-                                      "Ready to generate mechanics."
-                                  ) : (
-                                      "Fill out Name, Aspect, and Description first."
-                                  )}
-                              </div>
-                          </TabsContent>
-                        </Tabs>
-                      </CardContent>
-                    </Card>
-                  )})}
-                  <Card className="group flex flex-col items-center justify-center border-2 border-dashed bg-card hover:border-primary hover:bg-primary transition-colors cursor-pointer" onClick={addNewPlayer} >
-                      <CardContent className="p-6 text-center">
-                          <div className="h-auto p-4 flex flex-col gap-2 items-center text-primary group-hover:text-primary-foreground">
-                              <PlusCircle className="h-10 w-10 transition-transform duration-300 group-hover:scale-110" />
-                              <span className="font-semibold">Add New Player</span>
-                          </div>
-                      </CardContent>
-                  </Card>
-                </div>
-                {!hasGenerated && (
-                  <div className="flex justify-center pt-8">
-                    <Button size="lg" onClick={getPartySuggestions} disabled={isGeneratingParty}>
-                      <Wand2 className={cn("mr-2 h-5 w-5", isGeneratingParty && "animate-spin")} />
+                 {!hasGenerated ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
+                    <div className="flex items-center gap-4">
+                      <Label htmlFor="party-size">Number of Players:</Label>
+                      <Select value={String(partySize)} onValueChange={(val) => setPartySize(Number(val))}>
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[2,3,4,5,6].map(s => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button size="lg" onClick={getPartySuggestions} disabled={isGenerating}>
+                      <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
                       Generate Party
                     </Button>
+                  </div>
+                ) : isGenerating ? (
+                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
+                        <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Crafting the party...</p>
+                    </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {characters.map((char) => {
+                      const isClaimedByCurrentUser = char.claimedBy === currentUser?.uid;
+                      const isClaimedByOther = char.claimedBy && !isClaimedByCurrentUser;
+
+                      return (
+                        <Card key={char.id} className={cn("flex flex-col relative group transition-all", isClaimedByCurrentUser && "ring-2 ring-primary")}>
+                          {isClaimedByCurrentUser && <Badge className="absolute -top-2 -right-2">You</Badge>}
+                          <CardHeader>
+                             {char.claimedBy ? (
+                                <p className="text-center font-bold text-lg">Claimed by {char.playerName}</p>
+                             ) : (
+                                <p className="text-center font-bold text-lg text-muted-foreground">Unclaimed</p>
+                             )}
+                          </CardHeader>
+                          <CardContent className="flex-1">
+                            <CharacterDisplay char={char} />
+                          </CardContent>
+                          <CardFooter>
+                            {isClaimedByCurrentUser ? (
+                              <Button variant="outline" className="w-full" onClick={() => onClaimCharacter(char.id, false)}>
+                                <UserX className="mr-2 h-4 w-4" />
+                                Unclaim Character
+                              </Button>
+                            ) : (
+                               <Button 
+                                  className="w-full" 
+                                  onClick={() => onClaimCharacter(char.id, true)} 
+                                  disabled={!!isClaimedByOther || !!currentUserClaim}
+                                >
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  {isClaimedByOther ? 'Claimed' : 'Claim this Character'}
+                                </Button>
+                            )}
+                          </CardFooter>
+                        </Card>
+                      )
+                    })}
                   </div>
                 )}
               </TabsContent>
             </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-center pt-6">
+        <CardFooter className="flex-col gap-4 justify-center pt-6">
           <Button
             size="lg"
             onClick={handleFinalize}
-            disabled={!allReady || isGeneratingParty || !hasGenerated || isLoading}
+            disabled={!allReady || isGenerating || !hasGenerated || isLoading}
             className="font-headline text-xl"
           >
              {isLoading ? (
@@ -628,6 +341,10 @@ export function CharacterCreationForm({
                   Start Adventure
                 </>
               )}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Regenerate Entire Party
           </Button>
         </CardFooter>
       </Card>
