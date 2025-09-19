@@ -23,6 +23,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/t
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { ShareGameInvite } from './share-game-invite';
+import { updateWorldState } from '@/app/actions';
 
 
 const normalizeInlineBulletsInSections = (md: string) => {
@@ -190,8 +191,9 @@ export function CharacterCreationForm({
             tone: gameData.tone,
             characterSlots: characterSlots,
         });
-
-        const newCharacters: FormCharacter[] = result.characters.map(c => ({
+        
+        // Ensure the result is a plain JS object for Firestore
+        const newCharacters: FormCharacter[] = JSON.parse(JSON.stringify(result.characters)).map((c: any) => ({
             ...c,
             id: c.slotId,
             playerName: '',
@@ -233,7 +235,9 @@ export function CharacterCreationForm({
             existingCharacters: characters.filter(c => c.id !== slotId).map(c => ({ name: c.name, description: c.description, archetype: c.archetype })),
         });
         
-        const newCharData = result.characters[0];
+        // Ensure new character data is a plain JS object
+        const newCharData = JSON.parse(JSON.stringify(result.characters[0]));
+        
         const newCharacter: FormCharacter = {
             ...newCharData,
             id: slotId,
@@ -275,10 +279,6 @@ export function CharacterCreationForm({
   const handleUnclaim = (char: FormCharacter) => {
      onUpdateCharacter(char.id, {}, 'unclaim');
   };
-
-  // Import the updateWorldState action
-  const { updateWorldState } = require('@/app/actions');
-
 
   const isHost = currentUser?.uid === gameData.userId;
 
@@ -527,4 +527,3 @@ export function CharacterCreationForm({
     </div>
   );
 }
-

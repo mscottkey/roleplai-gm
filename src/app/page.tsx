@@ -816,5 +816,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    
