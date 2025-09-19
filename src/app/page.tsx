@@ -369,6 +369,7 @@ export default function RoleplAIGMPage() {
 
     try {
         const charactersForAI: AICharacter[] = finalCharacters.map(c => ({
+            id: c.id, // Make sure ID is passed to AI
             name: c.name,
             description: c.description,
             aspect: c.aspect,
@@ -377,7 +378,6 @@ export default function RoleplAIGMPage() {
             gender: c.gender,
             age: c.age,
             stats: c.stats,
-            id: c.id, // Ensure ID is passed through
         }));
 
         await updateWorldState({
@@ -838,5 +838,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
 
     
