@@ -197,7 +197,7 @@ export default function RoleplAIGMPage() {
         setMessages(currentMessages);
 
         setStoryMessages(game.storyMessages || []);
-        const finalCharacters = game.worldState.characters || game.gameData.characters || [];
+        const finalCharacters = game.worldState?.characters || [];
         setCharacters(finalCharacters);
         
         if (finalCharacters.length > 0) {
@@ -335,7 +335,6 @@ export default function RoleplAIGMPage() {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     
-    // This is the plain object that Firestore can serialize.
     // THE FIX: Ensure the `id` is included in this object.
     const plainCharacters = finalCharacters.map(c => ({
         id: c.id,
@@ -834,3 +833,4 @@ The stage is set. What do you do?
     
 
     
+

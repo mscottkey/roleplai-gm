@@ -31,7 +31,7 @@ Current World State:
 - All Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
 - Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
+- Known Factions: {{#each world.State.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 
 Latest Game Event:
 - Player: {{{playerAction.characterName}}}
