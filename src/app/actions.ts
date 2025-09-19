@@ -211,6 +211,7 @@ type UpdateCharacterDetailsInput = {
   updates: {
     name?: string;
     gender?: string;
+    description?: string;
     playerName?: string;
   };
   claim?: {
@@ -418,5 +419,3 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
-
-    

@@ -197,7 +197,7 @@ export default function RoleplAIGMPage() {
         setMessages(currentMessages);
 
         setStoryMessages(game.storyMessages || []);
-        const finalCharacters = game.gameData.characters || [];
+        const finalCharacters = game.worldState.characters || game.gameData.characters || [];
         setCharacters(finalCharacters);
         
         if (finalCharacters.length > 0) {
@@ -289,7 +289,7 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleUpdateCharacter = async (characterId: string, details: { name?: string; gender?: string; playerName?: string }, action: 'claim' | 'unclaim' | 'update') => {
+  const handleUpdateCharacter = async (characterId: string, details: { name?: string; gender?: string; description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => {
     if (!user || !activeGameId) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a game.' });
       return;
@@ -307,6 +307,7 @@ export default function RoleplAIGMPage() {
     } else if (action === 'unclaim') {
       payload.unclaim = { userId: user.uid };
     } else if (action === 'update') {
+      // This is a local assignment
       payload.updates.playerName = details.playerName;
     }
 
@@ -831,5 +832,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    

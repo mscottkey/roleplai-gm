@@ -55,7 +55,7 @@ type CharacterCreationFormProps = {
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
-  onUpdateCharacter: (characterId: string, details: { name?: string, gender?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
+  onUpdateCharacter: (characterId: string, details: { name?: string, gender?: string, description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
   currentUser: FirebaseUser | null;
 };
 
@@ -128,35 +128,6 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
   </div>
 );
 
-const LocalPlayerAssign = ({ char, onUpdateCharacter }: { char: FormCharacter, onUpdateCharacter: Function }) => {
-    const [localPlayerName, setLocalPlayerName] = useState(char.playerName || '');
-
-    const handleSave = () => {
-        onUpdateCharacter(char.id, { playerName: localPlayerName }, 'update');
-    };
-    
-    useEffect(() => {
-        setLocalPlayerName(char.playerName || '');
-    }, [char.playerName]);
-
-    return (
-        <div className="flex flex-col gap-2">
-            <Label htmlFor={`player-name-${char.id}`} className="text-xs">Player Name</Label>
-            <div className="flex gap-2">
-                <Input
-                    id={`player-name-${char.id}`}
-                    value={localPlayerName}
-                    onChange={(e) => setLocalPlayerName(e.target.value)}
-                    placeholder={'Unassigned'}
-                    className="h-8"
-                />
-                <Button size="icon" variant="secondary" onClick={handleSave} className="h-8 w-8">
-                    <Save className="h-4 w-4" />
-                </Button>
-            </div>
-        </div>
-    );
-}
 
 export function CharacterCreationForm({
   gameData,
@@ -174,6 +145,8 @@ export function CharacterCreationForm({
   const [editingCharacter, setEditingCharacter] = useState<FormCharacter | null>(null);
   const [editName, setEditName] = useState('');
   const [editGender, setEditGender] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPlayerName, setEditPlayerName] = useState('');
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(initialCharacters.length > 0);
@@ -230,9 +203,10 @@ export function CharacterCreationForm({
         }));
 
         if (gameId) {
-            await updateWorldState({
-                gameId: gameId,
-                updates: { 'gameData.characters': newCharacters, 'worldState.characters': newCharacters }
+             const plainCharacters = newCharacters.map(c => ({...c}));
+             await updateDoc(doc(getFirestore(), 'games', gameId), {
+                'gameData.characters': plainCharacters,
+                'worldState.characters': plainCharacters,
             });
         }
         
@@ -276,9 +250,10 @@ export function CharacterCreationForm({
         const updatedCharacters = characters.map(c => c.id === slotId ? newCharacter : c);
         
         if (gameId) {
-             await updateWorldState({
-                gameId: gameId,
-                updates: { 'gameData.characters': updatedCharacters, 'worldState.characters': updatedCharacters }
+             const plainCharacters = updatedCharacters.map(c => ({...c}));
+             await updateDoc(doc(getFirestore(), 'games', gameId), {
+                'gameData.characters': plainCharacters,
+                'worldState.characters': plainCharacters,
             });
         }
         
@@ -291,15 +266,23 @@ export function CharacterCreationForm({
   }
 
 
-  const handleClaimClick = (char: FormCharacter) => {
+  const handleEditClick = (char: FormCharacter) => {
     setEditingCharacter(char);
     setEditName(char.name);
     setEditGender(char.gender || '');
+    setEditDescription(char.description);
+    setEditPlayerName(char.playerName);
   };
 
-  const handleSaveClaim = () => {
+  const handleSaveDetails = () => {
     if (!editingCharacter) return;
-    onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender }, 'claim');
+    
+    if (gameData.playMode === 'remote') {
+        onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription }, 'claim');
+    } else {
+        onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName }, 'update');
+    }
+
     setEditingCharacter(null);
   };
 
@@ -425,6 +408,7 @@ export function CharacterCreationForm({
                     {characters.map((char) => {
                       const isClaimedByCurrentUser = char.claimedBy === currentUser?.uid;
                       const isClaimedByOther = char.claimedBy && !isClaimedByCurrentUser;
+                      const isAssignedLocally = gameData.playMode === 'local' && char.playerName;
                       const charSlotId = char.id;
 
                       return (
@@ -480,7 +464,7 @@ export function CharacterCreationForm({
                                 ) : (
                                 <Button 
                                     className="w-full" 
-                                    onClick={() => handleClaimClick(char)} 
+                                    onClick={() => handleEditClick(char)} 
                                     disabled={!!isClaimedByOther || !!currentUserClaim}
                                 >
                                     <UserCheck className="mr-2 h-4 w-4" />
@@ -488,7 +472,12 @@ export function CharacterCreationForm({
                                 </Button>
                                 )
                             ) : (
-                                isHost && <LocalPlayerAssign char={char} onUpdateCharacter={onUpdateCharacter} />
+                                isHost && (
+                                    <Button className="w-full" variant={isAssignedLocally ? "secondary" : "default"} onClick={() => handleEditClick(char)}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        {isAssignedLocally ? "Edit Assignment" : "Assign Character"}
+                                    </Button>
+                                )
                             )}
                           </CardFooter>
                         </Card>
@@ -531,17 +520,30 @@ export function CharacterCreationForm({
       
       {editingCharacter && (
         <Dialog open={!!editingCharacter} onOpenChange={() => setEditingCharacter(null)}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Confirm Your Character</DialogTitle>
+                    <DialogTitle>Edit Character Details</DialogTitle>
                     <DialogDescription>
-                        Finalize your character's name and gender before joining the adventure.
+                        {gameData.playMode === 'remote'
+                        ? "Finalize your character's name and gender before joining the adventure."
+                        : "Assign a player and customize the character for your local game."
+                        }
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                    {gameData.playMode === 'local' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="playerName" className="text-right">Player Name</Label>
+                            <Input id="playerName" value={editPlayerName} onChange={(e) => setEditPlayerName(e.target.value)} placeholder="e.g., Sarah" className="col-span-3" />
+                        </div>
+                    )}
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Name</Label>
                         <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="description" className="text-right">Description</Label>
+                        <Textarea id="description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
@@ -561,7 +563,7 @@ export function CharacterCreationForm({
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setEditingCharacter(null)}>Cancel</Button>
-                    <Button onClick={handleSaveClaim}>Claim and Save</Button>
+                    <Button onClick={handleSaveDetails}>Save Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -569,5 +571,3 @@ export function CharacterCreationForm({
     </div>
   );
 }
-
-    
