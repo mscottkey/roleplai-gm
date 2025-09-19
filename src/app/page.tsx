@@ -335,6 +335,8 @@ export default function RoleplAIGMPage() {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     
+    // This is the plain object that Firestore can serialize.
+    // THE FIX: Ensure the `id` is included in this object.
     const plainCharacters = finalCharacters.map(c => ({
         id: c.id,
         name: c.name,
@@ -350,7 +352,7 @@ export default function RoleplAIGMPage() {
     }));
 
 
-    // First, save the current state of characters to Firestore
+    // First, save the current state of characters to Firestore. This is the critical fix.
     try {
       const db = getFirestore();
       await updateDoc(doc(db, "games", activeGameId), {
@@ -368,17 +370,7 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Party", description: "Saving characters and building the world..." });
 
     try {
-        const charactersForAI: AICharacter[] = finalCharacters.map(c => ({
-            id: c.id, // Make sure ID is passed to AI
-            name: c.name,
-            description: c.description,
-            aspect: c.aspect,
-            playerName: c.playerName,
-            archetype: c.archetype,
-            gender: c.gender,
-            age: c.age,
-            stats: c.stats,
-        }));
+        const charactersForAI: AICharacter[] = plainCharacters;
 
         await updateWorldState({
             gameId: activeGameId,

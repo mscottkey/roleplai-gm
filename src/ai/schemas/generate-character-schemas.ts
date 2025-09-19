@@ -20,7 +20,7 @@ export type CharacterStats = z.infer<typeof CharacterStatsSchema>;
 
 
 export const CharacterSchema = z.object({
-    id: z.string().optional().describe('A unique identifier for the character.'),
+    id: z.string().describe('A unique identifier for the character.'),
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
     aspect: z.string().describe('A key concept or catch-phrase for the character, like "Cyber-enhanced muscle with a hidden heart of gold."'),
