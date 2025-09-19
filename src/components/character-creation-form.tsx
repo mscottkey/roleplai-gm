@@ -156,11 +156,10 @@ export function CharacterCreationForm({
 
   useEffect(() => {
     // This effect syncs the internal state with props, useful for reloads.
-    if (initialCharacters) {
+    if (initialCharacters && initialCharacters.length > 0) {
       setCharacters(initialCharacters);
-      if (initialCharacters.length > 0) {
-        setHasGenerated(true);
-      }
+      setPartySize(initialCharacters.length);
+      setHasGenerated(true);
     }
   }, [initialCharacters]);
 
@@ -266,34 +265,47 @@ export function CharacterCreationForm({
 
     let currentDescription = editDescription;
 
-    const malePronouns = { subject: 'he', object: 'him', possessive: 'his' };
-    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; 
-    const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their' };
-    
-    const allPronouns = ['he', 'him', 'his', 'she', 'hers', 'her', 'they', 'them', 'theirs', 'their'];
-    const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
+    // Define pronoun sets
+    const pronouns = {
+        male: { subject: 'he', object: 'him', possessiveAdj: 'his', possessive: 'his' },
+        female: { subject: 'she', object: 'her', possessiveAdj: 'her', possessive: 'hers' },
+        neutral: { subject: 'they', object: 'them', possessiveAdj: 'their', possessive: 'theirs' },
+    };
 
-    const updatedDescription = currentDescription.replace(pronounRegex, (match) => {
+    // All possible pronouns to search for, using word boundaries
+    const allPronounRegex = /\b(he|him|his|she|her|hers|they|them|their|theirs)\b/gi;
+
+    const updatedDescription = currentDescription.replace(allPronounRegex, (match) => {
         const lowerMatch = match.toLowerCase();
         let replacement = '';
+        let targetPronouns = pronouns.neutral; // Default to neutral
 
-        if (newGender === 'Male') {
-            if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
-            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
-            else if (['hers', 'theirs', 'their'].includes(lowerMatch) || lowerMatch === 'her') replacement = malePronouns.possessive;
-        } else if (newGender === 'Female') {
-            if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
-            else if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
-            else if (['his', 'theirs', 'their'].includes(lowerMatch)) replacement = femalePronouns.possessive;
-        } else { // Non-binary, Agender, Other
-            if (['he', 'she'].includes(lowerMatch)) replacement = neutralPronouns.subject;
-            else if (['him', 'her'].includes(lowerMatch)) replacement = neutralPronouns.object;
-            else if (['his', 'hers'].includes(lowerMatch)) replacement = neutralPronouns.possessive;
+        if (newGender === 'Male') targetPronouns = pronouns.male;
+        if (newGender === 'Female') targetPronouns = pronouns.female;
+        
+        // Determine replacement based on the matched pronoun
+        if (['he', 'she', 'they'].includes(lowerMatch)) replacement = targetPronouns.subject;
+        else if (['him', 'her', 'them'].includes(lowerMatch)) {
+            // This is the tricky part. 'her' can be object or possessive adjective.
+            // A simple heuristic won't be perfect, but we can try.
+            // For now, let's assume 'her' as an object pronoun if it's not followed by a noun in a simple sense,
+            // but for this implementation, we will stick to a direct mapping which is less error-prone.
+            if(lowerMatch === 'her' && newGender === 'Male') {
+                 // Without context, 'her' is ambiguous. Could be 'him' or 'his'.
+                 // Let's favor 'him' as the object pronoun replacement and let user fix if needed.
+                 replacement = targetPronouns.object;
+            } else {
+                 replacement = targetPronouns.object;
+            }
         }
+        else if (['his', 'her', 'their'].includes(lowerMatch)) replacement = targetPronouns.possessiveAdj;
+        else if (['hers', 'theirs'].includes(lowerMatch)) replacement = targetPronouns.possessive;
+        else if (lowerMatch === 'his' && newGender === 'Female') replacement = pronouns.female.possessiveAdj; // his -> her
 
-        if (!replacement) return match; // If no match, return original.
+        if (!replacement) return match; // If no rule, return original
 
-        if (match.charAt(0) === match.charAt(0).toUpperCase()) {
+        // Preserve capitalization
+        if (match[0] === match[0].toUpperCase()) {
             return replacement.charAt(0).toUpperCase() + replacement.slice(1);
         }
         return replacement;
@@ -306,13 +318,12 @@ export function CharacterCreationForm({
   const handleSaveDetails = () => {
     if (!editingCharacter) return;
     const details = { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName };
-
-    if (gameData.playMode === 'remote') {
-        onUpdateCharacter(editingCharacter.id, details, 'claim');
-    } else { // local mode
-        onUpdateCharacter(editingCharacter.id, details, 'update');
-    }
-
+    
+    // In local mode, the action is 'update' which just assigns the name.
+    // In remote mode, the action is 'claim'.
+    const action = gameData.playMode === 'local' ? 'update' : 'claim';
+    
+    onUpdateCharacter(editingCharacter.id, details, action);
     setEditingCharacter(null);
   };
 
@@ -392,7 +403,7 @@ export function CharacterCreationForm({
                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                     <div className="flex items-center gap-4 mb-4">
                       <Label htmlFor="party-size">Number of Characters:</Label>
-                      <Select value={String(partySize)} onValueChange={(val) => setPartySize(Number(val))}>
+                      <Select value={String(partySize)} onValueChange={(val) => setPartySize(Number(val))} disabled={isGenerating}>
                         <SelectTrigger className="w-24">
                           <SelectValue />
                         </SelectTrigger>
@@ -601,6 +612,8 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
 
     
 
