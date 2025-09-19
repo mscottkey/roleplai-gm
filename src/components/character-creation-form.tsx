@@ -23,7 +23,6 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/t
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { ShareGameInvite } from './share-game-invite';
-import { updateWorldState } from '@/app/actions';
 
 
 const normalizeInlineBulletsInSections = (md: string) => {
@@ -202,14 +201,7 @@ export function CharacterCreationForm({
             claimedBy: '',
         }));
 
-        if (gameId) {
-             const plainCharacters = newCharacters.map(c => ({...c}));
-             await updateDoc(doc(getFirestore(), 'games', gameId), {
-                'gameData.characters': plainCharacters,
-                'worldState.characters': plainCharacters,
-            });
-        }
-        
+        setCharacters(newCharacters);
         setHasGenerated(true);
 
     } catch (error) {
@@ -248,14 +240,7 @@ export function CharacterCreationForm({
         };
 
         const updatedCharacters = characters.map(c => c.id === slotId ? newCharacter : c);
-        
-        if (gameId) {
-             const plainCharacters = updatedCharacters.map(c => ({...c}));
-             await updateDoc(doc(getFirestore(), 'games', gameId), {
-                'gameData.characters': plainCharacters,
-                'worldState.characters': plainCharacters,
-            });
-        }
+        setCharacters(updatedCharacters);
         
     } catch (error) {
         const err = error as Error;
@@ -273,6 +258,58 @@ export function CharacterCreationForm({
     setEditDescription(char.description);
     setEditPlayerName(char.playerName);
   };
+  
+  const handleGenderChange = (newGender: string) => {
+    setEditGender(newGender);
+
+    let currentDescription = editDescription;
+
+    const malePronouns = { subject: 'he', object: 'him', possessive: 'his', possessive_plural: 'his' };
+    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her', possessive_plural: 'hers' };
+    const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their', possessive_plural: 'theirs' };
+
+    const allPronouns = [
+        ...Object.values(malePronouns),
+        ...Object.values(femalePronouns),
+        ...Object.values(neutralPronouns),
+    ];
+    
+    // Create a regex to find any of the pronouns, case-insensitive, as whole words.
+    const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
+
+    const updatedDescription = currentDescription.replace(pronounRegex, (match) => {
+        const lowerMatch = match.toLowerCase();
+        let replacement = '';
+
+        if (newGender === 'Male') {
+            if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
+            if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
+            if (['her', 'their'].includes(lowerMatch)) replacement = malePronouns.possessive;
+            if (['hers', 'theirs'].includes(lowerMatch)) replacement = malePronouns.possessive_plural;
+        } else if (newGender === 'Female') {
+            if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
+            if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
+            if (['his', 'their'].includes(lowerMatch)) replacement = femalePronouns.possessive;
+            if (['his', 'theirs'].includes(lowerMatch)) replacement = femalePronouns.possessive_plural;
+        } else { // Non-binary, Agender, Other
+            if (['he', 'she'].includes(lowerMatch)) replacement = neutralPronouns.subject;
+            if (['him', 'her'].includes(lowerMatch)) replacement = neutralPronouns.object;
+            if (['his', 'her'].includes(lowerMatch)) replacement = neutralPronouns.possessive;
+            if (['his', 'hers'].includes(lowerMatch)) replacement = neutralPronouns.possessive_plural;
+        }
+
+        if (!replacement) return match; // If no match, return original.
+
+        // Preserve capitalization
+        if (match.charAt(0) === match.charAt(0).toUpperCase()) {
+            return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+        }
+        return replacement;
+    });
+
+    setEditDescription(updatedDescription);
+  };
+
 
   const handleSaveDetails = () => {
     if (!editingCharacter) return;
@@ -547,7 +584,7 @@ export function CharacterCreationForm({
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="gender" className="text-right">Gender</Label>
-                        <Select value={editGender} onValueChange={setEditGender}>
+                        <Select value={editGender} onValueChange={handleGenderChange}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select a gender" />
                             </SelectTrigger>
