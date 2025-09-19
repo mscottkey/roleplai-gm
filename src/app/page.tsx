@@ -37,7 +37,7 @@ const normalizeInlineBulletsInSections = (md: string) => {
     const fixLine = (title: string, text: string) => {
         return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
-            const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
+            const listItems = b.replace(/([*-])\s/g, '\n$1. ').trim();
             return `${a.trim()}\n\n${listItems}`;
         });
     };
@@ -335,23 +335,27 @@ export default function RoleplAIGMPage() {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     
+    const plainCharacters = finalCharacters.map(c => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        aspect: c.aspect,
+        playerName: c.playerName,
+        archetype: c.archetype,
+        gender: c.gender,
+        age: c.age,
+        stats: c.stats,
+        claimedBy: c.claimedBy,
+        isCustom: c.isCustom,
+    }));
+
+
     // First, save the current state of characters to Firestore
     try {
       const db = getFirestore();
       await updateDoc(doc(db, "games", activeGameId), {
-        'gameData.characters': finalCharacters,
-        'worldState.characters': finalCharacters.map(c => ({
-            name: c.name,
-            description: c.description,
-            aspect: c.aspect,
-            playerName: c.playerName,
-            archetype: c.archetype,
-            gender: c.gender,
-            age: c.age,
-            stats: c.stats,
-            id: c.id, // Ensure ID is passed through
-            claimedBy: c.claimedBy
-        }))
+        'gameData.characters': plainCharacters,
+        'worldState.characters': plainCharacters
       });
     } catch(error) {
         const err = error as Error;
@@ -373,6 +377,7 @@ export default function RoleplAIGMPage() {
             gender: c.gender,
             age: c.age,
             stats: c.stats,
+            id: c.id, // Ensure ID is passed through
         }));
 
         await updateWorldState({
@@ -667,6 +672,7 @@ The stage is set. What do you do?
             gender: c.gender,
             age: c.age,
             stats: c.stats,
+            id: c.id
         }));
 
         const { setting, tone } = gameData;
@@ -832,3 +838,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    

@@ -197,7 +197,7 @@ export function CharacterCreationForm({
         
         const newCharacters: FormCharacter[] = result.characters.map((c: any) => ({
             ...c,
-            id: c.slotId,
+            id: c.slotId, // CRITICAL: Map slotId from AI to the character's main ID
             playerName: '',
             isCustom: false,
             claimedBy: '',
@@ -267,10 +267,9 @@ export function CharacterCreationForm({
     let currentDescription = editDescription;
 
     const malePronouns = { subject: 'he', object: 'him', possessive: 'his' };
-    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; // Note: 'her' can be object or possessive
+    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; 
     const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their' };
     
-    // Order matters: hers before her, theirs before their.
     const allPronouns = ['he', 'him', 'his', 'she', 'hers', 'her', 'they', 'them', 'theirs', 'their'];
     const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
 
@@ -280,8 +279,8 @@ export function CharacterCreationForm({
 
         if (newGender === 'Male') {
             if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
-            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object; // 'her' becomes 'him'
-            else if (['hers', 'theirs', 'their'].includes(lowerMatch)) replacement = malePronouns.possessive;
+            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
+            else if (['hers', 'theirs', 'their'].includes(lowerMatch) || lowerMatch === 'her') replacement = malePronouns.possessive;
         } else if (newGender === 'Female') {
             if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
             else if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
@@ -294,7 +293,6 @@ export function CharacterCreationForm({
 
         if (!replacement) return match; // If no match, return original.
 
-        // Preserve capitalization
         if (match.charAt(0) === match.charAt(0).toUpperCase()) {
             return replacement.charAt(0).toUpperCase() + replacement.slice(1);
         }
@@ -603,5 +601,7 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
 
     
