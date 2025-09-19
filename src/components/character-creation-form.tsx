@@ -265,12 +265,11 @@ export function CharacterCreationForm({
     let currentDescription = editDescription;
 
     const malePronouns = { subject: 'he', object: 'him', possessive: 'his' };
-    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; // Note: `her` is used for both object and possessive adjective. `hers` is different.
+    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' };
     const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their' };
-
-    const allPronouns = ['he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'their', 'theirs'];
     
-    // Create a regex to find any of the pronouns, case-insensitive, as whole words.
+    // Regex to find any of the pronouns, case-insensitive, as whole words.
+    const allPronouns = ['he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'their', 'theirs'];
     const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
 
     const updatedDescription = currentDescription.replace(pronounRegex, (match) => {
@@ -279,7 +278,7 @@ export function CharacterCreationForm({
 
         if (newGender === 'Male') {
             if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
-            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
+            else if (['them'].includes(lowerMatch)) replacement = malePronouns.object; // "her" is ambiguous
             else if (['her', 'hers', 'their', 'theirs'].includes(lowerMatch)) replacement = malePronouns.possessive;
         } else if (newGender === 'Female') {
             if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
@@ -306,10 +305,10 @@ export function CharacterCreationForm({
 
   const handleSaveDetails = () => {
     if (!editingCharacter) return;
-    
+
     if (gameData.playMode === 'remote') {
         onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription }, 'claim');
-    } else {
+    } else { // local mode
         onUpdateCharacter(editingCharacter.id, { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName }, 'update');
     }
 
@@ -601,5 +600,7 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
 
     
