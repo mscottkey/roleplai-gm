@@ -211,6 +211,7 @@ type UpdateCharacterDetailsInput = {
   updates: {
     name?: string;
     gender?: string;
+    playerName?: string;
   };
   claim?: {
     userId: string;
@@ -236,14 +237,14 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
       }
 
       const gameData = gameDoc.data();
-      const characters: any[] = gameData.gameData.characters || [];
+      const characters: any[] = gameData.worldState.characters || [];
       const charIndex = characters.findIndex(c => c.id === characterId);
 
       if (charIndex === -1) {
         throw new Error("Character not found.");
       }
       
-      const charToUpdate = { ...characters[charIndex], ...updates };
+      let charToUpdate = { ...characters[charIndex], ...updates };
 
       if (claim) {
         // Check if anyone else has claimed this character
@@ -256,18 +257,30 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
         }
         charToUpdate.claimedBy = claim.userId;
         charToUpdate.playerName = claim.userName;
-      }
-
-      if (unclaim) {
+      } else if (unclaim) {
         if (charToUpdate.claimedBy !== unclaim.userId) {
           throw new Error("You can only unclaim a character you have claimed.");
         }
         charToUpdate.claimedBy = null;
-        charToUpdate.playerName = "";
+        charToUpdate.playerName = ""; // Clear player name on unclaim
+      } else {
+        // This is a local assignment, just update the player name if provided
+        charToUpdate.playerName = updates.playerName ?? charToUpdate.playerName;
       }
 
       characters[charIndex] = charToUpdate;
-      transaction.update(gameRef, { 'gameData.characters': characters });
+      
+      // Also update the characters array in gameData for consistency
+      const gameDataCharacters = gameData.gameData.characters || [];
+      const gameDataCharIndex = gameDataCharacters.findIndex((c: any) => c.id === characterId);
+      if(gameDataCharIndex !== -1) {
+          gameDataCharacters[gameDataCharIndex] = charToUpdate;
+      }
+
+      transaction.update(gameRef, { 
+        'worldState.characters': characters,
+        'gameData.characters': gameDataCharacters
+      });
     });
 
     return { success: true };

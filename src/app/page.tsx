@@ -14,7 +14,7 @@ import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
-import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -289,7 +289,7 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleUpdateCharacter = async (characterId: string, details: { name?: string, gender?: string }, action: 'claim' | 'unclaim' | 'update') => {
+  const handleUpdateCharacter = async (characterId: string, details: { name?: string; gender?: string; playerName?: string }, action: 'claim' | 'unclaim' | 'update') => {
     if (!user || !activeGameId) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a game.' });
       return;
@@ -306,6 +306,8 @@ export default function RoleplAIGMPage() {
       payload.claim = { userId: user.uid, userName };
     } else if (action === 'unclaim') {
       payload.unclaim = { userId: user.uid };
+    } else if (action === 'update') {
+      payload.updates.playerName = details.playerName;
     }
 
     try {
@@ -315,9 +317,11 @@ export default function RoleplAIGMPage() {
         throw new Error(result.message || "Failed to update character.");
       }
 
-      toast({
-        title: action === 'claim' ? "Character Claimed!" : (action === 'unclaim' ? "Character Unclaimed" : "Character Updated!"),
-      });
+      let toastTitle = "Character Updated!";
+      if (action === 'claim') toastTitle = "Character Claimed!";
+      if (action === 'unclaim') toastTitle = "Character Unclaimed";
+
+      toast({ title: toastTitle });
 
     } catch (error) {
       const err = error as Error;
@@ -329,7 +333,34 @@ export default function RoleplAIGMPage() {
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
-    toast({ title: "Finalizing Characters", description: "Saving your party..." });
+    
+    // First, save the current state of characters to Firestore
+    try {
+      const db = getFirestore();
+      await updateDoc(doc(db, "games", activeGameId), {
+        'gameData.characters': finalCharacters,
+        'worldState.characters': finalCharacters.map(c => ({
+            name: c.name,
+            description: c.description,
+            aspect: c.aspect,
+            playerName: c.playerName,
+            archetype: c.archetype,
+            gender: c.gender,
+            age: c.age,
+            stats: c.stats,
+            id: c.id, // Ensure ID is passed through
+            claimedBy: c.claimedBy
+        }))
+      });
+    } catch(error) {
+        const err = error as Error;
+        console.error("Failed to save characters before campaign generation:", err);
+        toast({ variant: 'destructive', title: 'Setup Error', description: 'Could not save character data.' });
+        setIsLoading(false);
+        return;
+    }
+
+    toast({ title: "Finalizing Party", description: "Saving characters and building the world..." });
 
     try {
         const charactersForAI: AICharacter[] = finalCharacters.map(c => ({
@@ -346,15 +377,11 @@ export default function RoleplAIGMPage() {
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                'gameData.characters': finalCharacters,
-                'worldState.characters': charactersForAI,
-                'activeCharacterId': finalCharacters[0].id,
+                'activeCharacterId': finalCharacters.length > 0 ? finalCharacters[0].id : null,
             }
         });
 
-        // The listener will update the local state to show the 'play' view.
-        // Now, generate campaign in the background and update the messages.
-        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
         
         const generatePlaceholderMessage = (status: string) => `
 # Welcome to your adventure!
@@ -408,8 +435,7 @@ ${characterList}
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
-        // Synthesize hooks from the new structure
-        const newHooks = `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`;
+        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
 
         const finalInitialMessageContent = `
 # Welcome to your adventure!
@@ -435,7 +461,6 @@ The stage is set. What do you do?
 
         const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
         
-        // Replace the placeholder message with the final one
         await updateWorldState({
             gameId: activeGameId,
             updates: {
@@ -446,7 +471,7 @@ The stage is set. What do you do?
                 'worldState.storyAspects': campaignStructure.campaignAspects,
                 'messages': [finalInitialMessage],
                 'storyMessages': [{ content: finalInitialMessageContent }],
-                previousWorldState: null, // Clear previous state on new campaign
+                previousWorldState: null,
             }
         });
 
@@ -470,7 +495,6 @@ The stage is set. What do you do?
         return;
     }
     
-    // Remove the temporary recap message if it exists
     const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
     const authorName = activeCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
@@ -483,7 +507,7 @@ The stage is set. What do you do?
     };
 
     const newMessages: Message[] = [...messagesWithoutRecap, newMessage ];
-    setMessages(newMessages); // Optimistic update
+    setMessages(newMessages);
     setIsLoading(true);
 
     try {
@@ -507,7 +531,6 @@ The stage is set. What do you do?
                         handleSendMessage(playerInput, true); // Resend with confirmation
                     },
                 });
-                // Since we need confirmation, we stop here. Revert the optimistic message update.
                 setMessages(messagesWithoutRecap);
                 setIsLoading(false);
                 return;
@@ -543,7 +566,6 @@ The stage is set. What do you do?
             const nextIndex = (currentIndex + 1) % characters.length;
             const nextCharacter = characters[nextIndex];
 
-            // Update world state in the background. Note: we are saving the *current* worldState as previousWorldState
             updateWorldState({
                 gameId: activeGameId,
                 playerAction: {
@@ -558,10 +580,9 @@ The stage is set. What do you do?
                     activeCharacterId: nextCharacter.id,
                 }
             }).then(() => {
-                setActiveCharacter(nextCharacter); // Set active character only after successful state update
+                setActiveCharacter(nextCharacter);
             }).catch(err => {
                 console.error("Failed to update world state:", err);
-                // Non-critical, so we just log the error.
             });
 
         } else { // Intent is 'Question'
@@ -595,7 +616,7 @@ The stage is set. What do you do?
             title: "Error",
             description: err.message || "An unknown error occurred.",
         });
-        setMessages(messagesWithoutRecap); // Revert optimistic update
+        setMessages(messagesWithoutRecap);
     } finally {
         setIsLoading(false);
     }
@@ -612,7 +633,6 @@ The stage is set. What do you do?
         const result = await undoLastAction(activeGameId);
         if (result.success) {
             toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
-            // The snapshot listener will handle the state updates automatically.
         } else {
             throw new Error(result.message || 'Failed to undo the last action.');
         }
@@ -649,17 +669,14 @@ The stage is set. What do you do?
         }));
 
         const { setting, tone } = gameData;
-        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName}*): ${c.description}`).join('\n');
+        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
-        // Step 1: Generate Core Concepts
         toast({ title: 'Regenerating Storyline...', description: 'Generating core campaign concepts...' });
         const coreConcepts = await generateCore({ setting, tone, characters: charactersForAI });
 
-        // Step 2: Generate Factions
         toast({ title: 'Regenerating Storyline...', description: 'Designing key factions and threats...' });
         const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: charactersForAI });
 
-        // Step 3: Generate Nodes
         toast({ title: 'Regenerating Storyline...', description: 'Building the web of story nodes...' });
         const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: charactersForAI });
 
@@ -673,8 +690,7 @@ The stage is set. What do you do?
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
-        // Synthesize hooks from the new structure
-        const newHooks = `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`;
+        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
 
 
         const finalInitialMessageContent = `
@@ -701,22 +717,21 @@ The stage is set. What do you do?
 
         const finalInitialMessage: Message = { id: `regen-start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
         
-        // Update the campaign structure within gameData and reset world state and messages
         await updateWorldState({
             gameId: activeGameId,
             updates: {
                 'gameData.campaignStructure': campaignStructure,
-                'gameData.initialHooks': newHooks, // Save the new hooks as well
+                'gameData.initialHooks': newHooks,
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
                 'worldState.storyAspects': campaignStructure.campaignAspects,
                 'worldState.knownPlaces': [],
                 'worldState.knownFactions': [],
-                'worldState.places': [], // Reset discovered places from old plot
+                'worldState.places': [],
                 'messages': [finalInitialMessage],
                 'storyMessages': [{ content: finalInitialMessageContent }],
-                previousWorldState: null, // Clear previous state on new campaign
+                previousWorldState: null,
             }
         });
 
@@ -816,3 +831,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    

@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit, UserCheck, UserX, PersonStanding } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit, UserCheck, UserX, PersonStanding, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -55,7 +55,7 @@ type CharacterCreationFormProps = {
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
-  onUpdateCharacter: (characterId: string, details: { name?: string, gender?: string }, action: 'claim' | 'unclaim' | 'update') => void;
+  onUpdateCharacter: (characterId: string, details: { name?: string, gender?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
   currentUser: FirebaseUser | null;
 };
 
@@ -128,6 +128,35 @@ const CharacterDisplay = ({ char }: { char: FormCharacter }) => (
   </div>
 );
 
+const LocalPlayerAssign = ({ char, onUpdateCharacter }: { char: FormCharacter, onUpdateCharacter: Function }) => {
+    const [localPlayerName, setLocalPlayerName] = useState(char.playerName || '');
+
+    const handleSave = () => {
+        onUpdateCharacter(char.id, { playerName: localPlayerName }, 'update');
+    };
+    
+    useEffect(() => {
+        setLocalPlayerName(char.playerName || '');
+    }, [char.playerName]);
+
+    return (
+        <div className="flex flex-col gap-2">
+            <Label htmlFor={`player-name-${char.id}`} className="text-xs">Player Name</Label>
+            <div className="flex gap-2">
+                <Input
+                    id={`player-name-${char.id}`}
+                    value={localPlayerName}
+                    onChange={(e) => setLocalPlayerName(e.target.value)}
+                    placeholder={'Unassigned'}
+                    className="h-8"
+                />
+                <Button size="icon" variant="secondary" onClick={handleSave} className="h-8 w-8">
+                    <Save className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+}
 
 export function CharacterCreationForm({
   gameData,
@@ -178,7 +207,7 @@ export function CharacterCreationForm({
 
   const getPartySuggestions = async () => {
     setIsGenerating(true);
-    setHasGenerated(false); // Reset this flag
+    setHasGenerated(false);
 
     const characterSlots = Array.from({ length: partySize }, (_, i) => ({
         id: `slot-${i}-${Date.now()}`,
@@ -192,8 +221,7 @@ export function CharacterCreationForm({
             characterSlots: characterSlots,
         });
         
-        // Ensure the result is a plain JS object for Firestore
-        const newCharacters: FormCharacter[] = JSON.parse(JSON.stringify(result.characters)).map((c: any) => ({
+        const newCharacters: FormCharacter[] = result.characters.map((c: any) => ({
             ...c,
             id: c.slotId,
             playerName: '',
@@ -204,7 +232,7 @@ export function CharacterCreationForm({
         if (gameId) {
             await updateWorldState({
                 gameId: gameId,
-                updates: { 'gameData.characters': newCharacters }
+                updates: { 'gameData.characters': newCharacters, 'worldState.characters': newCharacters }
             });
         }
         
@@ -235,13 +263,12 @@ export function CharacterCreationForm({
             existingCharacters: characters.filter(c => c.id !== slotId).map(c => ({ name: c.name, description: c.description, archetype: c.archetype })),
         });
         
-        // Ensure new character data is a plain JS object
-        const newCharData = JSON.parse(JSON.stringify(result.characters[0]));
+        const newCharData = result.characters[0];
         
         const newCharacter: FormCharacter = {
             ...newCharData,
             id: slotId,
-            playerName: charToRegen.playerName, // Keep player name if it was set
+            playerName: charToRegen.playerName,
             isCustom: false,
             claimedBy: charToRegen.claimedBy
         };
@@ -249,9 +276,9 @@ export function CharacterCreationForm({
         const updatedCharacters = characters.map(c => c.id === slotId ? newCharacter : c);
         
         if (gameId) {
-            await updateWorldState({
+             await updateWorldState({
                 gameId: gameId,
-                updates: { 'gameData.characters': updatedCharacters }
+                updates: { 'gameData.characters': updatedCharacters, 'worldState.characters': updatedCharacters }
             });
         }
         
@@ -290,6 +317,15 @@ export function CharacterCreationForm({
       });
       return;
     }
+    // In local mode, we can always finalize.
+    // In remote mode, we check if all characters are claimed.
+    if (gameData.playMode === 'remote' && characters.some(c => !c.claimedBy)) {
+      toast({
+        title: "Waiting for Players",
+        description: "All characters must be claimed before starting the adventure.",
+      });
+      return;
+    }
     onCharactersFinalized(characters);
   };
 
@@ -304,7 +340,7 @@ export function CharacterCreationForm({
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-             {gameData.playMode === 'remote' ? 'Send the invite link to your friends, then have each player claim a character.' : 'Generate a party and get ready to play!'}
+             {gameData.playMode === 'remote' ? 'Send the invite link to your friends, then have each player claim a character.' : 'Generate a party, assign player names, and get ready to play!'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -342,13 +378,13 @@ export function CharacterCreationForm({
                  {!hasGenerated ? (
                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                     <div className="flex items-center gap-4 mb-4">
-                      <Label htmlFor="party-size">Number of Players:</Label>
+                      <Label htmlFor="party-size">Number of Characters:</Label>
                       <Select value={String(partySize)} onValueChange={(val) => setPartySize(Number(val))}>
                         <SelectTrigger className="w-24">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {[2,3,4,5,6].map(s => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
+                          {[1,2,3,4,5,6].map(s => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -374,7 +410,7 @@ export function CharacterCreationForm({
                             </Card>
                         ))}
                     </div>
-                    <Button size="lg" onClick={getPartySuggestions} disabled={isGenerating} className="mt-6">
+                    <Button size="lg" onClick={getPartySuggestions} disabled={isGenerating || isLoading} className="mt-6">
                       <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
                       Generate Party
                     </Button>
@@ -396,10 +432,10 @@ export function CharacterCreationForm({
                           {isClaimedByCurrentUser && <Badge className="absolute -top-2 -right-2">You</Badge>}
                           
                           <CardHeader>
-                             {char.claimedBy ? (
-                                <p className="text-center font-bold text-lg">Claimed by {char.playerName}</p>
+                             {char.playerName ? (
+                                <p className="text-center font-bold text-lg">Played by {char.playerName}</p>
                              ) : (
-                                <p className="text-center font-bold text-lg text-muted-foreground">Unclaimed</p>
+                                <p className="text-center font-bold text-lg text-muted-foreground">Unassigned</p>
                              )}
                           </CardHeader>
 
@@ -435,20 +471,24 @@ export function CharacterCreationForm({
                           </CardContent>
                           
                           <CardFooter>
-                            {isClaimedByCurrentUser ? (
-                              <Button variant="outline" className="w-full" onClick={() => handleUnclaim(char)}>
-                                <UserX className="mr-2 h-4 w-4" />
-                                Unclaim Character
-                              </Button>
-                            ) : (
-                               <Button 
-                                  className="w-full" 
-                                  onClick={() => handleClaimClick(char)} 
-                                  disabled={!!isClaimedByOther || !!currentUserClaim}
-                                >
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  {isClaimedByOther ? 'Claimed' : 'Claim this Character'}
+                            {gameData.playMode === 'remote' ? (
+                                isClaimedByCurrentUser ? (
+                                <Button variant="outline" className="w-full" onClick={() => handleUnclaim(char)}>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Unclaim Character
                                 </Button>
+                                ) : (
+                                <Button 
+                                    className="w-full" 
+                                    onClick={() => handleClaimClick(char)} 
+                                    disabled={!!isClaimedByOther || !!currentUserClaim}
+                                >
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    {isClaimedByOther ? 'Claimed' : 'Claim this Character'}
+                                </Button>
+                                )
+                            ) : (
+                                isHost && <LocalPlayerAssign char={char} onUpdateCharacter={onUpdateCharacter} />
                             )}
                           </CardFooter>
                         </Card>
@@ -479,10 +519,12 @@ export function CharacterCreationForm({
                   </>
                 )}
             </Button>
-            <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Regenerate Entire Party
-            </Button>
+            {hasGenerated && (
+              <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Regenerate Entire Party
+              </Button>
+            )}
           </CardFooter>
         )}
       </Card>
@@ -527,3 +569,5 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
