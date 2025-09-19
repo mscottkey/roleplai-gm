@@ -203,18 +203,24 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   }
 }
 
-type ClaimCharacterInput = {
+type UpdateCharacterDetailsInput = {
   gameId: string;
   characterId: string;
-  user: {
-    uid: string;
-    name: string;
+  updates: {
+    name?: string;
+    gender?: string;
   };
-  claim: boolean; // true to claim, false to unclaim
+  claim?: {
+    userId: string;
+    userName: string;
+  };
+  unclaim?: {
+    userId: string;
+  };
 };
 
-export async function claimCharacter(input: ClaimCharacterInput): Promise<{ success: boolean; message?: string }> {
-  const { gameId, characterId, user, claim } = input;
+export async function updateCharacterDetails(input: UpdateCharacterDetailsInput): Promise<{ success: boolean; message?: string }> {
+  const { gameId, characterId, updates, claim, unclaim } = input;
 
   try {
     const app = getServerApp();
@@ -234,38 +240,37 @@ export async function claimCharacter(input: ClaimCharacterInput): Promise<{ succ
       if (charIndex === -1) {
         throw new Error("Character not found.");
       }
-
-      const characterToUpdate = characters[charIndex];
       
+      const charToUpdate = { ...characters[charIndex], ...updates };
+
       if (claim) {
-        if (characterToUpdate.claimedBy && characterToUpdate.claimedBy !== user.uid) {
+        // Check if anyone else has claimed this character
+        if (charToUpdate.claimedBy && charToUpdate.claimedBy !== claim.userId) {
           throw new Error("Character is already claimed by another player.");
         }
-        if (characters.some(c => c.claimedBy === user.uid && c.id !== characterId)) {
+        // Check if this user has claimed another character
+        if (characters.some(c => c.claimedBy === claim.userId && c.id !== characterId)) {
           throw new Error("You have already claimed another character in this game.");
         }
-        characters[charIndex] = {
-          ...characterToUpdate,
-          claimedBy: user.uid,
-          playerName: user.name,
-        };
-      } else { // Unclaim
-        if (characterToUpdate.claimedBy !== user.uid) {
-          throw new Error("You cannot unclaim a character you haven't claimed.");
-        }
-         characters[charIndex] = {
-          ...characterToUpdate,
-          claimedBy: null,
-          playerName: "",
-        };
+        charToUpdate.claimedBy = claim.userId;
+        charToUpdate.playerName = claim.userName;
       }
 
+      if (unclaim) {
+        if (charToUpdate.claimedBy !== unclaim.userId) {
+          throw new Error("You can only unclaim a character you have claimed.");
+        }
+        charToUpdate.claimedBy = null;
+        charToUpdate.playerName = "";
+      }
+
+      characters[charIndex] = charToUpdate;
       transaction.update(gameRef, { 'gameData.characters': characters });
     });
 
     return { success: true };
   } catch (error) {
-    console.error("Error in claimCharacter action:", error);
+    console.error("Error in updateCharacterDetails action:", error);
     const message = error instanceof Error ? error.message : "An unknown error occurred.";
     return { success: false, message };
   }

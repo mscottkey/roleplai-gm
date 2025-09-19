@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, claimCharacter } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, updateCharacterDetails } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -285,37 +285,42 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleClaimCharacter = async (characterId: string, claim: boolean) => {
+  const handleUpdateCharacter = async (characterId: string, details: { name?: string, gender?: string }, action: 'claim' | 'unclaim' | 'update') => {
     if (!user || !activeGameId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a game to claim a character.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a game.' });
       return;
     }
 
     const userName = user.isAnonymous ? "Guest" : user.email?.split('@')[0] || "Player";
+    let payload: any = {
+      gameId: activeGameId,
+      characterId,
+      updates: details,
+    };
+
+    if (action === 'claim') {
+      payload.claim = { userId: user.uid, userName };
+    } else if (action === 'unclaim') {
+      payload.unclaim = { userId: user.uid };
+    }
 
     try {
-      const result = await claimCharacter({
-        gameId: activeGameId,
-        characterId,
-        user: { uid: user.uid, name: userName },
-        claim
-      });
+      const result = await updateCharacterDetails(payload);
 
       if (!result.success) {
-        throw new Error(result.message || "Failed to update character claim.");
+        throw new Error(result.message || "Failed to update character.");
       }
 
       toast({
-        title: claim ? "Character Claimed!" : "Character Unclaimed",
-        description: claim ? `You are now playing as this character.` : `This character is now available.`,
+        title: action === 'claim' ? "Character Claimed!" : (action === 'unclaim' ? "Character Unclaimed" : "Character Updated!"),
       });
 
     } catch (error) {
       const err = error as Error;
-      console.error("Failed to claim character:", err);
-      toast({ variant: 'destructive', title: 'Claim Failed', description: err.message });
+      console.error("Failed to update character:", err);
+      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
-  }
+  };
 
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
@@ -733,7 +738,7 @@ The stage is set. What do you do?
             onCharactersFinalized={handleCharactersFinalized}
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
-            onClaimCharacter={handleClaimCharacter}
+            onUpdateCharacter={handleUpdateCharacter}
             currentUser={user}
           />
         );
