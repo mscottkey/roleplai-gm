@@ -245,7 +245,8 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
         throw new Error("Character not found.");
       }
       
-      let charToUpdate = { ...characters[charIndex], ...updates };
+      const plainChar = JSON.parse(JSON.stringify(characters[charIndex]));
+      let charToUpdate = { ...plainChar, ...updates };
 
       if (claim) {
         if (charToUpdate.claimedBy && charToUpdate.claimedBy !== claim.userId) {
@@ -269,8 +270,7 @@ export async function updateCharacterDetails(input: UpdateCharacterDetailsInput)
       const updatedCharacters = [...characters];
       updatedCharacters[charIndex] = charToUpdate;
 
-      // Ensure we are only writing plain objects to Firestore
-      const plainCharacters = updatedCharacters.map(c => JSON.parse(JSON.stringify(c)));
+      const plainCharacters = JSON.parse(JSON.stringify(updatedCharacters));
 
       transaction.update(gameRef, { 
         'worldState.characters': plainCharacters,
