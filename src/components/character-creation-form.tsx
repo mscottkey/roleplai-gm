@@ -54,7 +54,7 @@ type CharacterCreationFormProps = {
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
-  onUpdateCharacter: (characterId: string, details: { name?: string, gender?: string, description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
+  onUpdateCharacter: (characterId: string, details: { name?: string; gender?: string; description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
   currentUser: FirebaseUser | null;
 };
 
@@ -264,15 +264,11 @@ export function CharacterCreationForm({
 
     let currentDescription = editDescription;
 
-    const malePronouns = { subject: 'he', object: 'him', possessive: 'his', possessive_plural: 'his' };
-    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her', possessive_plural: 'hers' };
-    const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their', possessive_plural: 'theirs' };
+    const malePronouns = { subject: 'he', object: 'him', possessive: 'his' };
+    const femalePronouns = { subject: 'she', object: 'her', possessive: 'her' }; // Note: `her` is used for both object and possessive adjective. `hers` is different.
+    const neutralPronouns = { subject: 'they', object: 'them', possessive: 'their' };
 
-    const allPronouns = [
-        ...Object.values(malePronouns),
-        ...Object.values(femalePronouns),
-        ...Object.values(neutralPronouns),
-    ];
+    const allPronouns = ['he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'their', 'theirs'];
     
     // Create a regex to find any of the pronouns, case-insensitive, as whole words.
     const pronounRegex = new RegExp(`\\b(${allPronouns.join('|')})\\b`, 'gi');
@@ -283,19 +279,16 @@ export function CharacterCreationForm({
 
         if (newGender === 'Male') {
             if (['she', 'they'].includes(lowerMatch)) replacement = malePronouns.subject;
-            if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
-            if (['her', 'their'].includes(lowerMatch)) replacement = malePronouns.possessive;
-            if (['hers', 'theirs'].includes(lowerMatch)) replacement = malePronouns.possessive_plural;
+            else if (['her', 'them'].includes(lowerMatch)) replacement = malePronouns.object;
+            else if (['her', 'hers', 'their', 'theirs'].includes(lowerMatch)) replacement = malePronouns.possessive;
         } else if (newGender === 'Female') {
             if (['he', 'they'].includes(lowerMatch)) replacement = femalePronouns.subject;
-            if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
-            if (['his', 'their'].includes(lowerMatch)) replacement = femalePronouns.possessive;
-            if (['his', 'theirs'].includes(lowerMatch)) replacement = femalePronouns.possessive_plural;
+            else if (['him', 'them'].includes(lowerMatch)) replacement = femalePronouns.object;
+            else if (['his', 'their', 'theirs'].includes(lowerMatch)) replacement = femalePronouns.possessive;
         } else { // Non-binary, Agender, Other
             if (['he', 'she'].includes(lowerMatch)) replacement = neutralPronouns.subject;
-            if (['him', 'her'].includes(lowerMatch)) replacement = neutralPronouns.object;
-            if (['his', 'her'].includes(lowerMatch)) replacement = neutralPronouns.possessive;
-            if (['his', 'hers'].includes(lowerMatch)) replacement = neutralPronouns.possessive_plural;
+            else if (['him', 'her'].includes(lowerMatch)) replacement = neutralPronouns.object;
+            else if (['his', 'hers'].includes(lowerMatch)) replacement = neutralPronouns.possessive;
         }
 
         if (!replacement) return match; // If no match, return original.
@@ -608,3 +601,5 @@ export function CharacterCreationForm({
     </div>
   );
 }
+
+    
