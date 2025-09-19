@@ -185,7 +185,11 @@ export default function RoleplAIGMPage() {
     const unsub = onSnapshot(doc(db, "games", activeGameId), (doc) => {
       if (doc.exists()) {
         const game = doc.data() as GameSession;
+        
+        // Add userId to gameData for host check
+        game.gameData.userId = game.userId;
         setGameData(game.gameData);
+
         setWorldState(game.worldState);
         setPreviousWorldState(game.previousWorldState || null);
 

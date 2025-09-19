@@ -280,7 +280,7 @@ export function CharacterCreationForm({
   const { updateWorldState } = require('@/app/actions');
 
 
-  const allReady = characters.every(c => c.claimedBy);
+  const isHost = currentUser?.uid === gameData.userId;
 
   const handleFinalize = () => {
     if (!hasGenerated) {
@@ -290,15 +290,7 @@ export function CharacterCreationForm({
       });
       return;
     }
-    if (allReady) {
-      onCharactersFinalized(characters);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Not Ready Yet",
-        description: "Please make sure every character has been claimed by a player.",
-      });
-    }
+    onCharactersFinalized(characters);
   };
 
   const currentUserClaim = characters.find(c => c.claimedBy === currentUser?.uid);
@@ -467,30 +459,32 @@ export function CharacterCreationForm({
               </TabsContent>
             </Tabs>
         </CardContent>
-        <CardFooter className="flex-col gap-4 justify-center pt-6">
-          <Button
-            size="lg"
-            onClick={handleFinalize}
-            disabled={!allReady || isGenerating || !hasGenerated || isLoading}
-            className="font-headline text-xl"
-          >
-             {isLoading ? (
-                <>
-                  <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
-                  Building World...
-                </>
-              ) : (
-                <>
-                  <Dices className="mr-2 h-5 w-5" />
-                  Start Adventure
-                </>
-              )}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Regenerate Entire Party
-          </Button>
-        </CardFooter>
+        {isHost && (
+          <CardFooter className="flex-col gap-4 justify-center pt-6">
+            <Button
+              size="lg"
+              onClick={handleFinalize}
+              disabled={isGenerating || !hasGenerated || isLoading}
+              className="font-headline text-xl"
+            >
+               {isLoading ? (
+                  <>
+                    <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
+                    Building World...
+                  </>
+                ) : (
+                  <>
+                    <Dices className="mr-2 h-5 w-5" />
+                    Finalize Party & Build World
+                  </>
+                )}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate Entire Party
+            </Button>
+          </CardFooter>
+        )}
       </Card>
       
       {editingCharacter && (
@@ -534,4 +528,3 @@ export function CharacterCreationForm({
   );
 }
 
-    
