@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -32,7 +33,7 @@ function cleanMarkdown(text: string): string {
     .replace(/\*\*(Key Factions|Notable Locations|Tone Levers):\s*/g, '## $1\n\n')
     // Fix malformed bullet points patterns
     .replace(/\*\*\*\*\* /g, '* ')
-    .replace(/\*\*\*\* /g, '* ')
+    .replace(/\*\*\* /g, '* ')
     // Fix mangled asterisks around text
     .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
     // Clean up excessive whitespace but preserve single spaces
@@ -72,10 +73,11 @@ Generate a complete game setup based on the player's request. Return ONLY a vali
 Player request: "{{{request}}}"
 
 ## Critical Formatting Rules
-- Use actual newlines (\\n) for line breaks, not escaped \\\\n
-- Use proper markdown: **bold text**, * bullet points
-- Each bullet point should be on its own line
-- Headers should have newlines before and after them
+- Use actual newlines (\\n) for line breaks, not escaped \\\\n.
+- Use proper markdown: **bold text**, * bullet points.
+- Each bullet point should be on its own line.
+- Headers should have newlines before and after them.
+- **VERY IMPORTANT**: Do not use placeholders. Be specific. Do not use text like "20XX", "XXXX", "[insert name here]", or similar fillers.
 
 ## Required JSON Structure
 {
