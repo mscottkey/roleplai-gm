@@ -42,7 +42,7 @@ Your task is to return a NEW, UPDATED world state object.
 1.  **summary**: Briefly update the summary to reflect the latest major developments.
 2.  **storyOutline**: Review the existing outline. If the latest event addresses or completes a point, remove it. If the event introduces a new clear path, add a new point. Do not add vague points.
 3.  **recentEvents**: Add a new, concise summary of this event to the top of the list. Keep the list to a maximum of 5 events, removing the oldest if necessary.
-4.  **characters**: Do not modify characters. This is handled elsewhere.
+4.  **characters**: Do not modify characters. This is handled elsewhere. Just return the original characters.
 5.  **places**: If the narration introduced a new, significant named location, add it to the list with a brief description.
 6.  **knownPlaces**: If the narration or event resulted in the players learning about a new location from the main 'places' list, add it here.
 7.  **knownFactions**: If the narration or event resulted in the players learning about a faction, add it here.
@@ -59,11 +59,11 @@ const updateWorldStateFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     
-    // Ensure arrays are not null
+    // Ensure arrays are not null and carry over the original character data to prevent ID loss
     const updatedOutput = output!;
+    updatedOutput.characters = input.worldState.characters; // THIS IS THE FIX
     updatedOutput.storyOutline = updatedOutput.storyOutline || [];
     updatedOutput.recentEvents = updatedOutput.recentEvents || [];
-    updatedOutput.characters = updatedOutput.characters || [];
     updatedOutput.places = updatedOutput.places || [];
     updatedOutput.storyAspects = updatedOutput.storyAspects || [];
     updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
