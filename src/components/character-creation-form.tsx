@@ -22,6 +22,7 @@ import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { ShareGameInvite } from './share-game-invite';
 
 
 const normalizeInlineBulletsInSections = (md: string) => {
@@ -149,6 +150,8 @@ export function CharacterCreationForm({
   const { toast } = useToast();
   const formId = useId();
 
+  const [gameId, setGameId] = useState<string | null>(null);
+
   useEffect(() => {
     // This effect syncs the internal state with props, useful for reloads.
     setCharacters(initialCharacters);
@@ -156,6 +159,11 @@ export function CharacterCreationForm({
       setHasGenerated(true);
     }
   }, [initialCharacters]);
+
+   useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('game');
+    setGameId(id);
+  }, []);
 
   const updatePreference = (charId: string, field: keyof CharacterPreferences, value: string) => {
     setCharacterPrefs(prev => ({
@@ -191,7 +199,6 @@ export function CharacterCreationForm({
             claimedBy: '',
         }));
 
-        const gameId = new URLSearchParams(window.location.search).get('game');
         if (gameId) {
             await updateWorldState({
                 gameId: gameId,
@@ -237,7 +244,6 @@ export function CharacterCreationForm({
 
         const updatedCharacters = characters.map(c => c.id === slotId ? newCharacter : c);
         
-        const gameId = new URLSearchParams(window.location.search).get('game');
         if (gameId) {
             await updateWorldState({
                 gameId: gameId,
@@ -306,10 +312,15 @@ export function CharacterCreationForm({
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-            Generate a new party and have each player claim their character.
+             {gameData.playMode === 'remote' ? 'Send the invite link to your friends, then have each player claim a character.' : 'Generate a party and get ready to play!'}
           </CardDescription>
         </CardHeader>
         <CardContent>
+             {gameData.playMode === 'remote' && gameId && hasGenerated && (
+              <div className="mb-8">
+                <ShareGameInvite gameId={gameId} />
+              </div>
+            )}
             <Tabs defaultValue="party" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="summary"><ScrollText className="mr-2 h-4 w-4"/>Story Summary</TabsTrigger>
@@ -523,3 +534,4 @@ export function CharacterCreationForm({
   );
 }
 
+    
