@@ -38,7 +38,7 @@ export function TurnManager({ characters, activeCharacter, setActiveCharacter }:
                 <SelectValue placeholder="Select a character..." />
               </SelectTrigger>
               <SelectContent>
-                {characters.map(char => (
+                {characters.filter(char => char.id).map(char => (
                   <SelectItem key={char.id} value={char.id}>
                     {char.name} ({char.playerName})
                   </SelectItem>
@@ -61,4 +61,3 @@ export function TurnManager({ characters, activeCharacter, setActiveCharacter }:
     </div>
   );
 }
-
