@@ -57,6 +57,7 @@ type CharacterCreationFormProps = {
 type PlayerSlot = {
   id: string;
   playerName: string;
+  characterName: string;
   vision: string;
   character: FormCharacter | null;
 };
@@ -145,6 +146,7 @@ export function CharacterCreationForm({
       const slots = initialCharacters.map(char => ({
         id: char.id,
         playerName: char.playerName,
+        characterName: char.name, // Pre-fill with existing name
         vision: '', // Vision is transient, not stored
         character: char,
       }));
@@ -156,6 +158,7 @@ export function CharacterCreationForm({
       const newSlots = Array.from({ length: partySize }, (_, i) => ({
         id: `${formId}-slot-${i}`,
         playerName: `Player ${i + 1}`,
+        characterName: '',
         vision: '',
         character: null,
       }));
@@ -184,7 +187,7 @@ export function CharacterCreationForm({
 
     const characterSlotsForAI = playerSlots.map(slot => ({
         id: slot.id,
-        name: slot.playerName, // Use playerName as the preferred name for the AI
+        name: slot.characterName, // Use the preferred character name for the AI
         vision: slot.vision,
     }));
 
@@ -238,7 +241,7 @@ export function CharacterCreationForm({
         const result = await generateCharacterSuggestions({
             setting: gameData.setting,
             tone: gameData.tone,
-            characterSlots: [{ id: slotId, name: slotToRegen.playerName, vision: slotToRegen.vision }],
+            characterSlots: [{ id: slotId, name: slotToRegen.characterName, vision: slotToRegen.vision }],
             existingCharacters: otherCharacters,
         });
         
@@ -336,16 +339,21 @@ export function CharacterCreationForm({
                         </SelectContent>
                       </Select>
                     </div>
-                     <div className="w-full max-w-lg space-y-4">
-                        <p className="text-sm text-muted-foreground">Optionally, provide a name or vision for any player slot.</p>
-                        {playerSlots.map((slot) => (
+                     <div className="w-full max-w-2xl space-y-4">
+                        <p className="text-sm text-muted-foreground">For each player, you can optionally provide a character name or vision.</p>
+                        {playerSlots.map((slot, index) => (
                              <Card key={slot.id} className="p-3 bg-muted/30">
                                 <div className="flex items-center gap-4">
                                      <Input 
-                                        placeholder={`Player ${playerSlots.indexOf(slot) + 1}`}
+                                        placeholder={`Player ${index + 1}`}
                                         className="font-bold w-32"
                                         value={slot.playerName}
                                         onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
+                                    />
+                                    <Input 
+                                        placeholder="Preferred Character Name (Optional)"
+                                        value={slot.characterName}
+                                        onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
                                     />
                                      <Input 
                                         placeholder="Character Vision (e.g., 'grumpy space marine')"
@@ -431,5 +439,3 @@ export function CharacterCreationForm({
     </div>
   );
 }
-
-    
