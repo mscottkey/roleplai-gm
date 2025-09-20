@@ -59,6 +59,7 @@ type PlayerSlot = {
   playerName: string;
   characterName: string;
   vision: string;
+  gender: string;
   character: FormCharacter | null;
 };
 
@@ -148,6 +149,7 @@ export function CharacterCreationForm({
         playerName: char.playerName,
         characterName: char.name, // Pre-fill with existing name
         vision: '', // Vision is transient, not stored
+        gender: char.gender || 'Any',
         character: char,
       }));
       setPlayerSlots(slots);
@@ -160,6 +162,7 @@ export function CharacterCreationForm({
         playerName: `Player ${i + 1}`,
         characterName: '',
         vision: '',
+        gender: 'Any',
         character: null,
       }));
       setPlayerSlots(newSlots);
@@ -189,6 +192,7 @@ export function CharacterCreationForm({
         id: slot.id,
         name: slot.characterName, // Use the preferred character name for the AI
         vision: slot.vision,
+        gender: slot.gender === 'Any' ? undefined : slot.gender,
     }));
 
     try {
@@ -241,7 +245,12 @@ export function CharacterCreationForm({
         const result = await generateCharacterSuggestions({
             setting: gameData.setting,
             tone: gameData.tone,
-            characterSlots: [{ id: slotId, name: slotToRegen.characterName, vision: slotToRegen.vision }],
+            characterSlots: [{ 
+              id: slotId, 
+              name: slotToRegen.characterName, 
+              vision: slotToRegen.vision,
+              gender: slotToRegen.gender === 'Any' ? undefined : slotToRegen.gender,
+            }],
             existingCharacters: otherCharacters,
         });
         
@@ -339,22 +348,33 @@ export function CharacterCreationForm({
                         </SelectContent>
                       </Select>
                     </div>
-                     <div className="w-full max-w-2xl space-y-4">
-                        <p className="text-sm text-muted-foreground">For each player, you can optionally provide a character name or vision.</p>
+                     <div className="w-full max-w-4xl space-y-4">
+                        <p className="text-sm text-muted-foreground">For each player, you can optionally provide preferences.</p>
                         {playerSlots.map((slot, index) => (
                              <Card key={slot.id} className="p-3 bg-muted/30">
-                                <div className="flex items-center gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                                      <Input 
                                         placeholder={`Player ${index + 1}`}
-                                        className="font-bold w-32"
+                                        className="font-bold"
                                         value={slot.playerName}
                                         onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
                                     />
                                     <Input 
-                                        placeholder="Preferred Character Name (Optional)"
+                                        placeholder="Character Name (Optional)"
                                         value={slot.characterName}
                                         onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
                                     />
+                                     <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Any">Any Gender</SelectItem>
+                                            <SelectItem value="Male">Male</SelectItem>
+                                            <SelectItem value="Female">Female</SelectItem>
+                                            <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                        </SelectContent>
+                                     </Select>
                                      <Input 
                                         placeholder="Character Vision (e.g., 'grumpy space marine')"
                                         className="border-dashed"
