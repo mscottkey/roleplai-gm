@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -36,7 +37,7 @@ Existing Party Members (avoid creating similar characters):
 For each slot below, generate one character that adheres to the provided preferences. If a preference is not provided, you should generate an appropriate value for that field. The generated character should be thematically distinct from any existing party members.
 
 For each character, provide:
-- A unique name. If a 'Preferred Name' is given, you MUST use it. Otherwise, generate a diverse name appropriate to the game's setting and avoid using common or repeated names.
+- A unique name. If a 'Preferred Name' is given and is not empty, you MUST use it. Otherwise, generate a diverse name appropriate to the game's setting and avoid using common or repeated names.
 - The original \`slotId\` from the input.
 - A one-sentence description.
 - A core aspect.
