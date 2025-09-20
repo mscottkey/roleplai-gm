@@ -172,7 +172,11 @@ export default function RoleplAIGMPage() {
       setActiveCharacter(null);
       setStep('create');
     }
-  }, [searchParams, activeGameId]);
+    return () => {
+        // Cleanup TTS when navigating away from any game
+        cancel();
+    }
+  }, [searchParams, activeGameId, cancel]);
 
   useEffect(() => {
     if (!activeGameId) {
