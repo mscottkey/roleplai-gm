@@ -307,18 +307,18 @@ export default function RoleplAIGMPage() {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     
-    const plainCharacters = finalCharacters.map(c => ({
+    const plainCharacters: Character[] = finalCharacters.map(c => ({
         id: c.id,
         name: c.name,
         description: c.description,
         aspect: c.aspect,
         playerName: c.playerName,
+        isCustom: c.isCustom,
         archetype: c.archetype,
         gender: c.gender,
         age: c.age,
         stats: c.stats,
         claimedBy: c.claimedBy,
-        isCustom: c.isCustom,
     }));
 
 
@@ -546,6 +546,9 @@ The stage is set. What do you do?
             const nextIndex = (currentIndex + 1) % characters.length;
             const nextCharacter = characters[nextIndex];
 
+            // Create a serializable version of the world state
+            const serializableWorldState = JSON.parse(JSON.stringify(worldState));
+
             updateWorldState({
                 gameId: activeGameId,
                 playerAction: {
@@ -553,7 +556,7 @@ The stage is set. What do you do?
                     action: playerInput,
                 },
                 gmResponse: response.narrativeResult,
-                currentWorldState: worldState,
+                currentWorldState: serializableWorldState,
                 updates: {
                     messages: [...newMessages, assistantMessage],
                     storyMessages: newStoryMessages,
@@ -822,3 +825,6 @@ The stage is set. What do you do?
 
     
 
+
+
+    
