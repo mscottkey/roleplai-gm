@@ -205,87 +205,6 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   }
 }
 
-type UpdateCharacterDetailsInput = {
-  gameId: string;
-  characterId: string;
-  updates: {
-    name?: string;
-    gender?: string;
-    description?: string;
-    playerName?: string;
-  };
-  claim?: {
-    userId: string;
-    userName: string;
-  };
-  unclaim?: {
-    userId: string;
-  };
-};
-
-export async function updateCharacterDetails(input: UpdateCharacterDetailsInput): Promise<{ success: boolean; message?: string }> {
-  const { gameId, characterId, updates, claim, unclaim } = input;
-
-  try {
-    const app = getServerApp();
-    const db = getFirestore(app);
-    const gameRef = doc(db, "games", gameId);
-
-    await runTransaction(db, async (transaction) => {
-      const gameDoc = await transaction.get(gameRef);
-      if (!gameDoc.exists()) {
-        throw new Error("Game not found.");
-      }
-
-      const gameData = gameDoc.data();
-      const characters: any[] = gameData.worldState.characters || [];
-      const charIndex = characters.findIndex(c => c.id === characterId);
-
-      if (charIndex === -1) {
-        throw new Error("Character not found.");
-      }
-      
-      const plainChar = JSON.parse(JSON.stringify(characters[charIndex]));
-      let charToUpdate = { ...plainChar, ...updates };
-
-      if (claim) {
-        if (charToUpdate.claimedBy && charToUpdate.claimedBy !== claim.userId) {
-          throw new Error("Character is already claimed by another player.");
-        }
-        if (characters.some(c => c.claimedBy === claim.userId && c.id !== characterId)) {
-          throw new Error("You have already claimed another character in this game.");
-        }
-        charToUpdate.claimedBy = claim.userId;
-        charToUpdate.playerName = claim.userName;
-      } else if (unclaim) {
-        if (charToUpdate.claimedBy !== unclaim.userId) {
-          throw new Error("You can only unclaim a character you have claimed.");
-        }
-        charToUpdate.claimedBy = null;
-        charToUpdate.playerName = ""; // Clear player name on unclaim
-      } else {
-        charToUpdate.playerName = updates.playerName ?? charToUpdate.playerName;
-      }
-      
-      const updatedCharacters = [...characters];
-      updatedCharacters[charIndex] = charToUpdate;
-
-      const plainCharacters = JSON.parse(JSON.stringify(updatedCharacters));
-
-      transaction.update(gameRef, { 
-        'worldState.characters': plainCharacters,
-      });
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error in updateCharacterDetails action:", error);
-    const message = error instanceof Error ? error.message : "An unknown error occurred.";
-    return { success: false, message };
-  }
-}
-
-
 export async function routePlayerInput(input: ClassifyIntentInput): Promise<ClassifyIntentOutput> {
   try {
     return await classifyIntent(input);
@@ -412,5 +331,7 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
+
+    
 
     

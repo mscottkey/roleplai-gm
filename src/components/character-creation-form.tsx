@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
-import type { GenerateCharacterOutput, GenerateCharacterInput, Character as GenCharacterType } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Edit, User, Cake, Shield, PlusCircle, X, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, BrainCircuit, UserCheck, UserX, PersonStanding, Save } from 'lucide-react';
+import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -21,9 +21,6 @@ import remarkBreaks from 'remark-breaks';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
-import { ShareGameInvite } from './share-game-invite';
-
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
@@ -54,17 +51,16 @@ type CharacterCreationFormProps = {
   onCharactersFinalized: (characters: FormCharacter[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
-  onUpdateCharacter: (characterId: string, details: { name?: string; gender?: string; description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => void;
   currentUser: FirebaseUser | null;
 };
 
-type CharacterPreferences = {
-  name?: string;
-  vision?: string;
-  gender?: string;
-  age?: string;
-  archetype?: string;
+type PlayerSlot = {
+  id: string;
+  playerName: string;
+  vision: string;
+  character: FormCharacter | null;
 };
+
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -134,80 +130,90 @@ export function CharacterCreationForm({
   onCharactersFinalized,
   generateCharacterSuggestions,
   isLoading,
-  onUpdateCharacter,
   currentUser,
 }: CharacterCreationFormProps) {
+  const formId = useId();
   const [partySize, setPartySize] = useState(initialCharacters.length || 4);
-  const [characters, setCharacters] = useState<FormCharacter[]>(initialCharacters);
-  const [characterPrefs, setCharacterPrefs] = useState<Record<string, CharacterPreferences>>({});
-  
-  const [editingCharacter, setEditingCharacter] = useState<FormCharacter | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editGender, setEditGender] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editPlayerName, setEditPlayerName] = useState('');
-  
+  const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(initialCharacters.length > 0);
   const { toast } = useToast();
-  const formId = useId();
-
-  const [gameId, setGameId] = useState<string | null>(null);
 
   useEffect(() => {
-    // This effect syncs the internal state with props, useful for reloads.
-    if (initialCharacters && initialCharacters.length > 0) {
-      setCharacters(initialCharacters);
-      setPartySize(initialCharacters.length);
+    // This effect syncs the internal state with props, useful for reloads or initial setup.
+    if (initialCharacters.length > 0) {
+      const slots = initialCharacters.map(char => ({
+        id: char.id,
+        playerName: char.playerName,
+        vision: '', // Vision is transient, not stored
+        character: char,
+      }));
+      setPlayerSlots(slots);
+      setPartySize(slots.length);
       setHasGenerated(true);
+    } else {
+      // If no initial characters, set up empty slots based on party size
+      const newSlots = Array.from({ length: partySize }, (_, i) => ({
+        id: `${formId}-slot-${i}`,
+        playerName: `Player ${i + 1}`,
+        vision: '',
+        character: null,
+      }));
+      setPlayerSlots(newSlots);
+      setHasGenerated(false);
     }
-  }, [initialCharacters]);
+  }, [initialCharacters, partySize, formId]);
 
-   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('game');
-    setGameId(id);
-  }, []);
 
-  const updatePreference = (charId: string, field: keyof CharacterPreferences, value: string) => {
-    setCharacterPrefs(prev => ({
-        ...prev,
-        [charId]: {
-            ...prev[charId],
-            [field]: value
-        }
-    }));
+  const updateSlot = (slotId: string, field: keyof Omit<PlayerSlot, 'id' | 'character'>, value: string) => {
+    setPlayerSlots(prev => prev.map(slot => 
+      slot.id === slotId ? { ...slot, [field]: value } : slot
+    ));
   };
+  
+  const handlePartySizeChange = (val: string) => {
+    const newSize = Number(val);
+    setPartySize(newSize);
+    // Reset generation state when size changes
+    setHasGenerated(false);
+  }
 
-  const getPartySuggestions = async () => {
+  const generateParty = async () => {
     setIsGenerating(true);
     setHasGenerated(false);
 
-    const characterSlots = Array.from({ length: partySize }, (_, i) => ({
-        id: `slot-${i}-${Date.now()}`,
-        ...characterPrefs[`slot-${i}`]
+    const characterSlotsForAI = playerSlots.map(slot => ({
+        id: slot.id,
+        name: slot.playerName, // Use playerName as the preferred name for the AI
+        vision: slot.vision,
     }));
 
     try {
         const result = await generateCharacterSuggestions({
             setting: gameData.setting,
             tone: gameData.tone,
-            characterSlots: characterSlots,
+            characterSlots: characterSlotsForAI,
         });
         
-        const newCharacters: FormCharacter[] = result.characters.map((c: any) => ({
-            ...c,
-            id: c.slotId, // CRITICAL: Map slotId from AI to the character's main ID
-            playerName: '',
-            isCustom: false,
-            claimedBy: '',
-        }));
+        const newPlayerSlots = playerSlots.map(slot => {
+            const generatedCharData = result.characters.find(c => c.slotId === slot.id);
+            if (!generatedCharData) return slot;
 
-        setCharacters(newCharacters);
+            const newCharacter: FormCharacter = {
+                ...generatedCharData,
+                id: slot.id, // Ensure ID matches the slot ID
+                playerName: slot.playerName, // Carry over the player name
+                isCustom: false,
+                claimedBy: gameData.playMode === 'remote' ? 'TBD' : '', // Placeholder for remote
+            };
+            return { ...slot, character: newCharacter };
+        });
+
+        setPlayerSlots(newPlayerSlots);
         setHasGenerated(true);
 
     } catch (error) {
         const err = error as Error;
-        console.error("Failed to generate party:", err);
         toast({
             variant: "destructive",
             title: "Party Generation Failed",
@@ -218,30 +224,36 @@ export function CharacterCreationForm({
     }
   };
   
-  const regenerateCharacter = async (charToRegen: FormCharacter) => {
+  const regenerateCharacter = async (slotId: string) => {
+    const slotToRegen = playerSlots.find(s => s.id === slotId);
+    if (!slotToRegen) return;
+
     setIsGenerating(true);
-    const slotId = charToRegen.id;
 
     try {
+        const otherCharacters = playerSlots
+            .filter(s => s.id !== slotId && s.character)
+            .map(s => ({ name: s.character!.name, description: s.character!.description, archetype: s.character!.archetype }));
+
         const result = await generateCharacterSuggestions({
             setting: gameData.setting,
             tone: gameData.tone,
-            characterSlots: [{ id: slotId, ...characterPrefs[slotId] }],
-            existingCharacters: characters.filter(c => c.id !== slotId).map(c => ({ name: c.name, description: c.description, archetype: c.archetype })),
+            characterSlots: [{ id: slotId, name: slotToRegen.playerName, vision: slotToRegen.vision }],
+            existingCharacters: otherCharacters,
         });
         
         const newCharData = result.characters[0];
         
-        const newCharacter: FormCharacter = {
-            ...newCharData,
-            id: slotId,
-            playerName: charToRegen.playerName,
-            isCustom: false,
-            claimedBy: charToRegen.claimedBy
-        };
-
-        const updatedCharacters = characters.map(c => c.id === slotId ? newCharacter : c);
-        setCharacters(updatedCharacters);
+        if (newCharData) {
+            const newCharacter: FormCharacter = {
+                ...newCharData,
+                id: slotId,
+                playerName: slotToRegen.playerName,
+                isCustom: false,
+                claimedBy: slotToRegen.character?.claimedBy || '',
+            };
+            setPlayerSlots(prev => prev.map(s => s.id === slotId ? { ...s, character: newCharacter } : s));
+        }
         
     } catch (error) {
         const err = error as Error;
@@ -251,113 +263,26 @@ export function CharacterCreationForm({
     }
   }
 
-
-  const handleEditClick = (char: FormCharacter) => {
-    setEditingCharacter(char);
-    setEditName(char.name);
-    setEditGender(char.gender || '');
-    setEditDescription(char.description);
-    setEditPlayerName(char.playerName);
-  };
-  
-  const handleGenderChange = (newGender: string) => {
-    setEditGender(newGender);
-
-    let currentDescription = editDescription;
-
-    const pronouns = {
-        male: { subject: 'he', object: 'him', possessiveAdj: 'his', possessive: 'his' },
-        female: { subject: 'she', object: 'her', possessiveAdj: 'her', possessive: 'hers' },
-        neutral: { subject: 'they', object: 'them', possessiveAdj: 'their', possessive: 'theirs' },
-    };
-
-    const allPronounRegex = /\b(he|him|his|she|her|hers|they|them|their|theirs)\b/gi;
-
-    const updatedDescription = currentDescription.replace(allPronounRegex, (match) => {
-        const lowerMatch = match.toLowerCase();
-        let replacement = '';
-        let targetPronouns = pronouns.neutral; 
-
-        if (newGender === 'Male') targetPronouns = pronouns.male;
-        if (newGender === 'Female') targetPronouns = pronouns.female;
-        
-        // This logic is imperfect and heuristic-based.
-        // It tries to map pronouns based on their form.
-        if (['he', 'she', 'they'].includes(lowerMatch)) replacement = targetPronouns.subject;
-        else if (['him', 'her', 'them'].includes(lowerMatch)) {
-            // 'her' is ambiguous (object vs possessive adjective)
-            // This simple replacement favors the object form.
-            replacement = targetPronouns.object;
-        }
-        else if (['his', 'her', 'their'].includes(lowerMatch)) {
-             if(lowerMatch === 'her') {
-                // If we are changing to male, 'her' (possessive adj) becomes 'his'
-                replacement = newGender === 'Male' ? pronouns.male.possessiveAdj : targetPronouns.possessiveAdj;
-             } else {
-                replacement = targetPronouns.possessiveAdj;
-             }
-        }
-        else if (['hers', 'theirs', 'his'].includes(lowerMatch)) {
-             if(lowerMatch === 'his') {
-                // 'his' can be possessive adj or pronoun. If changing to female, it can be 'her' or 'hers'.
-                // Defaulting to 'her' (adj) is safer.
-                replacement = newGender === 'Female' ? pronouns.female.possessiveAdj : targetPronouns.possessiveAdj;
-             } else {
-                replacement = targetPronouns.possessive;
-             }
-        }
-
-        if (!replacement) return match; 
-
-        // Preserve capitalization
-        return match[0] === match[0].toUpperCase()
-            ? replacement.charAt(0).toUpperCase() + replacement.slice(1)
-            : replacement;
-    });
-
-    setEditDescription(updatedDescription);
-  };
-
-
-  const handleSaveDetails = () => {
-    if (!editingCharacter) return;
-    const details = { name: editName, gender: editGender, description: editDescription, playerName: editPlayerName };
-    
-    // In local mode, the action is 'update' which just assigns the name.
-    // In remote mode, the action is 'claim'.
-    const action = gameData.playMode === 'local' ? 'update' : 'claim';
-    
-    onUpdateCharacter(editingCharacter.id, details, action);
-    setEditingCharacter(null);
-  };
-
-  const handleUnclaim = (char: FormCharacter) => {
-     onUpdateCharacter(char.id, {}, 'unclaim');
-  };
-
-  const isHost = currentUser?.uid === gameData.userId;
-
   const handleFinalize = () => {
     if (!hasGenerated) {
        toast({
         title: "Generate Your Party",
-        description: "Please generate your party before starting the adventure.",
+        description: "Please generate characters for your party before starting.",
       });
       return;
     }
-    // In local mode, we can always finalize.
-    // In remote mode, we check if all characters are claimed.
-    if (gameData.playMode === 'remote' && characters.some(c => !c.claimedBy)) {
-      toast({
-        title: "Waiting for Players",
-        description: "All characters must be claimed before starting the adventure.",
+    const finalCharacters = playerSlots.map(s => s.character).filter(Boolean) as FormCharacter[];
+    if (finalCharacters.length !== playerSlots.length) {
+       toast({
+        title: "Incomplete Party",
+        description: "One or more player slots do not have a character.",
       });
       return;
     }
-    onCharactersFinalized(characters);
+    onCharactersFinalized(finalCharacters);
   };
-
-  const currentUserClaim = characters.find(c => c.claimedBy === currentUser?.uid);
+  
+  const isHost = currentUser?.uid === gameData.userId;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
@@ -368,15 +293,10 @@ export function CharacterCreationForm({
             Assemble Your Party
           </CardTitle>
           <CardDescription className="pt-2">
-             {gameData.playMode === 'remote' ? 'Send the invite link to your friends, then have each player claim a character.' : 'Generate a party, assign player names, and get ready to play!'}
+             Define your players, generate their characters, and get ready to play!
           </CardDescription>
         </CardHeader>
         <CardContent>
-             {gameData.playMode === 'remote' && gameId && hasGenerated && (
-              <div className="mb-8">
-                <ShareGameInvite gameId={gameId} />
-              </div>
-            )}
             <Tabs defaultValue="party" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="summary"><ScrollText className="mr-2 h-4 w-4"/>Story Summary</TabsTrigger>
@@ -407,7 +327,7 @@ export function CharacterCreationForm({
                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                     <div className="flex items-center gap-4 mb-4">
                       <Label htmlFor="party-size">Number of Characters:</Label>
-                      <Select value={String(partySize)} onValueChange={(val) => setPartySize(Number(val))} disabled={isGenerating}>
+                      <Select value={String(partySize)} onValueChange={handlePartySizeChange} disabled={isGenerating}>
                         <SelectTrigger className="w-24">
                           <SelectValue />
                         </SelectTrigger>
@@ -417,113 +337,59 @@ export function CharacterCreationForm({
                       </Select>
                     </div>
                      <div className="w-full max-w-lg space-y-4">
-                        <p className="text-sm text-muted-foreground">Optionally, provide a name or vision for any character slot.</p>
-                        {Array.from({ length: partySize }, (_, i) => (
-                             <Card key={`${formId}-slot-${i}`} className="p-3 bg-muted/30">
+                        <p className="text-sm text-muted-foreground">Optionally, provide a name or vision for any player slot.</p>
+                        {playerSlots.map((slot) => (
+                             <Card key={slot.id} className="p-3 bg-muted/30">
                                 <div className="flex items-center gap-4">
-                                     <Label className="w-24">Player {i + 1}</Label>
                                      <Input 
-                                        placeholder="Preferred Name"
-                                        className="border-dashed"
-                                        value={characterPrefs[`slot-${i}`]?.name || ''}
-                                        onChange={(e) => updatePreference(`slot-${i}`, 'name', e.target.value)}
+                                        placeholder={`Player ${playerSlots.indexOf(slot) + 1}`}
+                                        className="font-bold w-32"
+                                        value={slot.playerName}
+                                        onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
                                     />
                                      <Input 
                                         placeholder="Character Vision (e.g., 'grumpy space marine')"
                                         className="border-dashed"
-                                        value={characterPrefs[`slot-${i}`]?.vision || ''}
-                                        onChange={(e) => updatePreference(`slot-${i}`, 'vision', e.target.value)}
+                                        value={slot.vision}
+                                        onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
                                     />
                                 </div>
                             </Card>
                         ))}
                     </div>
-                    <Button size="lg" onClick={getPartySuggestions} disabled={isGenerating || isLoading} className="mt-6">
+                    <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
                       <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
                       Generate Party
                     </Button>
                   </div>
-                ) : isGenerating ? (
-                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
-                        <LoadingSpinner className="h-8 w-8 animate-spin text-primary" />
-                        <p className="text-sm text-muted-foreground">Crafting the party...</p>
-                    </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {characters.map((char) => {
-                      const isClaimedByCurrentUser = char.claimedBy === currentUser?.uid;
-                      const isClaimedByOther = char.claimedBy && !isClaimedByCurrentUser;
-                      const isAssignedLocally = gameData.playMode === 'local' && char.playerName;
-                      const charSlotId = char.id;
-
+                    {playerSlots.map((slot) => {
                       return (
-                        <Card key={char.id} className={cn("flex flex-col relative group transition-all", isClaimedByCurrentUser && "ring-2 ring-primary")}>
-                          {isClaimedByCurrentUser && <Badge className="absolute -top-2 -right-2">You</Badge>}
-                          
+                        <Card key={slot.id} className={cn("flex flex-col relative group transition-all")}>
                           <CardHeader>
-                             {char.playerName ? (
-                                <p className="text-center font-bold text-lg">Played by {char.playerName}</p>
-                             ) : (
-                                <p className="text-center font-bold text-lg text-muted-foreground">Unassigned</p>
-                             )}
+                             <p className="text-center font-bold text-lg">Played by {slot.playerName}</p>
                           </CardHeader>
-
+                          
                           <CardContent className="flex-1 space-y-4">
-                            <Tabs defaultValue="display" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2 text-xs h-8">
-                                    <TabsTrigger value="display">Generated</TabsTrigger>
-                                    <TabsTrigger value="regen">Regenerate</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="display" className="pt-4">
-                                     <CharacterDisplay char={char} />
-                                </TabsContent>
-                                <TabsContent value="regen" className="pt-4 space-y-3">
-                                    <p className="text-xs text-muted-foreground text-center">Provide a new name or vision and regenerate just this character.</p>
-                                    <Input 
-                                        placeholder="New Name"
-                                        value={characterPrefs[charSlotId]?.name || ''}
-                                        onChange={(e) => updatePreference(charSlotId, 'name', e.target.value)}
-                                        className="h-8 text-xs"
-                                    />
-                                    <Textarea 
-                                        placeholder="New Character Vision (e.g., 'optimistic medic with a dark secret')"
-                                        value={characterPrefs[charSlotId]?.vision || ''}
-                                        onChange={(e) => updatePreference(charSlotId, 'vision', e.target.value)}
-                                        className="h-20 text-xs"
-                                    />
-                                    <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(char)} disabled={isGenerating}>
-                                        <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
-                                        Regenerate Character
-                                    </Button>
-                                </TabsContent>
-                            </Tabs>
+                            {slot.character ? (
+                                <CharacterDisplay char={slot.character} />
+                            ) : (
+                                <div className="text-center text-muted-foreground p-4">Character not generated.</div>
+                            )}
                           </CardContent>
                           
-                          <CardFooter>
-                            {gameData.playMode === 'remote' ? (
-                                isClaimedByCurrentUser ? (
-                                <Button variant="outline" className="w-full" onClick={() => handleUnclaim(char)}>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Unclaim Character
-                                </Button>
-                                ) : (
-                                <Button 
-                                    className="w-full" 
-                                    onClick={() => handleEditClick(char)} 
-                                    disabled={!!isClaimedByOther || !!currentUserClaim}
-                                >
-                                    <UserCheck className="mr-2 h-4 w-4" />
-                                    {isClaimedByOther ? 'Claimed' : 'Claim this Character'}
-                                </Button>
-                                )
-                            ) : (
-                                isHost && (
-                                    <Button className="w-full" variant={isAssignedLocally ? "secondary" : "default"} onClick={() => handleEditClick(char)}>
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        {isAssignedLocally ? "Edit Assignment" : "Assign Character"}
-                                    </Button>
-                                )
-                            )}
+                          <CardFooter className="flex-col gap-2">
+                             <Textarea 
+                                placeholder="New Character Vision..."
+                                value={slot.vision}
+                                onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                className="h-20 text-xs mb-2"
+                             />
+                             <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
+                                <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                                Regenerate Character
+                             </Button>
                           </CardFooter>
                         </Card>
                       )
@@ -554,7 +420,7 @@ export function CharacterCreationForm({
                 )}
             </Button>
             {hasGenerated && (
-              <Button variant="ghost" size="sm" onClick={getPartySuggestions} disabled={isGenerating || isLoading}>
+              <Button variant="ghost" size="sm" onClick={generateParty} disabled={isGenerating || isLoading}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Regenerate Entire Party
               </Button>
@@ -562,57 +428,8 @@ export function CharacterCreationForm({
           </CardFooter>
         )}
       </Card>
-      
-      {editingCharacter && (
-        <Dialog open={!!editingCharacter} onOpenChange={() => setEditingCharacter(null)}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Edit Character Details</DialogTitle>
-                    <DialogDescription>
-                        {gameData.playMode === 'remote'
-                        ? "Finalize your character's name and gender before joining the adventure."
-                        : "Assign a player and customize the character for your local game."
-                        }
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    {gameData.playMode === 'local' && (
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="playerName" className="text-right">Player Name</Label>
-                            <Input id="playerName" value={editPlayerName} onChange={(e) => setEditPlayerName(e.target.value)} placeholder="e.g., Sarah" className="col-span-3" />
-                        </div>
-                    )}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Name</Label>
-                        <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="description" className="text-right">Description</Label>
-                        <Textarea id="description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="gender" className="text-right">Gender</Label>
-                        <Select value={editGender} onValueChange={handleGenderChange}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select a gender" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Female">Female</SelectItem>
-                                <SelectItem value="Male">Male</SelectItem>
-                                <SelectItem value="Non-binary">Non-binary</SelectItem>
-                                <SelectItem value="Agender">Agender</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditingCharacter(null)}>Cancel</Button>
-                    <Button onClick={handleSaveDetails}>Save Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }
+
+    

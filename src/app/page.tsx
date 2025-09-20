@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, updateCharacterDetails } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -287,48 +286,6 @@ export default function RoleplAIGMPage() {
        setStep('create');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleUpdateCharacter = async (characterId: string, details: { name?: string; gender?: string; description?: string, playerName?: string }, action: 'claim' | 'unclaim' | 'update') => {
-    if (!user || !activeGameId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to a game.' });
-      return;
-    }
-
-    const userName = user.isAnonymous ? "Guest" : user.email?.split('@')[0] || "Player";
-    let payload: any = {
-      gameId: activeGameId,
-      characterId,
-      updates: details,
-    };
-
-    if (action === 'claim') {
-      payload.claim = { userId: user.uid, userName };
-    } else if (action === 'unclaim') {
-      payload.unclaim = { userId: user.uid };
-    } else if (action === 'update') {
-      // This is a local assignment
-      payload.updates.playerName = details.playerName;
-    }
-
-    try {
-      const result = await updateCharacterDetails(payload);
-
-      if (!result.success) {
-        throw new Error(result.message || "Failed to update character.");
-      }
-
-      let toastTitle = "Character Updated!";
-      if (action === 'claim') toastTitle = "Character Claimed!";
-      if (action === 'unclaim') toastTitle = "Character Unclaimed";
-
-      toast({ title: toastTitle });
-
-    } catch (error) {
-      const err = error as Error;
-      console.error("Failed to update character:", err);
-      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
   };
 
@@ -755,7 +712,6 @@ The stage is set. What do you do?
             onCharactersFinalized={handleCharactersFinalized}
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
-            onUpdateCharacter={handleUpdateCharacter}
             currentUser={user}
           />
         );
@@ -836,3 +792,6 @@ The stage is set. What do you do?
 
 
 
+
+
+    
