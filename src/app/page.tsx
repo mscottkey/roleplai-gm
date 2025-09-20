@@ -87,7 +87,17 @@ export default function RoleplAIGMPage() {
   const lastMessageRef = useRef<Message | null>(null);
   const sessionLoadedRef = useRef<string | null>(null);
 
-  const cleanForSpeech = (text: string) => text.replace(/\*\*.*?\*\*:/g, '').replace(/[*_`#]/g, '');
+  const cleanForSpeech = (text: string) => {
+    return text
+      // Remove markdown headers (e.g., #, ##, ###)
+      .replace(/^#+\s/gm, '')
+      // Remove bolded labels (e.g., **Label:**)
+      .replace(/\*\*.*?\*\*:/g, '')
+      // Remove all other markdown symbols
+      .replace(/[*_`]/g, '')
+      // Trim whitespace from the start and end of the string
+      .trim();
+  };
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -330,7 +340,17 @@ export default function RoleplAIGMPage() {
     toast({ title: "Finalizing Party", description: "Saving characters and building the world..." });
 
     try {
-        const charactersForAI: AICharacter[] = plainCharacters;
+        const charactersForAI: AICharacter[] = plainCharacters.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            aspect: c.aspect,
+            playerName: c.playerName,
+            archetype: c.archetype,
+            gender: c.gender,
+            age: c.age,
+            stats: c.stats,
+        }));
 
         await updateWorldState({
             gameId: activeGameId,
@@ -478,6 +498,7 @@ The stage is set. What do you do?
                 character: {
                     ...activeCharacter,
                     stats: activeCharacter.stats || {},
+                    id: activeCharacter.id || '',
                 },
             });
 
@@ -498,6 +519,7 @@ The stage is set. What do you do?
         let assistantMessage: Message;
         const characterForAI = {
           ...activeCharacter,
+          id: activeCharacter.id || '',
           stats: activeCharacter.stats || {},
         };
 
@@ -731,8 +753,8 @@ The stage is set. What do you do?
             characters={characters}
             activeCharacter={activeCharacter}
             setActiveCharacter={(char) => {
-              setActiveCharacter(char);
-              if (activeGameId) {
+              if (activeGameId && char.id) {
+                setActiveCharacter(char);
                 updateWorldState({ gameId: activeGameId, updates: { activeCharacterId: char.id } });
               }
             }}
@@ -799,3 +821,4 @@ The stage is set. What do you do?
 
 
     
+
