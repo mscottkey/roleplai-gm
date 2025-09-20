@@ -336,7 +336,6 @@ export default function RoleplAIGMPage() {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     
-    // THE FIX: Ensure the `id` is included in this object.
     const plainCharacters = finalCharacters.map(c => ({
         id: c.id,
         name: c.name,
@@ -656,6 +655,7 @@ The stage is set. What do you do?
         }
         
         const charactersForAI: AICharacter[] = currentCharacters.map(c => ({
+            id: c.id,
             name: c.name,
             description: c.description,
             aspect: c.aspect,
@@ -664,7 +664,6 @@ The stage is set. What do you do?
             gender: c.gender,
             age: c.age,
             stats: c.stats,
-            id: c.id
         }));
 
         const { setting, tone } = gameData;
@@ -834,5 +833,6 @@ The stage is set. What do you do?
     
 
     
+
 
 
