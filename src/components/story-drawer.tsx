@@ -44,12 +44,14 @@ import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
 import { Button } from './ui/button';
 import { LoadingSpinner } from './icons';
+import { ShareGameInvite } from './share-game-invite';
 
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useSearchParams } from 'next/navigation';
 
 type StoryDrawerProps = {
     isOpen: boolean;
@@ -81,9 +83,11 @@ export function StoryDrawer({
     onRegenerateStoryline,
     isLoading
 }: StoryDrawerProps) {
-    const { characters, campaignStructure, setting, tone } = gameData;
+    const { characters, campaignStructure, setting, tone, playMode } = gameData;
     const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
     const [isAlertOpen, setIsAlertOpen] = useState(false);
+    const searchParams = useSearchParams();
+    const gameId = searchParams.get('game');
 
     const handleRegenerateClick = () => {
         onRegenerateStoryline();
@@ -223,6 +227,12 @@ export function StoryDrawer({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-6 pt-2">
+                    {playMode === 'remote' && gameId && (
+                      <>
+                        <ShareGameInvite gameId={gameId} />
+                        <Separator />
+                      </>
+                    )}
                     <div className="space-y-4">
                         <h4 className="font-medium text-foreground">Mechanics Visibility</h4>
                         <RadioGroup

@@ -484,7 +484,7 @@ The stage is set. What do you do?
     const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
     const actingCharacter = gameData?.playMode === 'remote'
-      ? characters.find(c => c.claimedBy === user.uid) || activeCharacter
+      ? characters.find(c => c.claimedBy === user.uid)
       : activeCharacter;
 
     if (!actingCharacter) {
@@ -785,6 +785,42 @@ The stage is set. What do you do?
     setNewGameName('');
   };
 
+  const handleCharacterClaim = async (characterId: string, claim: boolean) => {
+    if (!activeGameId || !user) return;
+    
+    const currentChars = characters;
+    const charIndex = currentChars.findIndex(c => c.id === characterId);
+    if (charIndex === -1) return;
+
+    // To prevent race conditions, first remove any existing claim by the user
+    const updatedChars = currentChars.map(c => {
+        if (c.claimedBy === user.uid) {
+            return { ...c, claimedBy: '' };
+        }
+        return c;
+    });
+
+    // Then, apply the new claim if requested
+    if (claim) {
+        const targetIndex = updatedChars.findIndex(c => c.id === characterId);
+        updatedChars[targetIndex].claimedBy = user.uid;
+    }
+    
+    try {
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: { 
+            'worldState.characters': updatedChars,
+            'gameData.characters': updatedChars,
+        }
+      });
+      toast({ title: claim ? "Character Claimed!" : "Character Released" });
+    } catch(e) {
+      const err = e as Error;
+      toast({ variant: 'destructive', title: 'Claim Failed', description: err.message });
+    }
+  };
+
 
   const renderContent = () => {
     switch (step) {
@@ -799,6 +835,8 @@ The stage is set. What do you do?
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
             currentUser={user}
+            onClaimCharacter={handleCharacterClaim}
+            activeGameId={activeGameId}
           />
         );
       case 'play':

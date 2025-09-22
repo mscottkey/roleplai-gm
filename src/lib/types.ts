@@ -28,6 +28,7 @@ export type Character = {
 };
 
 export type GameData = GenerateNewGameOutput & {
+  userId?: string; // The user who created the game
   characters?: Character[];
   campaignStructure?: CampaignStructure;
   difficulty?: string;
@@ -52,5 +53,3 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
-
-    

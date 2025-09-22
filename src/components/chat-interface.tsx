@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LoadingSpinner } from '@/components/icons';
 import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
-import { SendHorizonal, User, Bot, History } from 'lucide-react';
+import { SendHorizonal, User, Bot, History, Ban } from 'lucide-react';
 import { SpeechInput } from './speech-input';
 import type { User as FirebaseUser } from 'firebase/auth';
 
@@ -24,9 +24,10 @@ type ChatInterfaceProps = {
   isLoading: boolean;
   activeCharacter: Character | null;
   currentUser: FirebaseUser | null;
+  canAct: boolean;
 };
 
-export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter, currentUser }: ChatInterfaceProps) {
+export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter, currentUser, canAct }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -78,6 +79,12 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
   const getInitials = (name: string = '') => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'P';
   }
+  
+  const placeholderText = () => {
+    if (!activeCharacter) return "Select a character to act";
+    if (!canAct) return `Waiting for ${activeCharacter.name} to act...`;
+    return `What does ${activeCharacter.name} do?`;
+  }
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -87,7 +94,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
             const isUser = message.role === 'user';
             const isSystem = message.role === 'system';
             const contentWithDialogue = formatDialogue(message.content);
-            const author = message.authorName || (isUser ? activeCharacter?.name || 'Player' : 'GM');
+            const author = message.authorName || (isUser ? 'Player' : 'GM');
             return (
               <div
                 key={message.id || `message-${index}-${message.role}`}
@@ -156,23 +163,27 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
             value={input}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder={activeCharacter ? `What does ${activeCharacter.name} do?` : "Select a character to act"}
+            placeholder={placeholderText()}
             className="flex-1 resize-none max-h-48 pr-12"
             rows={1}
-            disabled={isLoading || !activeCharacter}
+            disabled={isLoading || !canAct}
             aria-label="Chat input"
           />
           <div className="absolute right-12 bottom-2">
-            <SpeechInput onTranscript={setInput} disabled={isLoading || !activeCharacter} />
+            <SpeechInput onTranscript={setInput} disabled={isLoading || !canAct} />
           </div>
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim() || !activeCharacter} className="flex-shrink-0 bg-accent hover:bg-accent/90">
+          <Button type="submit" size="icon" disabled={isLoading || !input.trim() || !canAct} className="flex-shrink-0 bg-accent hover:bg-accent/90">
             <SendHorizonal className="h-5 w-5" />
             <span className="sr-only">Send</span>
           </Button>
         </form>
+         {!canAct && activeCharacter && (
+            <div className="text-center text-xs text-muted-foreground pt-2 animate-pulse flex items-center justify-center gap-2">
+              <Ban className="h-3 w-3" />
+              It's not your turn. Only questions are allowed.
+            </div>
+          )}
       </div>
     </div>
   );
 }
-
-    

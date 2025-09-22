@@ -68,6 +68,9 @@ export function GameControls({
   onSetAutoPlay,
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { playMode } = gameData;
+  
+  const canAct = playMode === 'local' || (activeCharacter?.claimedBy === currentUser?.uid);
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">
@@ -98,6 +101,7 @@ export function GameControls({
           isLoading={isLoading}
           activeCharacter={activeCharacter}
           currentUser={currentUser}
+          canAct={canAct}
         />
       </div>
       {canUndo && (
@@ -121,5 +125,3 @@ export function GameControls({
     </div>
   );
 }
-
-    

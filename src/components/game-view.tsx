@@ -219,5 +219,3 @@ export function GameView({
     </div>
   );
 }
-
-    

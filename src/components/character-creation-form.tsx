@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, UserCheck, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -52,6 +52,8 @@ type CharacterCreationFormProps = {
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
   currentUser: FirebaseUser | null;
+  onClaimCharacter: (characterId: string, claim: boolean) => void;
+  activeGameId: string | null;
 };
 
 type PlayerSlot = {
@@ -133,6 +135,7 @@ export function CharacterCreationForm({
   generateCharacterSuggestions,
   isLoading,
   currentUser,
+  onClaimCharacter,
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [partySize, setPartySize] = useState(initialCharacters.length || 4);
@@ -211,7 +214,7 @@ export function CharacterCreationForm({
                 id: slot.id, // Ensure ID matches the slot ID
                 playerName: slot.playerName, // Carry over the player name
                 isCustom: false,
-                claimedBy: gameData.playMode === 'remote' ? 'TBD' : '', // Placeholder for remote
+                claimedBy: gameData.playMode === 'remote' ? '' : currentUser?.uid,
             };
             return { ...slot, character: newCharacter };
         });
@@ -291,6 +294,16 @@ export function CharacterCreationForm({
       });
       return;
     }
+    
+    if (gameData.playMode === 'remote' && finalCharacters.some(c => !c.claimedBy)) {
+        toast({
+            variant: "destructive",
+            title: "Unclaimed Characters",
+            description: "All characters must be claimed by a player before starting a remote game.",
+        });
+        return;
+    }
+    
     onCharactersFinalized(finalCharacters);
   };
   
@@ -339,7 +352,7 @@ export function CharacterCreationForm({
                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
                     <div className="flex items-center gap-4 mb-4">
                       <Label htmlFor="party-size">Number of Characters:</Label>
-                      <Select value={String(partySize)} onValueChange={handlePartySizeChange} disabled={isGenerating}>
+                      <Select value={String(partySize)} onValueChange={handlePartySizeChange} disabled={isGenerating || !isHost}>
                         <SelectTrigger className="w-24">
                           <SelectValue />
                         </SelectTrigger>
@@ -358,13 +371,15 @@ export function CharacterCreationForm({
                                         className="font-bold"
                                         value={slot.playerName}
                                         onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
+                                        disabled={!isHost}
                                     />
                                     <Input 
                                         placeholder="Character Name (Optional)"
                                         value={slot.characterName}
                                         onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
+                                        disabled={!isHost}
                                     />
-                                     <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)}>
+                                     <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!isHost}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Gender" />
                                         </SelectTrigger>
@@ -380,19 +395,24 @@ export function CharacterCreationForm({
                                         className="border-dashed"
                                         value={slot.vision}
                                         onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                        disabled={!isHost}
                                     />
                                 </div>
                             </Card>
                         ))}
                     </div>
-                    <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
-                      <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
-                      Generate Party
-                    </Button>
+                    {isHost && (
+                      <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
+                        <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
+                        Generate Party
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {playerSlots.map((slot) => {
+                      const isClaimedByCurrentUser = slot.character?.claimedBy === currentUser?.uid;
+                      const isClaimedByOther = slot.character?.claimedBy && !isClaimedByCurrentUser;
                       return (
                         <Card key={slot.id} className={cn("flex flex-col relative group transition-all")}>
                           <CardHeader>
@@ -407,17 +427,42 @@ export function CharacterCreationForm({
                             )}
                           </CardContent>
                           
-                          <CardFooter className="flex-col gap-2">
-                             <Textarea 
-                                placeholder="New Character Vision..."
-                                value={slot.vision}
-                                onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
-                                className="h-20 text-xs mb-2"
-                             />
-                             <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
-                                <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
-                                Regenerate Character
-                             </Button>
+                          <CardFooter className="flex flex-col gap-2">
+                            {isHost && (
+                              <>
+                                <Textarea 
+                                  placeholder="New Character Vision..."
+                                  value={slot.vision}
+                                  onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                  className="h-20 text-xs mb-2"
+                                />
+                                <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
+                                  <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                                  Regenerate Character
+                                </Button>
+                              </>
+                            )}
+                            {gameData.playMode === 'remote' && slot.character && (
+                              <>
+                                {isClaimedByCurrentUser ? (
+                                  <Button variant="destructive" size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, false)}>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Release Character
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, true)} disabled={!!isClaimedByOther}>
+                                    {isClaimedByOther ? (
+                                      'Claimed by another player'
+                                    ) : (
+                                      <>
+                                        <UserCheck className="mr-2 h-4 w-4" />
+                                        Claim Character
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </CardFooter>
                         </Card>
                       )
