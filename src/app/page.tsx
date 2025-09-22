@@ -10,7 +10,7 @@ import { Logo } from '@/components/logo';
 export default function LandingPage() {
   const router = useRouter();
   const bgImage = {
-    imageUrl: "https://storage.googleapis.com/aai-web-samples/dnd-hero.webp",
+    imageUrl: "https://images.unsplash.com/photo-1542779283-429940ce8336?q=80&w=2070&auto=format&fit=crop",
     description: "A scene of a tabletop roleplaying game session being run by a mysterious hooded AI game master on a laptop.",
     imageHint: "tabletop RPG"
   }
