@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -32,11 +33,12 @@ type AppShellProps = {
 }
 
 function AppShellHeader() {
-    const { state } = useSidebar();
+    const { isMobile } = useSidebar();
     const router = useRouter();
     return (
         <SidebarHeader>
           <div className="flex items-center justify-between p-2">
+             {isMobile ? <SidebarTrigger /> : null}
              <button className="flex items-center gap-2" onClick={() => router.push('/')}>
                 <Logo className="w-8 h-8 text-primary group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10" />
                 <span className="font-headline text-lg font-bold text-primary group-data-[collapsible=icon]:hidden">RoleplAI GM</span>
@@ -70,7 +72,6 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
           />
         </SidebarContent>
         <SidebarFooter>
-          <SidebarTrigger className="w-full justify-center" />
           <UserMenu />
         </SidebarFooter>
       </Sidebar>
