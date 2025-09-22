@@ -89,6 +89,8 @@ export default function RoleplAIGMPage() {
   const [showHandoff, setShowHandoff] = useState(false);
   const [nextCharacter, setNextCharacter] = useState<Character | null>(null);
 
+  const deletingGameId = useRef<string | null>(null);
+
 
   const { toast } = useToast();
 
@@ -258,8 +260,10 @@ export default function RoleplAIGMPage() {
 
         setStep(game.step === 'characters' ? 'characters' : 'play');
       } else {
-        console.error("No such game!");
-        toast({ variant: 'destructive', title: 'Error', description: 'Game session not found.' });
+        if (deletingGameId.current !== activeGameId) {
+          console.error("No such game!");
+          toast({ variant: 'destructive', title: 'Error', description: 'Game session not found.' });
+        }
         router.push('/play');
       }
     });
@@ -796,6 +800,8 @@ The stage is set. What do you do?
     if (!deleteConfirmation) return;
 
     const gameIdToDelete = deleteConfirmation.id;
+    deletingGameId.current = gameIdToDelete;
+
     setDeleteConfirmation(null); // Close dialog immediately
 
     const result = await deleteGame(gameIdToDelete);
@@ -807,6 +813,7 @@ The stage is set. What do you do?
     } else {
       toast({ variant: 'destructive', title: "Deletion Failed", description: result.message });
     }
+    deletingGameId.current = null;
   };
   
   const handleRenameGame = async () => {
@@ -899,7 +906,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={handleRegenerateStoryline}
             currentUser={user}
