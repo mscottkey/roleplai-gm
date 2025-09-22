@@ -10,7 +10,7 @@ import { Logo } from '@/components/logo';
 export default function LandingPage() {
   const router = useRouter();
   const bgImage = {
-    imageUrl: "/landing-background.png",
+    imageUrl: "https://storage.googleapis.com/app-prototyping-test-2-de63b.appspot.com/a9763a14-4195-4672-a79b-2a919d7b4097.png",
     description: "A mysterious hooded figure with glowing eyes sits at a table, acting as a game master for a tabletop RPG with several other players.",
     imageHint: "tabletop RPG game master"
   };
@@ -45,7 +45,7 @@ export default function LandingPage() {
               src={bgImage.imageUrl}
               alt={bgImage.description}
               fill
-              className="object-cover"
+              className="object-cover object-bottom"
               data-ai-hint={bgImage.imageHint}
               priority
             />
