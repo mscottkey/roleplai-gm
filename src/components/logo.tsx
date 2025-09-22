@@ -13,6 +13,7 @@ export const Logo = ({
   width = 48,
   height = 48,
   className,
+  style,
   ...props
 }: LogoProps) => {
   return (
@@ -22,6 +23,10 @@ export const Logo = ({
       width={Number(width)}
       height={Number(height)}
       className={cn('h-12 w-12', className)}
+      style={{ 
+        backgroundColor: 'transparent',
+        ...style 
+      }}
       priority
       {...props}
     />
