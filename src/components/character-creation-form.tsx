@@ -162,7 +162,7 @@ export function CharacterCreationForm({
       // If no initial characters, set up empty slots based on party size
       const newSlots = Array.from({ length: partySize }, (_, i) => ({
         id: `${formId}-slot-${i}`,
-        playerName: `Player ${i + 1}`,
+        playerName: '',
         characterName: '',
         vision: '',
         gender: 'Any',
@@ -279,6 +279,15 @@ export function CharacterCreationForm({
   }
 
   const handleFinalize = () => {
+     if (playerSlots.some(slot => !slot.playerName.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Add Player Names",
+        description: "Please enter each player's name for a better experience.",
+      });
+      return;
+    }
+
     if (!hasGenerated) {
        toast({
         title: "Generate Your Party",
@@ -367,7 +376,7 @@ export function CharacterCreationForm({
                              <Card key={slot.id} className="p-3 bg-muted/30">
                                 <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                                      <Input 
-                                        placeholder={`Player ${index + 1}`}
+                                        placeholder={`Player ${index + 1} Name`}
                                         className="font-bold"
                                         value={slot.playerName}
                                         onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}

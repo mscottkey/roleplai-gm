@@ -25,6 +25,8 @@ import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
 import type { Character as AICharacter } from '@/ai/schemas/generate-character-schemas';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowRight } from 'lucide-react';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -83,6 +85,9 @@ export default function RoleplAIGMPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState<GameSession | null>(null);
   const [renameTarget, setRenameTarget] = useState<GameSession | null>(null);
   const [newGameName, setNewGameName] = useState('');
+  
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [nextCharacter, setNextCharacter] = useState<Character | null>(null);
 
 
   const { toast } = useToast();
@@ -265,7 +270,7 @@ export default function RoleplAIGMPage() {
   if (authLoading || step === 'loading') {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
-        <BrandedLoadingSpinner className="h-24 w-24" />
+        <BrandedLoadingSpinner className="w-48 h-48" />
         <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
       </div>
     );
@@ -313,6 +318,16 @@ export default function RoleplAIGMPage() {
 
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
+    
+     if (finalCharacters.some(c => !c.playerName.trim())) {
+        toast({
+            variant: "destructive",
+            title: "Player Names Required",
+            description: "Please enter a name for each player before starting the game.",
+        });
+        return;
+    }
+
     setIsLoading(true);
     
     const plainCharacters: Character[] = finalCharacters.map(c => ({
@@ -568,29 +583,36 @@ The stage is set. What do you do?
 
             const currentIndex = characters.findIndex(c => c.id === activeCharacter.id);
             const nextIndex = (currentIndex + 1) % characters.length;
-            const nextCharacter = characters[nextIndex];
+            const foundNextCharacter = characters[nextIndex];
+            setNextCharacter(foundNextCharacter);
 
             const serializableWorldState = JSON.parse(JSON.stringify(worldState));
 
-            updateWorldState({
-                gameId: activeGameId,
-                playerAction: {
-                    characterName: activeCharacter.name,
-                    action: playerInput,
-                },
-                gmResponse: response.narrativeResult,
-                currentWorldState: serializableWorldState,
-                updates: {
-                    messages: [...newMessages, assistantMessage],
-                    storyMessages: newStoryMessages,
-                    activeCharacterId: nextCharacter.id,
-                }
-            }).then(() => {
-                setActiveCharacter(nextCharacter);
-            }).catch(err => {
-                console.error("Failed to update world state:", err);
-            });
-            setMessages(prev => [...prev, assistantMessage]);
+            if (gameData?.playMode === 'local') {
+              setShowHandoff(true);
+              setMessages(prev => [...prev, assistantMessage]);
+            } else {
+              // Remote play updates immediately
+              updateWorldState({
+                  gameId: activeGameId,
+                  playerAction: {
+                      characterName: activeCharacter.name,
+                      action: playerInput,
+                  },
+                  gmResponse: response.narrativeResult,
+                  currentWorldState: serializableWorldState,
+                  updates: {
+                      messages: [...newMessages, assistantMessage],
+                      storyMessages: newStoryMessages,
+                      activeCharacterId: foundNextCharacter.id,
+                  }
+              }).then(() => {
+                  setActiveCharacter(foundNextCharacter);
+              }).catch(err => {
+                  console.error("Failed to update world state:", err);
+              });
+              setMessages(prev => [...prev, assistantMessage]);
+            }
 
         } else { 
             // QUESTION: Not turn-based.
@@ -628,6 +650,23 @@ The stage is set. What do you do?
         setIsLoading(false);
     }
 };
+
+  const handleHandoffConfirm = async () => {
+    if (!activeGameId || !nextCharacter || !worldState || !previousWorldState) return;
+
+    setShowHandoff(false);
+    
+    // The world state was already updated in memory, now we just persist it with the new active character
+    await updateWorldState({
+      gameId: activeGameId,
+      updates: {
+        activeCharacterId: nextCharacter.id,
+      }
+    });
+
+    setActiveCharacter(nextCharacter);
+    setNextCharacter(null);
+  };
 
 
   const handleUndo = async () => {
@@ -821,6 +860,13 @@ The stage is set. What do you do?
     }
   };
 
+  const handleLocalCharacterSwitch = (char: Character) => {
+    if (activeGameId) {
+      setActiveCharacter(char);
+      updateWorldState({ gameId: activeGameId, updates: { activeCharacterId: char.id } });
+    }
+  }
+
 
   const renderContent = () => {
     switch (step) {
@@ -850,12 +896,7 @@ The stage is set. What do you do?
             worldState={worldState}
             characters={characters}
             activeCharacter={activeCharacter}
-            setActiveCharacter={(char) => {
-              if (activeGameId && char.id) {
-                setActiveCharacter(char);
-                updateWorldState({ gameId: activeGameId, updates: { activeCharacterId: char.id } });
-              }
-            }}
+            setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
             onUndo={handleUndo}
@@ -896,6 +937,26 @@ The stage is set. What do you do?
       >
         {renderContent()}
       </AppShell>
+      
+      {/* Turn Handoff Dialog for Local Play */}
+      {showHandoff && nextCharacter && (
+        <Dialog open onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-[425px] text-center p-8">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-headline text-center">Turn Complete!</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+              <p>Pass the device to <strong className="text-primary">{nextCharacter.playerName}</strong>.</p>
+              <p className="text-muted-foreground">You are playing as {nextCharacter.name}.</p>
+            </div>
+            <DialogFooter className="sm:justify-center">
+              <Button type="button" size="lg" onClick={handleHandoffConfirm}>
+                Start {nextCharacter.playerName}'s Turn <ArrowRight className="ml-2 h-5 w-5"/>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       
       {/* Confirmation Dialog for any action */}
       {confirmation && (

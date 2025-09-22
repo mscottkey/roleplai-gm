@@ -40,6 +40,23 @@ export function TurnManager({
   const isHost = currentUserId === hostId;
   const canChangeTurn = playMode === 'local' || isHost;
 
+  if (playMode === 'local' && activeCharacter) {
+    return (
+      <div className="p-4 border-b bg-card">
+        <Card className="border-2 border-primary animate-pulse max-w-4xl mx-auto">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold font-headline text-primary">
+              {activeCharacter.playerName}'s Turn
+            </p>
+            <p className="text-md text-muted-foreground">
+              Playing as {activeCharacter.name}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 border-b bg-card space-y-4">
       {characters.length > 1 && (

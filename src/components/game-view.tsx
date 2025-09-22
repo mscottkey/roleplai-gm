@@ -156,6 +156,25 @@ export function GameView({
         </div>
     </div>
   );
+  
+  const LocalPlayerGrid = () => (
+    <div className="p-4 border-b bg-card">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-w-4xl mx-auto">
+        {characters.map(char => (
+          <Button
+            key={char.id}
+            variant={activeCharacter?.id === char.id ? "default" : "outline"}
+            className="h-20 flex-col gap-1 items-center justify-center text-center"
+            onClick={() => setActiveCharacter(char)}
+          >
+            <span className="font-bold text-sm leading-tight">{char.playerName}</span>
+            <span className="text-xs text-muted-foreground leading-tight">({char.name})</span>
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+
 
   return (
     <div className="grid md:grid-cols-2 h-screen bg-background overflow-hidden">
@@ -189,6 +208,7 @@ export function GameView({
 
       {/* Right Pane: Game Controls */}
       <div className="h-full flex flex-col overflow-hidden">
+          {gameData.playMode === 'local' && <LocalPlayerGrid />}
           <GameControls
             messages={messages}
             onSendMessage={onSendMessage}
