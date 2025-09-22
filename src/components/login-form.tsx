@@ -62,7 +62,7 @@ export function LoginForm() {
       <Card className="w-full max-w-md mx-4 shadow-2xl z-10">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center gap-3">
-            <Logo className="h-12 w-12 text-primary" />
+            <Logo className="h-12 w-12" />
             <CardTitle className="font-headline text-4xl text-primary">RoleplAI GM</CardTitle>
           </div>
           <CardDescription className="pt-2">

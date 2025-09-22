@@ -22,7 +22,7 @@ export default function LandingPage() {
         <div className="container flex h-14 items-center">
           <div className="mr-4 flex items-center">
             {/* <Logo className="w-8 h-8 mr-2 text-primary" /> */}
-            <Logo useImage imageSrc="/roleplai-logo.png?v=2" imageAlt="Test Logo" imageSize={64} />
+            <Logo imageSrc="/roleplai-logo.png?v=2" imageAlt="Test Logo" width={64} height={64} />
             <span className="font-headline text-lg font-bold text-primary">RoleplAI GM</span>
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
@@ -112,7 +112,7 @@ export default function LandingPage() {
       <footer className="border-t">
         <div className="container flex flex-col items-center justify-between gap-4 py-10 md:h-24 md:flex-row md:py-0">
           <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-            <Logo className="w-6 h-6 text-primary" />
+            <Logo className="w-6 h-6" />
             <p className="text-center text-sm leading-loose md:text-left">
               Built with Magic and Code.
             </p>
