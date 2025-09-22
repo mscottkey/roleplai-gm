@@ -140,16 +140,17 @@ export function CharacterCreationForm({
   const userHasCharacter = playerSlots.some(slot => slot.character?.playerId === currentUserPlayerId);
 
   useEffect(() => {
-    // If loading an existing game with characters, populate the slots from DB
     if (initialCharacters.length > 0) {
         const slots: PlayerSlot[] = initialCharacters.map(char => ({
             id: char.id,
-            character: char
+            character: char,
+            preferences: {
+              playerName: char.playerName || ''
+            }
         }));
         setPlayerSlots(slots);
     } else {
-        // New game, start with one slot for the host/first player
-        const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player 1';
+        const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
         const initialSlot: PlayerSlot = { 
             id: `${formId}-slot-0`, 
             character: null,
@@ -408,7 +409,12 @@ if (gameData.playMode === 'remote') {
         <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
             <div className="w-full space-y-4 text-left p-4">
                 <Label>Player Name</Label>
-                <Input placeholder="e.g. Sarah" value={playerName} onChange={e => { setPlayerName(e.target.value); handleUpdate('playerName', e.target.value)}} />
+                <Input 
+                    placeholder="e.g. Sarah" 
+                    value={playerName} 
+                    onChange={e => setPlayerName(e.target.value)} 
+                    onBlur={e => handleUpdate('playerName', e.target.value)}
+                />
                 <Label>Character Vision</Label>
                 <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => { setVision(e.target.value); handleUpdate('vision', e.target.value)}} />
                 <Label>Character Name (Optional)</Label>
@@ -489,7 +495,7 @@ const handleGenerateAll = async () => {
 
   const updateSlotPreferences = (id: string, updates: any) => {
     setPlayerSlots(currentSlots => {
-        return currentSlots.map(slot => {
+        const newSlots = currentSlots.map(slot => {
             if (slot.id === id) {
                  if (updates.character === null) {
                     return { ...slot, character: null };
@@ -499,6 +505,12 @@ const handleGenerateAll = async () => {
             }
             return slot;
         });
+        // We only call the expensive onUpdatePlayerSlots when the blur happens for player name.
+        // For other changes, we can call it immediately.
+        if (updates.playerName === undefined) {
+             onUpdatePlayerSlots(newSlots);
+        }
+        return newSlots;
     });
 };
 
