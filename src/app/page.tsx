@@ -10,7 +10,7 @@ import { Logo } from '@/components/logo';
 export default function LandingPage() {
   const router = useRouter();
   const bgImage = {
-    imageUrl: "https://storage.googleapis.com/app-prototyping-test-2-de63b.appspot.com/a9763a14-4195-4672-a79b-2a919d7b4097.png",
+    imageUrl: "/landing-background.png",
     description: "A mysterious hooded figure with glowing eyes sits at a table, acting as a game master for a tabletop RPG with several other players.",
     imageHint: "tabletop RPG game master"
   };
@@ -111,7 +111,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
             <Logo className="w-6 h-6 text-primary" />
             <p className="text-center text-sm leading-loose md:text-left">
-              Built with Firebase and Google AI.
+              Built with Magic and Code.
             </p>
           </div>
           <p className="text-center text-sm text-muted-foreground md:text-left">
