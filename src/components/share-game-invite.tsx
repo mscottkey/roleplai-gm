@@ -18,7 +18,7 @@ export function ShareGameInvite({ gameId }: ShareGameInviteProps) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const url = `${window.location.origin}/?game=${gameId}`;
+      const url = `${window.location.origin}/play?game=${gameId}`;
       setInviteUrl(url);
     }
   }, [gameId]);

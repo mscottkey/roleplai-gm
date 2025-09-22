@@ -21,6 +21,7 @@ import remarkBreaks from 'remark-breaks';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { ShareGameInvite } from './share-game-invite';
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
@@ -136,6 +137,7 @@ export function CharacterCreationForm({
   isLoading,
   currentUser,
   onClaimCharacter,
+  activeGameId
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
@@ -338,7 +340,97 @@ export function CharacterCreationForm({
   };
   
   const isHost = currentUser?.uid === gameData.userId;
+  
+  if (gameData.playMode === 'remote') {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
+          <Card className="w-full max-w-7xl mx-auto shadow-2xl">
+            <CardHeader className="text-center">
+              <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
+                <Users />
+                Multiplayer Lobby
+              </CardTitle>
+              <CardDescription className="pt-2">
+                Share the link below to invite players. They will appear here once they've joined and created a character.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+               {isHost && activeGameId && <ShareGameInvite gameId={activeGameId} />}
 
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {playerSlots.map((slot) => {
+                      const isClaimedByCurrentUser = slot.character?.claimedBy === currentUser?.uid;
+                      const isClaimedByOther = slot.character?.claimedBy && !isClaimedByCurrentUser;
+                      return (
+                        <Card key={slot.id} className={cn("flex flex-col relative group transition-all", isClaimedByCurrentUser && "border-primary")}>
+                          <CardHeader>
+                             <p className="text-center font-bold text-lg">Played by {slot.character?.playerName || '...'}</p>
+                          </CardHeader>
+                          
+                          <CardContent className="flex-1 space-y-4">
+                            {slot.character ? (
+                                <CharacterDisplay char={slot.character} />
+                            ) : (
+                                <div className="text-center text-muted-foreground p-4 h-full flex items-center justify-center">Waiting for player...</div>
+                            )}
+                          </CardContent>
+                          
+                          <CardFooter className="flex flex-col gap-2">
+                            {slot.character && (
+                              <>
+                                {isClaimedByCurrentUser ? (
+                                  <Button variant="destructive" size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, false)}>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Release Character
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, true)} disabled={!!isClaimedByOther}>
+                                    {isClaimedByOther ? (
+                                      'Claimed by another player'
+                                    ) : (
+                                      <>
+                                        <UserCheck className="mr-2 h-4 w-4" />
+                                        Claim Character
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </CardFooter>
+                        </Card>
+                      )
+                    })}
+               </div>
+            </CardContent>
+            {isHost && (
+              <CardFooter className="flex-col gap-4 justify-center pt-6">
+                <Button
+                  size="lg"
+                  onClick={handleFinalize}
+                  disabled={isGenerating || isLoading || playerSlots.some(s => !s.character?.claimedBy)}
+                  className="font-headline text-xl"
+                >
+                   {isLoading ? (
+                      <>
+                        <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
+                        Building World...
+                      </>
+                    ) : (
+                      <>
+                        <Dices className="mr-2 h-5 w-5" />
+                        Finalize Party & Build World
+                      </>
+                    )}
+                </Button>
+              </CardFooter>
+            )}
+          </Card>
+        </div>
+    );
+  }
+
+  // Local play mode
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
       <Card className="w-full max-w-7xl mx-auto shadow-2xl">
@@ -475,27 +567,6 @@ export function CharacterCreationForm({
                                   <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
                                   Regenerate Character
                                 </Button>
-                              </>
-                            )}
-                            {gameData.playMode === 'remote' && slot.character && (
-                              <>
-                                {isClaimedByCurrentUser ? (
-                                  <Button variant="destructive" size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, false)}>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Release Character
-                                  </Button>
-                                ) : (
-                                  <Button size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, true)} disabled={!!isClaimedByOther}>
-                                    {isClaimedByOther ? (
-                                      'Claimed by another player'
-                                    ) : (
-                                      <>
-                                        <UserCheck className="mr-2 h-4 w-4" />
-                                        Claim Character
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
                               </>
                             )}
                           </CardFooter>

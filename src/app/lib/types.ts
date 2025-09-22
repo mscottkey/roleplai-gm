@@ -14,7 +14,7 @@ export type Message = {
 };
 
 export type Character = {
-  id: string;
+  id:string;
   name: string;
   description:string;
   aspect: string;
