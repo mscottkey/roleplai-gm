@@ -2,7 +2,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowRight, Bot, Compass, Feather } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -10,7 +9,11 @@ import { Logo } from '@/components/logo';
 
 export default function LandingPage() {
   const router = useRouter();
-  const bgImage = PlaceHolderImages.find(p => p.id === 'landing-background');
+  const bgImage = {
+    imageUrl: "https://storage.googleapis.com/aai-web-samples/dnd-hero.webp",
+    description: "A scene of a tabletop roleplaying game session being run by a mysterious hooded AI game master on a laptop.",
+    imageHint: "tabletop RPG"
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
