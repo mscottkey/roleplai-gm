@@ -24,7 +24,7 @@ export type Character = {
   gender?: string;
   age?: string;
   stats?: CharacterStats;
-  playerId: string; // User ID of the player who created this character
+  playerId: string; // User ID of the player who created/claimed this character
 };
 
 export type PlayerSlot = {

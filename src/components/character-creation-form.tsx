@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useId, useEffect } from 'react';
@@ -148,12 +147,12 @@ export function CharacterCreationForm({
         }));
         setPlayerSlots(slots);
     } else {
-        // New game, start with one slot for the host
-        if (isHost) {
+        // New game, start with one slot for the host/first player
+        if (isHost || gameData.playMode === 'local') {
             setPlayerSlots([{ id: `${formId}-slot-0`, character: null }]);
         }
     }
-}, [initialCharacters, formId, isHost]);
+}, [initialCharacters, formId, isHost, gameData.playMode]);
 
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
@@ -174,10 +173,10 @@ export function CharacterCreationForm({
     updateSlots(newSlots);
   };
   
-  const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; gender?: string; }) => {
+  const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; gender?: string; playerName?: string }) => {
     setIsGenerating(true);
 
-    const playerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player';
+    const playerName = preferences.playerName || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player';
 
     try {
         const result = await generateCharacterSuggestions({
@@ -233,7 +232,6 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
     const [gender, setGender] = useState('Any');
     const [isCreating, setIsCreating] = useState(false);
 
-    const isSlotOwner = slot.character?.playerId === currentUserPlayerId;
     const canCreate = !userHasCharacter && !slot.character;
 
     if (slot.character) {
@@ -354,8 +352,135 @@ if (gameData.playMode === 'remote') {
     );
 }
 
-  // Local play mode
-  const hasGenerated = playerSlots.every(slot => slot.character);
+// Local Play Mode
+  const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
+    const [playerName, setPlayerName] = useState(slot.character?.playerName || '');
+    const [charName, setCharName] = useState(slot.character?.name || '');
+    const [vision, setVision] = useState(slot.character?.description || '');
+    const [gender, setGender] = useState(slot.character?.gender || 'Any');
+
+    const handleUpdate = (field: string, value: string) => {
+        onUpdate(slot.id, { [field]: value });
+    };
+
+    if (slot.character && !slot.character.isCustom) {
+        return (
+            <Card className="flex flex-col relative group transition-all">
+                <CardHeader>
+                    <p className="text-center font-bold text-lg">Played by {slot.character.playerName}</p>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4">
+                    <CharacterDisplay char={slot.character} />
+                </CardContent>
+                <CardFooter>
+                     <Button variant="outline" size="sm" className="w-full" onClick={() => onUpdate(slot.id, { character: null })}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
+                    </Button>
+                </CardFooter>
+                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+            </Card>
+        );
+    }
+    
+    return (
+        <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
+            <div className="w-full space-y-4 text-left p-4">
+                <Label>Player Name</Label>
+                <Input placeholder="e.g. Sarah" value={playerName} onChange={e => { setPlayerName(e.target.value); handleUpdate('playerName', e.target.value)}} />
+                <Label>Character Vision</Label>
+                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => { setVision(e.target.value); handleUpdate('vision', e.target.value)}} />
+                <Label>Character Name (Optional)</Label>
+                <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => { setCharName(e.target.value); handleUpdate('name', e.target.value)}} />
+                <Label>Gender</Label>
+                <Select value={gender} onValueChange={val => { setGender(val); handleUpdate('gender', val)}}>
+                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Any">Any</SelectItem>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Non-binary">Non-binary</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+        </Card>
+    );
+};
+
+const handleGenerateAll = async () => {
+    const slotsToGenerate = playerSlots.filter(s => !s.character);
+    if (slotsToGenerate.length === 0) {
+        toast({ title: 'All characters already generated.'});
+        return;
+    }
+
+    if (playerSlots.some(s => !(s.character?.playerName || (s as any).preferences?.playerName))) {
+        toast({ variant: 'destructive', title: 'Player Names Required', description: 'Please enter a name for each player.' });
+        return;
+    }
+
+    setIsGenerating(true);
+    try {
+        const slotsForAI = playerSlots.map(s => {
+            const prefs = (s as any).preferences || {};
+            return {
+                id: s.id,
+                playerName: prefs.playerName,
+                name: prefs.name,
+                vision: prefs.vision,
+                gender: prefs.gender === 'Any' ? undefined : prefs.gender,
+            };
+        });
+
+        const result = await generateCharacterSuggestions({
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characterSlots: slotsForAI,
+            existingCharacters: []
+        });
+
+        const newSlots = playerSlots.map(slot => {
+            const newCharData = result.characters.find(c => c.slotId === slot.id);
+            if (newCharData) {
+                return {
+                    ...slot,
+                    character: {
+                        ...newCharData,
+                        id: slot.id,
+                        isCustom: false,
+                        playerId: currentUserPlayerId!,
+                        playerName: (slot as any).preferences.playerName,
+                    }
+                };
+            }
+            return slot;
+        });
+        updateSlots(newSlots);
+
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Generation Failed', description: err.message });
+    } finally {
+        setIsGenerating(false);
+    }
+};
+
+  const updateSlotPreferences = (id: string, updates: any) => {
+    setPlayerSlots(currentSlots => {
+        return currentSlots.map(slot => {
+            if (slot.id === id) {
+                 if (updates.character === null) {
+                    return { ...slot, character: null };
+                }
+                const oldPrefs = (slot as any).preferences || {};
+                return { ...slot, preferences: { ...oldPrefs, ...updates } };
+            }
+            return slot;
+        });
+    });
+};
+
+  const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
       <Card className="w-full max-w-7xl mx-auto shadow-2xl">
@@ -395,39 +520,43 @@ if (gameData.playMode === 'remote') {
                  </Card>
                </TabsContent>
               <TabsContent value="party">
-                 {!hasGenerated ? (
-                  <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
-                     <p>Not implemented for local play yet</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                     <p>Not implemented for local play yet</p>
-                  </div>
-                )}
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {playerSlots.map((slot) => (
+                        <LocalPlayerSlot 
+                            key={slot.id} 
+                            slot={slot} 
+                            onUpdate={updateSlotPreferences}
+                            onRemove={removePlayerSlot}
+                        />
+                    ))}
+                    <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
+                        <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
+                    </Button>
+                </div>
               </TabsContent>
             </Tabs>
         </CardContent>
         <CardFooter className="flex-col gap-4 justify-center pt-6">
           <Button
             size="lg"
-            onClick={handleFinalize}
-            disabled={isGenerating || !hasGenerated || isLoading}
+            onClick={hasGeneratedAll ? handleFinalize : handleGenerateAll}
+            disabled={isGenerating || isLoading || playerSlots.length === 0}
             className="font-headline text-xl"
           >
              {isLoading ? (
-                <>
-                  <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
-                  Building World...
-                </>
+                <><LoadingSpinner className="mr-2 h-5 w-5 animate-spin" /> Building World...</>
+              ) : isGenerating ? (
+                 <><Wand2 className="mr-2 h-5 w-5 animate-spin" /> Generating...</>
+              ) : hasGeneratedAll ? (
+                 <><Dices className="mr-2 h-5 w-5" /> Finalize Party & Build World</>
               ) : (
-                <>
-                  <Dices className="mr-2 h-5 w-5" />
-                  Finalize Party & Build World
-                </>
+                <><Wand2 className="mr-2 h-5 w-5" /> Generate All Characters</>
               )}
           </Button>
-          {hasGenerated && (
-             <p>Not implemented for local play yet</p>
+          {!hasGeneratedAll && playerSlots.length > 0 && (
+             <Button variant="link" size="sm" onClick={() => updateSlots(playerSlots.map(s => ({...s, character: null})))}>
+                <RefreshCw className="mr-2 h-3 w-3" /> Start Over
+            </Button>
           )}
         </CardFooter>
       </Card>
