@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -70,7 +71,7 @@ export function GameControls({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { playMode } = gameData;
   
-  const canAct = playMode === 'local' || (activeCharacter?.claimedBy === currentUser?.uid);
+  const canAct = playMode === 'local' || (activeCharacter?.playerId === currentUser?.uid);
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l">

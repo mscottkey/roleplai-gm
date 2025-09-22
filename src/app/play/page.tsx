@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
-import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, GameSession, PlayerSlot } from '@/app/lib/types';
 import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame, updateUserProfile } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -326,11 +327,25 @@ export default function RoleplAIGMPage() {
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
     
-     if (finalCharacters.some(c => !c.playerName.trim())) {
+    if (finalCharacters.length === 0) {
+      toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.'});
+      return;
+    }
+
+    if (finalCharacters.some(c => !c.playerName.trim())) {
         toast({
             variant: "destructive",
             title: "Player Names Required",
-            description: "Please enter a name for each player before starting the game.",
+            description: "All characters must have a player name before starting the game.",
+        });
+        return;
+    }
+
+    if (gameData.playMode === 'remote' && finalCharacters.some(c => !c.playerId)) {
+        toast({
+            variant: "destructive",
+            title: "Unclaimed Characters",
+            description: "All characters must be claimed by a player before starting a remote game.",
         });
         return;
     }
@@ -348,11 +363,11 @@ export default function RoleplAIGMPage() {
         gender: c.gender,
         age: c.age,
         stats: c.stats,
-        claimedBy: c.claimedBy,
+        playerId: c.playerId,
     }));
 
 
-    // First, save the current state of characters to Firestore. This is the critical fix.
+    // First, save the current state of characters to Firestore.
     try {
       const db = getFirestore();
       await updateDoc(doc(db, "games", activeGameId), {
@@ -506,7 +521,7 @@ The stage is set. What do you do?
     const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
     const actingCharacter = gameData?.playMode === 'remote'
-      ? characters.find(c => c.claimedBy === user.uid)
+      ? characters.find(c => c.playerId === user.uid)
       : activeCharacter;
 
     if (!actingCharacter) {
@@ -834,39 +849,22 @@ The stage is set. What do you do?
     setNewGameName('');
   };
 
-  const handleCharacterClaim = async (characterId: string, claim: boolean) => {
-    if (!activeGameId || !user) return;
-    
-    const currentChars = characters;
-    const charIndex = currentChars.findIndex(c => c.id === characterId);
-    if (charIndex === -1) return;
+  const handleUpdatePlayerSlots = async (slots: PlayerSlot[]) => {
+    if (!activeGameId) return;
 
-    // To prevent race conditions, first remove any existing claim by the user
-    const updatedChars = currentChars.map(c => {
-        if (c.claimedBy === user.uid) {
-            return { ...c, claimedBy: '' };
-        }
-        return c;
-    });
-
-    // Then, apply the new claim if requested
-    if (claim) {
-        const targetIndex = updatedChars.findIndex(c => c.id === characterId);
-        updatedChars[targetIndex].claimedBy = user.uid;
-    }
+    const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
     
     try {
       await updateWorldState({
         gameId: activeGameId,
         updates: { 
-            'worldState.characters': updatedChars,
-            'gameData.characters': updatedChars,
+            'worldState.characters': updatedCharacters,
+            'gameData.characters': updatedCharacters,
         }
       });
-      toast({ title: claim ? "Character Claimed!" : "Character Released" });
     } catch(e) {
       const err = e as Error;
-      toast({ variant: 'destructive', title: 'Claim Failed', description: err.message });
+      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
   };
 
@@ -905,7 +903,7 @@ The stage is set. What do you do?
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
             currentUser={user}
-            onClaimCharacter={handleCharacterClaim}
+            onUpdatePlayerSlots={handleUpdatePlayerSlots}
             activeGameId={activeGameId}
           />
         );
@@ -925,7 +923,7 @@ The stage is set. What do you do?
             setMechanicsVisibility={setMechanicsVisibility}
             onUndo={handleUndo}
             canUndo={!!previousWorldState}
-            onRegenerateStoryline={handleRegenerateStoryline}
+            onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             isSpeaking={isSpeaking}
             isPaused={isPaused}

@@ -14,7 +14,7 @@ export type Message = {
 };
 
 export type Character = {
-  id:string;
+  id: string;
   name: string;
   description:string;
   aspect: string;
@@ -24,7 +24,12 @@ export type Character = {
   gender?: string;
   age?: string;
   stats?: CharacterStats;
-  claimedBy?: string; // User ID of the player who claimed this character
+  playerId: string; // User ID of the player who created this character
+};
+
+export type PlayerSlot = {
+  id: string;
+  character: Character | null;
 };
 
 export type GameData = GenerateNewGameOutput & {
@@ -53,5 +58,3 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
-
-    
