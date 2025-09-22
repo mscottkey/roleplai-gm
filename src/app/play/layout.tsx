@@ -16,22 +16,18 @@ export default function PlayLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <FirebaseProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </FirebaseProvider>
-          <Toaster />
-        </ThemeProvider>
-      </body>
-    </html>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem={false}
+      disableTransitionOnChange
+    >
+      <FirebaseProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </FirebaseProvider>
+      <Toaster />
+    </ThemeProvider>
   );
 }
