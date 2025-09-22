@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import {
@@ -30,6 +29,8 @@ type AppShellProps = {
   activeGameId: string | null
   onNewGame: () => void
   onSelectGame: (id: string) => void
+  onDeleteGame: (game: GameSession) => void
+  onRenameGame: (game: GameSession) => void
 }
 
 function AppShellHeader() {
@@ -40,7 +41,7 @@ function AppShellHeader() {
           <div className="flex items-center justify-between p-2">
              {isMobile ? <SidebarTrigger /> : null}
              <button className="flex items-center gap-2" onClick={() => router.push('/')}>
-                <Logo className="w-8 h-8 text-primary group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10" />
+                <Logo useImage imageSrc="/roleplai-logo.png?v=2" imageAlt="RoleplAI Logo" imageSize={32} className="w-8 h-8 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10" />
                 <span className="font-headline text-lg font-bold text-primary group-data-[collapsible=icon]:hidden">RoleplAI GM</span>
              </button>
              <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
@@ -49,7 +50,7 @@ function AppShellHeader() {
     )
 }
 
-export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame }: AppShellProps) {
+export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame, onDeleteGame, onRenameGame }: AppShellProps) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -69,6 +70,8 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
             games={games}
             activeGameId={activeGameId}
             onSelectGame={onSelectGame}
+            onDeleteGame={onDeleteGame}
+            onRenameGame={onRenameGame}
           />
         </SidebarContent>
         <SidebarFooter>

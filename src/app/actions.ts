@@ -25,7 +25,7 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, Character } from "@/ai/schemas/generate-character-schemas";
 
@@ -239,8 +239,7 @@ export async function routePlayerInput(input: ClassifyIntentInput): Promise<Clas
 
 export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
   try {
-    const { worldState, characterId } = input;
-    const character = worldState.characters.find(c => c.id === characterId);
+    const character = input.worldState.characters.find(c => c.id === input.character.id);
     if (!character) {
       throw new Error("Character asking question not found in world state.");
     }
@@ -359,8 +358,34 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
   }
 }
 
-    
+export async function deleteGame(gameId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+        const app = getServerApp();
+        const db = getFirestore(app);
+        await deleteDoc(doc(db, "games", gameId));
+        return { success: true };
+    } catch (error) {
+        console.error("Error in deleteGame action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
 
-    
-
-    
+export async function renameGame(gameId: string, newName: string): Promise<{ success: boolean; message?: string }> {
+    if (!newName.trim()) {
+        return { success: false, message: "Game name cannot be empty." };
+    }
+    try {
+        const app = getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, {
+            'gameData.name': newName
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error in renameGame action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}

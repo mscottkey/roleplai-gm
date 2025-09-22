@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -18,6 +18,10 @@ import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Times
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { LoginForm } from '@/components/login-form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
 import type { Character as AICharacter } from '@/ai/schemas/generate-character-schemas';
@@ -75,6 +79,11 @@ export default function RoleplAIGMPage() {
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
   const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void; } | null>(null);
+  
+  const [deleteConfirmation, setDeleteConfirmation] = useState<GameSession | null>(null);
+  const [renameTarget, setRenameTarget] = useState<GameSession | null>(null);
+  const [newGameName, setNewGameName] = useState('');
+
 
   const { toast } = useToast();
 
@@ -463,7 +472,7 @@ The stage is set. What do you do?
 
 
  const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
-    if (!activeCharacter || !worldState || !activeGameId || !user) {
+    if (!worldState || !activeGameId || !user) {
         toast({
             variant: "destructive",
             title: "Error",
@@ -474,8 +483,14 @@ The stage is set. What do you do?
     
     const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
-    // Determine the character sending the message - could be the active one, or another if they are asking a question.
-    const actingCharacter = characters.find(c => c.claimedBy === user.uid) || activeCharacter;
+    const actingCharacter = gameData?.playMode === 'remote'
+      ? characters.find(c => c.claimedBy === user.uid) || activeCharacter
+      : activeCharacter;
+
+    if (!actingCharacter) {
+      toast({ variant: 'destructive', title: 'No Character', description: "You don't have a character in this game to act with." });
+      return;
+    }
     const authorName = actingCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
 
     const newMessage: Message = {
@@ -494,11 +509,18 @@ The stage is set. What do you do?
 
         if (intent === 'Action') {
             // ACTION: This is turn-based.
-            if (activeCharacter.claimedBy !== user.uid && gameData?.playMode === 'remote') {
-                toast({ variant: "destructive", title: "Not Your Turn", description: `It's currently ${activeCharacter.name}'s turn to act.` });
+            if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
+                toast({ variant: "destructive", title: "Not Your Turn", description: `It's currently ${activeCharacter?.name}'s turn to act.` });
                 setMessages(messagesWithoutRecap);
                 setIsLoading(false);
                 return;
+            }
+            
+            if (!activeCharacter) {
+                 toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
+                 setIsLoading(false);
+                 setMessages(messagesWithoutRecap);
+                 return;
             }
 
             if (!confirmed) {
@@ -575,7 +597,7 @@ The stage is set. What do you do?
             const response = await getAnswerToQuestion({
                 question: playerInput,
                 worldState,
-                characterId: actingCharacter.id,
+                character: actingCharacter,
             });
 
             const assistantMessage: Message = {
@@ -731,6 +753,39 @@ The stage is set. What do you do?
     }
   };
 
+  const handleDeleteGame = async () => {
+    if (!deleteConfirmation) return;
+
+    const gameIdToDelete = deleteConfirmation.id;
+    setDeleteConfirmation(null); // Close dialog immediately
+
+    const result = await deleteGame(gameIdToDelete);
+    if (result.success) {
+      toast({ title: "Game Deleted", description: "The game session has been successfully deleted." });
+      if (activeGameId === gameIdToDelete) {
+        router.push('/play'); // Navigate to the base play page if the active game was deleted
+      }
+    } else {
+      toast({ variant: 'destructive', title: "Deletion Failed", description: result.message });
+    }
+  };
+  
+  const handleRenameGame = async () => {
+    if (!renameTarget || !newGameName.trim()) return;
+    
+    const gameIdToRename = renameTarget.id;
+    setRenameTarget(null);
+
+    const result = await renameGame(gameIdToRename, newGameName);
+    if (result.success) {
+        toast({ title: "Game Renamed", description: "The game session has been successfully renamed." });
+    } else {
+        toast({ variant: 'destructive', title: "Rename Failed", description: result.message });
+    }
+    setNewGameName('');
+  };
+
+
   const renderContent = () => {
     switch (step) {
       case 'create':
@@ -795,9 +850,16 @@ The stage is set. What do you do?
         activeGameId={activeGameId}
         onNewGame={() => router.push('/play')}
         onSelectGame={(gameId) => router.push(`/play?game=${gameId}`)}
+        onDeleteGame={(game) => setDeleteConfirmation(game)}
+        onRenameGame={(game) => {
+          setRenameTarget(game);
+          setNewGameName(game.gameData.name);
+        }}
       >
         {renderContent()}
       </AppShell>
+      
+      {/* Confirmation Dialog for any action */}
       {confirmation && (
         <AlertDialog open onOpenChange={() => setConfirmation(null)}>
           <AlertDialogContent>
@@ -814,8 +876,52 @@ The stage is set. What do you do?
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Delete Game Confirmation Dialog */}
+      {deleteConfirmation && (
+        <AlertDialog open onOpenChange={() => setDeleteConfirmation(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Game?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to permanently delete the game "{deleteConfirmation.gameData.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteGame} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Rename Game Dialog */}
+      {renameTarget && (
+        <Dialog open onOpenChange={() => setRenameTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Game</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="game-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="game-name"
+                  value={newGameName}
+                  onChange={(e) => setNewGameName(e.target.value)}
+                  className="col-span-3"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleRenameGame}>Save changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
-
-    
