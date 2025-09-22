@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
-import type { GameData, Character as CustomCharacterType, PlayerSlot } from '@/app/lib/types';
+import type { GameData, Character, PlayerSlot } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, UserCheck, UserX, Trash2 } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -47,8 +47,8 @@ const normalizeInlineBulletsInSections = (md: string) => {
 
 type CharacterCreationFormProps = {
   gameData: GameData;
-  initialCharacters?: CustomCharacterType[];
-  onCharactersFinalized: (characters: CustomCharacterType[]) => void;
+  initialCharacters?: Character[];
+  onCharactersFinalized: (characters: Character[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
   currentUser: FirebaseUser | null;
@@ -66,7 +66,7 @@ const getSkillDisplay = (rank: number) => {
     }
 }
 
-const CharacterDisplay = ({ char }: { char: CustomCharacterType }) => (
+const CharacterDisplay = ({ char }: { char: Character }) => (
   <div className="space-y-4 text-left">
     <div>
         <h3 className="font-semibold text-lg">{char.name}</h3>
@@ -148,11 +148,17 @@ export function CharacterCreationForm({
         setPlayerSlots(slots);
     } else {
         // New game, start with one slot for the host/first player
-        if (isHost || gameData.playMode === 'local') {
-            setPlayerSlots([{ id: `${formId}-slot-0`, character: null }]);
-        }
+        const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player 1';
+        const initialSlot: PlayerSlot = { 
+            id: `${formId}-slot-0`, 
+            character: null,
+            preferences: {
+                playerName: hostPlayerName
+            }
+        };
+        setPlayerSlots([initialSlot]);
     }
-}, [initialCharacters, formId, isHost, gameData.playMode]);
+}, [initialCharacters, formId, currentUser]);
 
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
@@ -161,9 +167,13 @@ export function CharacterCreationForm({
   }
 
   const addPlayerSlot = () => {
+    const newPlayerName = `Player ${playerSlots.length + 1}`;
     const newSlot: PlayerSlot = {
       id: `${formId}-slot-${playerSlots.length}`,
       character: null,
+      preferences: {
+        playerName: newPlayerName
+      }
     };
     updateSlots([...playerSlots, newSlot]);
   };
@@ -194,7 +204,7 @@ export function CharacterCreationForm({
         const newCharData = result.characters[0];
         
         if (newCharData) {
-            const newCharacter: CustomCharacterType = {
+            const newCharacter: Character = {
                 ...newCharData,
                 id: slotId,
                 playerName: playerName,
@@ -214,7 +224,7 @@ export function CharacterCreationForm({
   }
 
   const handleFinalize = () => {
-    const finalCharacters = playerSlots.map(s => s.character).filter(Boolean) as CustomCharacterType[];
+    const finalCharacters = playerSlots.map(s => s.character).filter(Boolean) as Character[];
     if (finalCharacters.length !== playerSlots.length) {
        toast({
         title: "Incomplete Party",
@@ -311,7 +321,7 @@ if (gameData.playMode === 'remote') {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    {activeGameId && <ShareGameInvite gameId={activeGameId} />}
+                    {activeGameId && isHost && <ShareGameInvite gameId={activeGameId} />}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {playerSlots.map((slot) => (
@@ -354,13 +364,25 @@ if (gameData.playMode === 'remote') {
 
 // Local Play Mode
   const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
-    const [playerName, setPlayerName] = useState(slot.character?.playerName || '');
-    const [charName, setCharName] = useState(slot.character?.name || '');
-    const [vision, setVision] = useState(slot.character?.description || '');
-    const [gender, setGender] = useState(slot.character?.gender || 'Any');
+    
+    const pref = slot.preferences || {};
+    const [playerName, setPlayerName] = useState(pref.playerName || '');
+    const [charName, setCharName] = useState(pref.name || '');
+    const [vision, setVision] = useState(pref.vision || '');
+    const [gender, setGender] = useState(pref.gender || 'Any');
+    
+    useEffect(() => {
+        const newPrefs = slot.preferences || {};
+        setPlayerName(newPrefs.playerName || '');
+        setCharName(newPrefs.name || '');
+        setVision(newPrefs.vision || '');
+        setGender(newPrefs.gender || 'Any');
+    }, [slot.preferences]);
+
 
     const handleUpdate = (field: string, value: string) => {
-        onUpdate(slot.id, { [field]: value });
+        const currentPrefs = slot.preferences || {};
+        onUpdate(slot.id, { ...currentPrefs, [field]: value });
     };
 
     if (slot.character && !slot.character.isCustom) {
@@ -414,7 +436,7 @@ const handleGenerateAll = async () => {
         return;
     }
 
-    if (playerSlots.some(s => !(s.character?.playerName || (s as any).preferences?.playerName))) {
+    if (playerSlots.some(s => !s.preferences?.playerName)) {
         toast({ variant: 'destructive', title: 'Player Names Required', description: 'Please enter a name for each player.' });
         return;
     }
@@ -422,7 +444,7 @@ const handleGenerateAll = async () => {
     setIsGenerating(true);
     try {
         const slotsForAI = playerSlots.map(s => {
-            const prefs = (s as any).preferences || {};
+            const prefs = s.preferences || {};
             return {
                 id: s.id,
                 playerName: prefs.playerName,
@@ -449,7 +471,7 @@ const handleGenerateAll = async () => {
                         id: slot.id,
                         isCustom: false,
                         playerId: currentUserPlayerId!,
-                        playerName: (slot as any).preferences.playerName,
+                        playerName: slot.preferences?.playerName || 'Unknown',
                     }
                 };
             }
