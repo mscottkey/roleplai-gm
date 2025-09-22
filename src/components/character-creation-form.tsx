@@ -158,7 +158,7 @@ export function CharacterCreationForm({
       setHasGenerated(true);
     } else {
       // For a new game, start with one slot for the host
-      const hostName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host';
+      const hostName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
       setPlayerSlots([{
         id: `${formId}-slot-0`,
         playerName: hostName,
