@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameData, Character as CustomCharacterType } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, UserCheck, UserX } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ReactMarkdown from 'react-markdown';
@@ -138,40 +138,38 @@ export function CharacterCreationForm({
   onClaimCharacter,
 }: CharacterCreationFormProps) {
   const formId = useId();
-  const [partySize, setPartySize] = useState(initialCharacters.length || 4);
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(initialCharacters.length > 0);
   const { toast } = useToast();
 
   useEffect(() => {
-    // This effect syncs the internal state with props, useful for reloads or initial setup.
     if (initialCharacters.length > 0) {
+      // If loading an existing game with characters, populate the slots from DB
       const slots = initialCharacters.map(char => ({
         id: char.id,
         playerName: char.playerName,
-        characterName: char.name, // Pre-fill with existing name
-        vision: '', // Vision is transient, not stored
+        characterName: char.name,
+        vision: '',
         gender: char.gender || 'Any',
         character: char,
       }));
       setPlayerSlots(slots);
-      setPartySize(slots.length);
       setHasGenerated(true);
     } else {
-      // If no initial characters, set up empty slots based on party size
-      const newSlots = Array.from({ length: partySize }, (_, i) => ({
-        id: `${formId}-slot-${i}`,
-        playerName: '',
+      // For a new game, start with one slot for the host
+      const hostName = currentUser?.isAnonymous ? 'Host' : currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host';
+      setPlayerSlots([{
+        id: `${formId}-slot-0`,
+        playerName: hostName,
         characterName: '',
         vision: '',
         gender: 'Any',
         character: null,
-      }));
-      setPlayerSlots(newSlots);
+      }]);
       setHasGenerated(false);
     }
-  }, [initialCharacters, partySize, formId]);
+  }, [initialCharacters, formId, currentUser]);
 
 
   const updateSlot = (slotId: string, field: keyof Omit<PlayerSlot, 'id' | 'character'>, value: string) => {
@@ -179,17 +177,38 @@ export function CharacterCreationForm({
       slot.id === slotId ? { ...slot, [field]: value } : slot
     ));
   };
-  
-  const handlePartySizeChange = (val: string) => {
-    const newSize = Number(val);
-    setPartySize(newSize);
-    // Reset generation state when size changes
-    setHasGenerated(false);
-  }
 
+  const addPlayerSlot = () => {
+    setHasGenerated(false);
+    const newSlot: PlayerSlot = {
+      id: `${formId}-slot-${playerSlots.length}`,
+      playerName: '',
+      characterName: '',
+      vision: '',
+      gender: 'Any',
+      character: null,
+    };
+    setPlayerSlots(prev => [...prev, newSlot]);
+  };
+
+  const removePlayerSlot = (slotId: string) => {
+    setHasGenerated(false);
+    setPlayerSlots(prev => prev.filter(slot => slot.id !== slotId));
+  };
+  
   const generateParty = async () => {
     setIsGenerating(true);
     setHasGenerated(false);
+    
+    if (playerSlots.some(slot => !slot.playerName.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Player Names Required",
+        description: "Please enter a name for each player before generating characters.",
+      });
+      setIsGenerating(false);
+      return;
+    }
 
     const characterSlotsForAI = playerSlots.map(slot => ({
         id: slot.id,
@@ -282,8 +301,8 @@ export function CharacterCreationForm({
      if (playerSlots.some(slot => !slot.playerName.trim())) {
       toast({
         variant: "destructive",
-        title: "Add Player Names",
-        description: "Please enter each player's name for a better experience.",
+        title: "Player Names Required",
+        description: "Please enter a name for each player before starting the game.",
       });
       return;
     }
@@ -359,57 +378,62 @@ export function CharacterCreationForm({
               <TabsContent value="party">
                  {!hasGenerated ? (
                   <div className="flex flex-col items-center justify-center text-center p-8 space-y-4 h-full">
-                    <div className="flex items-center gap-4 mb-4">
-                      <Label htmlFor="party-size">Number of Characters:</Label>
-                      <Select value={String(partySize)} onValueChange={handlePartySizeChange} disabled={isGenerating || !isHost}>
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1,2,3,4,5,6].map(s => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                     <div className="w-full max-w-4xl space-y-4">
-                        <p className="text-sm text-muted-foreground">For each player, you can optionally provide preferences.</p>
-                        {playerSlots.map((slot, index) => (
-                             <Card key={slot.id} className="p-3 bg-muted/30">
-                                <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-                                     <Input 
-                                        placeholder={`Player ${index + 1} Name`}
-                                        className="font-bold"
-                                        value={slot.playerName}
-                                        onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
-                                        disabled={!isHost}
-                                    />
-                                    <Input 
-                                        placeholder="Character Name (Optional)"
-                                        value={slot.characterName}
-                                        onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
-                                        disabled={!isHost}
-                                    />
-                                     <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!isHost}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Gender" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Any">Any Gender</SelectItem>
-                                            <SelectItem value="Male">Male</SelectItem>
-                                            <SelectItem value="Female">Female</SelectItem>
-                                            <SelectItem value="Non-binary">Non-binary</SelectItem>
-                                        </SelectContent>
-                                     </Select>
-                                     <Input 
-                                        placeholder="Character Vision (e.g., 'grumpy space marine')"
-                                        className="border-dashed"
-                                        value={slot.vision}
-                                        onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
-                                        disabled={!isHost}
-                                    />
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
+                    <div className="w-full max-w-4xl space-y-4">
+                      <p className="text-sm text-muted-foreground">For each player, you can optionally provide preferences before generating.</p>
+                      {playerSlots.map((slot, index) => (
+                           <Card key={slot.id} className="p-3 bg-muted/30 relative">
+                              <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+                                   <Input 
+                                      placeholder={`Player ${index + 1} Name`}
+                                      className="font-bold"
+                                      value={slot.playerName}
+                                      onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
+                                      disabled={!isHost || index === 0}
+                                  />
+                                  <Input 
+                                      placeholder="Character Name (Optional)"
+                                      value={slot.characterName}
+                                      onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
+                                      disabled={!isHost}
+                                  />
+                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!isHost}>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Gender" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="Any">Any Gender</SelectItem>
+                                          <SelectItem value="Male">Male</SelectItem>
+                                          <SelectItem value="Female">Female</SelectItem>
+                                          <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                      </SelectContent>
+                                   </Select>
+                                   <Input 
+                                      placeholder="Character Vision (e.g., 'grumpy space marine')"
+                                      className="border-dashed"
+                                      value={slot.vision}
+                                      onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                      disabled={!isHost}
+                                  />
+                              </div>
+                               {isHost && index > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removePlayerSlot(slot.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                          </Card>
+                      ))}
+                      {isHost && (
+                        <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed">
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Add another player
+                        </Button>
+                      )}
+                  </div>
                     {isHost && (
                       <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
                         <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
