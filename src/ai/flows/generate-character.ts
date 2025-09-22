@@ -48,7 +48,8 @@ Provide:
   - A 'stunts' property: an array of 2 unique and interesting stunt objects, each with a 'name' and a 'description' that grants a specific mechanical benefit, as per Fate Core rules.
 
 Preferences:
-{{#if name}}Preferred Name: {{{name}}}{{/if}}
+{{#if playerName}}Player Name: {{{playerName}}}{{/if}}
+{{#if name}}Preferred Character Name: {{{name}}}{{/if}}
 {{#if vision}}Character Vision: {{{vision}}}{{/if}}
 {{#if gender}}Preferred Gender: {{{gender}}}{{/if}}
 {{#if age}}Preferred Age: {{{age}}}{{/if}}

@@ -36,6 +36,7 @@ export type Character = z.infer<typeof CharacterSchema>;
 
 const CharacterSlotSchema = z.object({
   id: z.string().describe("A unique identifier for this character slot."),
+  playerName: z.string().optional().describe("The name of the player for this slot."),
   name: z.string().optional().describe("A preferred name for the character."),
   vision: z.string().optional().describe("A player-provided vision or concept for the character."),
   gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),

@@ -212,6 +212,7 @@ export function CharacterCreationForm({
 
     const characterSlotsForAI = playerSlots.map(slot => ({
         id: slot.id,
+        playerName: slot.playerName,
         name: slot.characterName, // Use the preferred character name for the AI
         vision: slot.vision,
         gender: slot.gender === 'Any' ? undefined : slot.gender,
@@ -269,6 +270,7 @@ export function CharacterCreationForm({
             tone: gameData.tone,
             characterSlots: [{ 
               id: slotId, 
+              playerName: slotToRegen.playerName,
               name: slotToRegen.characterName, 
               vision: slotToRegen.vision,
               gender: slotToRegen.gender === 'Any' ? undefined : slotToRegen.gender,
