@@ -34,13 +34,24 @@ import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as
 
 // Initialize Firebase Admin SDK
 function getAdminSDK() {
-  if (!getAdminApps().length) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+  if (getAdminApps().length > 0) {
+    return getAdminApp();
+  }
+
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccountKey) {
+    throw new Error('The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountKey);
     return initializeAdminApp({
       credential: cert(serviceAccount),
     });
+  } catch (e) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it is a valid JSON string in your .env file.');
+    throw e;
   }
-  return getAdminApp();
 }
 
 
