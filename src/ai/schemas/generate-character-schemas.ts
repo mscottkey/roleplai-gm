@@ -49,6 +49,12 @@ const ExistingCharacterSchema = z.object({
   description: z.string(),
 });
 
+export const SingleCharacterInputSchema = CharacterSlotSchema.extend({
+  setting: z.string().describe('The game setting description.'),
+  tone: z.string().describe('The game tone description.'),
+  existingCharacters: z.array(ExistingCharacterSchema).optional().describe('An optional list of existing characters in the party to ensure the new character is unique in concept.'),
+});
+
 export const GenerateCharacterInputSchema = z.object({
   setting: z.string().describe('The game setting description.'),
   tone: z.string().describe('The game tone description.'),
@@ -58,6 +64,6 @@ export const GenerateCharacterInputSchema = z.object({
 export type GenerateCharacterInput = z.infer<typeof GenerateCharacterInputSchema>;
 
 export const GenerateCharacterOutputSchema = z.object({
-  characters: z.array(CharacterSchema.extend({slotId: z.string().describe("The unique ID of the slot this character was generated for.")})).describe('An array of distinct character suggestions, one for each requested slot.'),
+  characters: z.array(CharacterSchema.extend({slotId: z.string()})).describe('An array of distinct character suggestions, one for each requested slot.'),
 });
 export type GenerateCharacterOutput = z.infer<typeof GenerateCharacterOutputSchema>;
