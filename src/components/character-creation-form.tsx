@@ -144,6 +144,8 @@ export function CharacterCreationForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(initialCharacters.length > 0);
   const { toast } = useToast();
+  
+  const isHost = currentUser?.uid === gameData.userId;
 
   useEffect(() => {
     if (initialCharacters.length > 0) {
@@ -160,7 +162,7 @@ export function CharacterCreationForm({
       setHasGenerated(true);
     } else {
       // For a new game, start with one slot for the host
-      const hostName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
+      const hostName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host';
       setPlayerSlots([{
         id: `${formId}-slot-0`,
         playerName: hostName,
@@ -231,12 +233,14 @@ export function CharacterCreationForm({
             const generatedCharData = result.characters.find(c => c.slotId === slot.id);
             if (!generatedCharData) return slot;
 
+            const isHostSlot = slot.playerName === (currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host');
+
             const newCharacter: FormCharacter = {
                 ...generatedCharData,
                 id: slot.id, // Ensure ID matches the slot ID
                 playerName: slot.playerName, // Carry over the player name
                 isCustom: false,
-                claimedBy: gameData.playMode === 'remote' ? '' : currentUser?.uid,
+                claimedBy: (gameData.playMode === 'local' || (gameData.playMode === 'remote' && isHostSlot)) ? currentUser?.uid : '',
             };
             return { ...slot, character: newCharacter };
         });
@@ -339,8 +343,6 @@ export function CharacterCreationForm({
     onCharactersFinalized(finalCharacters);
   };
   
-  const isHost = currentUser?.uid === gameData.userId;
-  
   if (gameData.playMode === 'remote') {
     return (
         <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
@@ -351,32 +353,74 @@ export function CharacterCreationForm({
                 Multiplayer Lobby
               </CardTitle>
               <CardDescription className="pt-2">
-                Share the link below to invite players. They will appear here once they've joined and created a character.
+                {isHost 
+                    ? "Add player slots, generate characters, and share the invite link for your friends to join and claim their character."
+                    : "The host is setting up the party. Once characters are ready, you can claim one."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
                {isHost && activeGameId && <ShareGameInvite gameId={activeGameId} />}
 
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {playerSlots.map((slot) => {
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {playerSlots.map((slot, index) => {
                       const isClaimedByCurrentUser = slot.character?.claimedBy === currentUser?.uid;
                       const isClaimedByOther = slot.character?.claimedBy && !isClaimedByCurrentUser;
+                      const canEdit = isHost || (slot.character?.claimedBy === currentUser?.uid && !isHost);
                       return (
                         <Card key={slot.id} className={cn("flex flex-col relative group transition-all", isClaimedByCurrentUser && "border-primary")}>
-                          <CardHeader>
-                             <p className="text-center font-bold text-lg">Played by {slot.character?.playerName || '...'}</p>
-                          </CardHeader>
+                           <CardHeader>
+                               <Input 
+                                  placeholder={`Player ${index + 1} Name`}
+                                  className="font-bold text-center text-lg"
+                                  value={slot.playerName}
+                                  onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
+                                  disabled={!isHost || (index === 0 && isHost)}
+                              />
+                              {slot.character?.claimedBy && <p className="text-xs text-center text-muted-foreground mt-1">Claimed by: {slot.character.playerName}</p>}
+                           </CardHeader>
                           
                           <CardContent className="flex-1 space-y-4">
                             {slot.character ? (
                                 <CharacterDisplay char={slot.character} />
                             ) : (
-                                <div className="text-center text-muted-foreground p-4 h-full flex items-center justify-center">Waiting for player...</div>
+                               <div className="space-y-4">
+                                  <Input 
+                                      placeholder="Character Name (Optional)"
+                                      value={slot.characterName}
+                                      onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
+                                      disabled={!canEdit}
+                                  />
+                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!canEdit}>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Gender" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="Any">Any Gender</SelectItem>
+                                          <SelectItem value="Male">Male</SelectItem>
+                                          <SelectItem value="Female">Female</SelectItem>
+                                          <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                      </SelectContent>
+                                   </Select>
+                                   <Input 
+                                      placeholder="Character Vision (e.g., 'grumpy space marine')"
+                                      className="border-dashed"
+                                      value={slot.vision}
+                                      onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                      disabled={!canEdit}
+                                  />
+                               </div>
                             )}
                           </CardContent>
                           
                           <CardFooter className="flex flex-col gap-2">
-                            {slot.character && (
+                             {canEdit && (
+                                <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
+                                    <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                                    {slot.character ? 'Regenerate' : 'Generate'}
+                                </Button>
+                             )}
+
+                            {slot.character && !isHost && (
                               <>
                                 {isClaimedByCurrentUser ? (
                                   <Button variant="destructive" size="sm" className="w-full" onClick={() => onClaimCharacter(slot.character!.id, false)}>
@@ -397,10 +441,28 @@ export function CharacterCreationForm({
                                 )}
                               </>
                             )}
+
+                             {isHost && index > 0 && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removePlayerSlot(slot.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                           </CardFooter>
                         </Card>
                       )
                     })}
+
+                    {isHost && (
+                      <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Add another player
+                      </Button>
+                    )}
                </div>
             </CardContent>
             {isHost && (
@@ -408,7 +470,7 @@ export function CharacterCreationForm({
                 <Button
                   size="lg"
                   onClick={handleFinalize}
-                  disabled={isGenerating || isLoading || playerSlots.some(s => !s.character?.claimedBy)}
+                  disabled={isGenerating || isLoading || playerSlots.some(s => !s.character || !s.character.claimedBy)}
                   className="font-headline text-xl"
                 >
                    {isLoading ? (
@@ -423,6 +485,7 @@ export function CharacterCreationForm({
                       </>
                     )}
                 </Button>
+                 <p className="text-xs text-muted-foreground">All characters must be generated and claimed before starting.</p>
               </CardFooter>
             )}
           </Card>
