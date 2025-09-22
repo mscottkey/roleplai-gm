@@ -10,7 +10,7 @@ import { Logo } from '@/components/logo';
 export default function LandingPage() {
   const router = useRouter();
   const bgImage = {
-    imageUrl: "https://storage.googleapis.com/app-prototyping-test-2-de63b.appspot.com/a9763a14-4195-4672-a79b-2a919d7b4097.png",
+    imageUrl: "/landing-background.png",
     description: "A mysterious hooded figure with glowing eyes sits at a table, acting as a game master for a tabletop RPG with several other players.",
     imageHint: "tabletop RPG game master"
   };
@@ -39,19 +39,22 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        <section className="relative h-[60vh] min-h-[500px] flex items-center justify-center text-center text-white">
-          {bgImage && (
-            <Image
-              src={bgImage.imageUrl}
-              alt={bgImage.description}
-              fill
-              className="object-cover object-bottom"
-              data-ai-hint={bgImage.imageHint}
-              priority
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
-          <div className="relative z-10 container max-w-4xl px-4">
+        <section className="relative w-full flex items-center justify-center text-center text-white">
+          <div className="w-full">
+            {bgImage && (
+              <Image
+                src={bgImage.imageUrl}
+                alt={bgImage.description}
+                width={1920}
+                height={1080}
+                className="w-full h-auto"
+                data-ai-hint={bgImage.imageHint}
+                priority
+              />
+            )}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 container max-w-4xl px-4">
             <h1 className="text-4xl font-headline font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
               Your Personal AI Game Master
             </h1>
