@@ -10,17 +10,19 @@ import { Logo } from '@/components/logo';
 export default function LandingPage() {
   const router = useRouter();
   const bgImage = {
-    imageUrl: "https://images.unsplash.com/photo-1542779283-429940ce8336?q=80&w=2070&auto=format&fit=crop",
-    description: "A scene of a tabletop roleplaying game session being run by a mysterious hooded AI game master on a laptop.",
-    imageHint: "tabletop RPG"
-  }
+    imageUrl: "https://storage.googleapis.com/app-prototyping-test-2-de63b.appspot.com/a9763a14-4195-4672-a79b-2a919d7b4097.png",
+    description: "A mysterious hooded figure with glowing eyes sits at a table, acting as a game master for a tabletop RPG with several other players.",
+    imageHint: "tabletop RPG game master"
+  };
+  
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
           <div className="mr-4 flex items-center">
-            <Logo className="w-8 h-8 mr-2 text-primary" />
+            {/* <Logo className="w-8 h-8 mr-2 text-primary" /> */}
+            <Logo useImage imageSrc="/roleplai-logo.png?v=2" imageAlt="Test Logo" imageSize={64} />
             <span className="font-headline text-lg font-bold text-primary">RoleplAI GM</span>
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
