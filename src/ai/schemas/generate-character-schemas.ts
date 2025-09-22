@@ -13,8 +13,8 @@ export const StuntSchema = z.object({
 export type Stunt = z.infer<typeof StuntSchema>;
 
 const CharacterStatsSchema = z.object({
-  skills: z.array(SkillSchema).optional().describe("An array of the character's skills, each with a name and rank."),
-  stunts: z.array(StuntSchema).optional().describe("An array of the character's stunts or special abilities."),
+  skills: z.array(SkillSchema).describe("An array of the character's skills, each with a name and rank."),
+  stunts: z.array(StuntSchema).describe("An array of the character's stunts or special abilities."),
 }).describe("A flexible object to hold system-specific character mechanics.");
 export type CharacterStats = z.infer<typeof CharacterStatsSchema>;
 
@@ -27,7 +27,7 @@ export const CharacterSchema = z.object({
     gender: z.string().optional().describe("The character's gender."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
-    stats: CharacterStatsSchema.optional(),
+    stats: CharacterStatsSchema,
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });
 export type Character = z.infer<typeof CharacterSchema>;

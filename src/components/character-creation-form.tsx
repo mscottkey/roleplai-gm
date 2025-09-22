@@ -158,7 +158,7 @@ export function CharacterCreationForm({
       setHasGenerated(true);
     } else {
       // For a new game, start with one slot for the host
-      const hostName = currentUser?.isAnonymous ? 'Host' : currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host';
+      const hostName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Host';
       setPlayerSlots([{
         id: `${formId}-slot-0`,
         playerName: hostName,
@@ -388,7 +388,7 @@ export function CharacterCreationForm({
                                       className="font-bold"
                                       value={slot.playerName}
                                       onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
-                                      disabled={!isHost || index === 0}
+                                      disabled={!isHost || (index === 0 && gameData.playMode === 'local')}
                                   />
                                   <Input 
                                       placeholder="Character Name (Optional)"
