@@ -227,6 +227,7 @@ export function CharacterCreationForm({
             setting: gameData.setting,
             tone: gameData.tone,
             characterSlots: characterSlotsForAI,
+            existingCharacters: [],
         });
         
         const newPlayerSlots = playerSlots.map(slot => {
@@ -365,7 +366,6 @@ export function CharacterCreationForm({
                   {playerSlots.map((slot, index) => {
                       const isClaimedByCurrentUser = slot.character?.claimedBy === currentUser?.uid;
                       const isClaimedByOther = slot.character?.claimedBy && !isClaimedByCurrentUser;
-                      const canEdit = isHost || (slot.character?.claimedBy === currentUser?.uid && !isHost);
                       return (
                         <Card key={slot.id} className={cn("flex flex-col relative group transition-all", isClaimedByCurrentUser && "border-primary")}>
                            <CardHeader>
@@ -388,9 +388,9 @@ export function CharacterCreationForm({
                                       placeholder="Character Name (Optional)"
                                       value={slot.characterName}
                                       onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
-                                      disabled={!canEdit}
+                                      disabled={!isHost}
                                   />
-                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!canEdit}>
+                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!isHost}>
                                       <SelectTrigger>
                                           <SelectValue placeholder="Gender" />
                                       </SelectTrigger>
@@ -406,14 +406,14 @@ export function CharacterCreationForm({
                                       className="border-dashed"
                                       value={slot.vision}
                                       onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
-                                      disabled={!canEdit}
+                                      disabled={!isHost}
                                   />
                                </div>
                             )}
                           </CardContent>
                           
                           <CardFooter className="flex flex-col gap-2">
-                             {canEdit && (
+                             {isHost && (
                                 <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
                                     <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
                                     {slot.character ? 'Regenerate' : 'Generate'}
@@ -545,15 +545,14 @@ export function CharacterCreationForm({
                                       className="font-bold"
                                       value={slot.playerName}
                                       onChange={(e) => updateSlot(slot.id, 'playerName', e.target.value)}
-                                      disabled={!isHost || (index === 0 && gameData.playMode === 'local')}
+                                      disabled={index === 0}
                                   />
                                   <Input 
                                       placeholder="Character Name (Optional)"
                                       value={slot.characterName}
                                       onChange={(e) => updateSlot(slot.id, 'characterName', e.target.value)}
-                                      disabled={!isHost}
                                   />
-                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)} disabled={!isHost}>
+                                   <Select value={slot.gender} onValueChange={(v) => updateSlot(slot.id, 'gender', v)}>
                                       <SelectTrigger>
                                           <SelectValue placeholder="Gender" />
                                       </SelectTrigger>
@@ -569,10 +568,9 @@ export function CharacterCreationForm({
                                       className="border-dashed"
                                       value={slot.vision}
                                       onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
-                                      disabled={!isHost}
                                   />
                               </div>
-                               {isHost && index > 0 && (
+                               {index > 0 && (
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
@@ -584,25 +582,19 @@ export function CharacterCreationForm({
                               )}
                           </Card>
                       ))}
-                      {isHost && (
-                        <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed">
+                      <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed">
                           <UserPlus className="mr-2 h-4 w-4" />
                           Add another player
-                        </Button>
-                      )}
-                  </div>
-                    {isHost && (
-                      <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
-                        <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
-                        Generate Party
                       </Button>
-                    )}
+                  </div>
+                    <Button size="lg" onClick={generateParty} disabled={isGenerating || isLoading} className="mt-6">
+                      <Wand2 className={cn("mr-2 h-5 w-5", isGenerating && "animate-spin")} />
+                      Generate Party
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {playerSlots.map((slot) => {
-                      const isClaimedByCurrentUser = slot.character?.claimedBy === currentUser?.uid;
-                      const isClaimedByOther = slot.character?.claimedBy && !isClaimedByCurrentUser;
                       return (
                         <Card key={slot.id} className={cn("flex flex-col relative group transition-all")}>
                           <CardHeader>
@@ -618,20 +610,18 @@ export function CharacterCreationForm({
                           </CardContent>
                           
                           <CardFooter className="flex flex-col gap-2">
-                            {isHost && (
-                              <>
-                                <Textarea 
-                                  placeholder="New Character Vision..."
-                                  value={slot.vision}
-                                  onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
-                                  className="h-20 text-xs mb-2"
-                                />
-                                <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
-                                  <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
-                                  Regenerate Character
-                                </Button>
-                              </>
-                            )}
+                            <>
+                              <Textarea 
+                                placeholder="New Character Vision..."
+                                value={slot.vision}
+                                onChange={(e) => updateSlot(slot.id, 'vision', e.target.value)}
+                                className="h-20 text-xs mb-2"
+                              />
+                              <Button size="sm" variant="secondary" className="w-full" onClick={() => regenerateCharacter(slot.id)} disabled={isGenerating}>
+                                <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                                Regenerate Character
+                              </Button>
+                            </>
                           </CardFooter>
                         </Card>
                       )
@@ -641,34 +631,32 @@ export function CharacterCreationForm({
               </TabsContent>
             </Tabs>
         </CardContent>
-        {isHost && (
-          <CardFooter className="flex-col gap-4 justify-center pt-6">
-            <Button
-              size="lg"
-              onClick={handleFinalize}
-              disabled={isGenerating || !hasGenerated || isLoading}
-              className="font-headline text-xl"
-            >
-               {isLoading ? (
-                  <>
-                    <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
-                    Building World...
-                  </>
-                ) : (
-                  <>
-                    <Dices className="mr-2 h-5 w-5" />
-                    Finalize Party & Build World
-                  </>
-                )}
+        <CardFooter className="flex-col gap-4 justify-center pt-6">
+          <Button
+            size="lg"
+            onClick={handleFinalize}
+            disabled={isGenerating || !hasGenerated || isLoading}
+            className="font-headline text-xl"
+          >
+             {isLoading ? (
+                <>
+                  <LoadingSpinner className="mr-2 h-5 w-5 animate-spin" />
+                  Building World...
+                </>
+              ) : (
+                <>
+                  <Dices className="mr-2 h-5 w-5" />
+                  Finalize Party & Build World
+                </>
+              )}
+          </Button>
+          {hasGenerated && (
+            <Button variant="ghost" size="sm" onClick={generateParty} disabled={isGenerating || isLoading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate Entire Party
             </Button>
-            {hasGenerated && (
-              <Button variant="ghost" size="sm" onClick={generateParty} disabled={isGenerating || isLoading}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerate Entire Party
-              </Button>
-            )}
-          </CardFooter>
-        )}
+          )}
+        </CardFooter>
       </Card>
     </div>
   );
