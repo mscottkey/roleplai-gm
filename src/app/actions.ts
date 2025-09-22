@@ -38,18 +38,22 @@ function getAdminSDK() {
     return getAdminApp();
   }
 
-  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!serviceAccountKey) {
-    throw new Error('The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+  const serviceAccountKeyBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccountKeyBase64) {
+    throw new Error('The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. It must be a base64 encoded string.');
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountKey);
+    // Decode the base64 string to get the JSON string
+    const serviceAccountJson = Buffer.from(serviceAccountKeyBase64, 'base64').toString('utf8');
+    // Parse the JSON string into an object
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    
     return initializeAdminApp({
       credential: cert(serviceAccount),
     });
-  } catch (e) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it is a valid JSON string in your .env file.');
+  } catch (e: any) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it is a valid base64-encoded JSON string.', e.message);
     throw e;
   }
 }
