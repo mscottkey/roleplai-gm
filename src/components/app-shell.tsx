@@ -31,6 +31,7 @@ type AppShellProps = {
   onSelectGame: (id: string) => void
   onDeleteGame: (game: GameSession) => void
   onRenameGame: (game: GameSession) => void
+  onOpenAccount: () => void;
 }
 
 function AppShellHeader() {
@@ -55,7 +56,7 @@ function AppShellHeader() {
       </SidebarHeader>
   )
 }
-export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame, onDeleteGame, onRenameGame }: AppShellProps) {
+export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame, onDeleteGame, onRenameGame, onOpenAccount }: AppShellProps) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -80,7 +81,7 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
           />
         </SidebarContent>
         <SidebarFooter>
-          <UserMenu />
+          <UserMenu onOpenAccount={onOpenAccount} />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

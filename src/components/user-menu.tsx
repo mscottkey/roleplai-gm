@@ -14,12 +14,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User, Mail } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export function UserMenu() {
+type UserMenuProps = {
+  onOpenAccount: () => void;
+};
+
+
+export function UserMenu({ onOpenAccount }: UserMenuProps) {
   const { user } = useAuth();
   const { state } = useSidebar();
   const router = useRouter();
@@ -33,7 +38,7 @@ export function UserMenu() {
     return null;
   }
 
-  const displayName = user.isAnonymous ? "Guest User" : user.email || "User";
+  const displayName = user.isAnonymous ? "Guest User" : user.displayName || user.email || "User";
   const displayId = user.isAnonymous ? user.uid : user.email;
 
   if (state === 'collapsed') {
@@ -59,6 +64,11 @@ export function UserMenu() {
           </Tooltip>
           <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onOpenAccount}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Account Settings</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -92,6 +102,11 @@ export function UserMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onOpenAccount}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Account Settings</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character, GameSession } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame, updateUserProfile } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -27,6 +27,7 @@ import { cleanMarkdown } from '@/lib/utils';
 import type { Character as AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
+import { AccountDialog } from '@/components/account-dialog';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -90,6 +91,8 @@ export default function RoleplAIGMPage() {
   const [nextCharacter, setNextCharacter] = useState<Character | null>(null);
 
   const deletingGameId = useRef<string | null>(null);
+
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
 
 
   const { toast } = useToast();
@@ -548,7 +551,7 @@ The stage is set. What do you do?
                     worldState,
                     character: {
                         ...activeCharacter,
-                        stats: activeCharacter.stats || {},
+                        stats: activeCharacter.stats || { skills: [], stunts: [] },
                         id: activeCharacter.id || '',
                     },
                 });
@@ -874,6 +877,20 @@ The stage is set. What do you do?
     }
   }
 
+  const handleProfileUpdate = async (newName: string) => {
+    if (!user) return;
+    const result = await updateUserProfile(user.uid, { displayName: newName });
+    if (result.success) {
+      toast({ title: 'Profile Updated', description: 'Your display name has been changed.' });
+      setIsAccountDialogOpen(false);
+      // Auth state listener should pick up the change eventually, force a reload if needed
+      // Forcing a hard reload to ensure user object is updated everywhere
+      window.location.reload();
+    } else {
+      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+  };
+
 
   const renderContent = () => {
     switch (step) {
@@ -941,6 +958,7 @@ The stage is set. What do you do?
           setRenameTarget(game);
           setNewGameName(game.gameData.name);
         }}
+        onOpenAccount={() => setIsAccountDialogOpen(true)}
       >
         {renderContent()}
       </AppShell>
@@ -1027,6 +1045,16 @@ The stage is set. What do you do?
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Account Settings Dialog */}
+      {user && (
+        <AccountDialog
+          isOpen={isAccountDialogOpen}
+          onOpenChange={setIsAccountDialogOpen}
+          user={user}
+          onProfileUpdate={handleProfileUpdate}
+        />
       )}
     </>
   );

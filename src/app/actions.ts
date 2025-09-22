@@ -29,6 +29,21 @@ import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Time
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, Character } from "@/ai/schemas/generate-character-schemas";
 
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
+
+// Initialize Firebase Admin SDK
+function getAdminSDK() {
+  if (!getAdminApps().length) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    return initializeAdminApp({
+      credential: cert(serviceAccount),
+    });
+  }
+  return getAdminApp();
+}
+
+
 // Initialize Firebase for server actions
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -385,6 +400,28 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
         return { success: true };
     } catch (error) {
         console.error("Error in renameGame action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
+
+export async function updateUserProfile(userId: string, updates: { displayName?: string }): Promise<{ success: boolean; message?: string }> {
+    if (!userId) {
+        return { success: false, message: "User ID is required." };
+    }
+    
+    if (!updates.displayName || updates.displayName.trim().length < 3) {
+        return { success: false, message: "Display name must be at least 3 characters long." };
+    }
+
+    try {
+        getAdminSDK(); // Ensure admin app is initialized
+        await getAdminAuth().updateUser(userId, {
+            displayName: updates.displayName,
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error in updateUserProfile action:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message };
     }
