@@ -63,7 +63,7 @@ export default {
           '5': 'hsl(var(--chart-5))',
         },
          sidebar: {
-          DEFAULT: 'hsl(var(--primary) / 0.05)',
+          DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--primary) / 0.9)',
           border: 'hsl(var(--primary) / 0.1)',
           accent: 'hsl(var(--primary) / 0.1)',
