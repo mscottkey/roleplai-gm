@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useId, useEffect } from 'react';
@@ -167,12 +168,11 @@ export function CharacterCreationForm({
   }
 
   const addPlayerSlot = () => {
-    const newPlayerName = `Player ${playerSlots.length + 1}`;
     const newSlot: PlayerSlot = {
       id: `${formId}-slot-${playerSlots.length}`,
       character: null,
       preferences: {
-        playerName: newPlayerName
+        playerName: ''
       }
     };
     updateSlots([...playerSlots, newSlot]);
