@@ -40,10 +40,10 @@ function AppShellHeader() {
         <SidebarHeader>
           <div className="flex items-center justify-between p-2">
              {isMobile ? <SidebarTrigger /> : null}
-             <button className="flex items-center gap-2 bg-transparent hover:bg-transparent" onClick={() => router.push('/')}>
+             <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
                 <Logo useImage imageSrc="/roleplai-logo.png?v=2" imageAlt="RoleplAI Logo" imageSize={32} className="w-8 h-8 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10" />
                 <span className="font-headline text-lg font-bold text-primary group-data-[collapsible=icon]:hidden">RoleplAI GM</span>
-             </button>
+             </div>
              <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
           </div>
         </SidebarHeader>
