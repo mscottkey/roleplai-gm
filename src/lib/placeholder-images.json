@@ -2,9 +2,9 @@
   "placeholderImages": [
     {
       "id": "landing-background",
-      "description": "A mystical, futuristic landscape suggesting adventure.",
-      "imageUrl": "https://picsum.photos/seed/rpg-adventures/1920/1080",
-      "imageHint": "fantasy landscape"
+      "description": "A scene of a tabletop roleplaying game session being run by a mysterious hooded AI game master.",
+      "imageUrl": "https://picsum.photos/seed/ai-gamemaster/1920/1080",
+      "imageHint": "tabletop RPG"
     }
   ]
 }
