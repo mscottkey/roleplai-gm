@@ -57,8 +57,9 @@ export function LoginForm() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen w-full bg-background p-4 bg-[url('/grid.svg')]">
-      <Card className="w-full max-w-md mx-4 shadow-2xl">
+    <div className="relative flex items-center justify-center min-h-screen w-full bg-cover bg-center p-4" style={{backgroundImage: "url('/landing-background.png')"}}>
+      <div className="absolute inset-0 bg-black/60 z-0" />
+      <Card className="w-full max-w-md mx-4 shadow-2xl z-10">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center gap-3">
             <Logo className="h-12 w-12 text-primary" />
