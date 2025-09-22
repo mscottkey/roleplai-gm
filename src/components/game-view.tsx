@@ -21,6 +21,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { User as FirebaseUser } from 'firebase/auth';
+
 
 type GameViewProps = {
   messages: Message[];
@@ -37,6 +39,7 @@ type GameViewProps = {
   onUndo: () => void;
   canUndo: boolean;
   onRegenerateStoryline: () => void;
+  currentUser: FirebaseUser | null;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -63,6 +66,7 @@ export function GameView({
   onUndo,
   canUndo,
   onRegenerateStoryline,
+  currentUser,
   // TTS props
   isSpeaking,
   isPaused,
@@ -200,6 +204,7 @@ export function GameView({
             onUndo={onUndo}
             canUndo={canUndo}
             onRegenerateStoryline={onRegenerateStoryline}
+            currentUser={currentUser}
             // TTS Props
             isSpeaking={isSpeaking}
             isPaused={isPaused}
@@ -214,3 +219,5 @@ export function GameView({
     </div>
   );
 }
+
+    

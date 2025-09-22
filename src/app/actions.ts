@@ -134,8 +134,31 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
 }
 
 export async function continueStory(input: ResolveActionInput): Promise<ResolveActionOutput> {
+  const { characterId, worldState } = input;
+  
+  // Server-side validation
+  const app = getServerApp();
+  const db = getFirestore(app);
+  
+  // A bit of a hacky way to find the gameId from the worldState
+  const gameQuery = query(collection(db, 'games'), where('worldState.summary', '==', worldState.summary));
+  const gameSnapshot = await getDocs(gameQuery);
+  
+  if (gameSnapshot.empty) {
+    throw new Error("Game not found for validation.");
+  }
+  const gameDoc = gameSnapshot.docs[0];
+  const gameData = gameDoc.data();
+
+  if (gameData.gameData.playMode === 'remote' && gameData.activeCharacterId !== characterId) {
+      throw new Error("It is not this character's turn to act.");
+  }
+  
   try {
-    return await resolveAction(input);
+    const character = worldState.characters.find(c => c.id === characterId);
+    if (!character) throw new Error("Character not found in world state.");
+    
+    return await resolveAction({ ...input, character });
   } catch (error) {
     console.error("Error in continueStory action:", error);
     throw new Error("The story could not be continued. Please try again.");
@@ -216,9 +239,13 @@ export async function routePlayerInput(input: ClassifyIntentInput): Promise<Clas
 
 export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
   try {
-    return await askQuestion(input);
-  } catch (error)
-{
+    const { worldState, characterId } = input;
+    const character = worldState.characters.find(c => c.id === characterId);
+    if (!character) {
+      throw new Error("Character asking question not found in world state.");
+    }
+    return await askQuestion({ ...input, character });
+  } catch (error) {
     console.error("Error in getAnswerToQuestion action:", error);
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
@@ -331,6 +358,8 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
     return { success: false, message };
   }
 }
+
+    
 
     
 

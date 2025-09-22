@@ -16,9 +16,19 @@ type TurnManagerProps = {
   characters: Character[];
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character) => void;
+  currentUserId?: string | null;
+  hostId?: string | null;
+  playMode?: 'local' | 'remote';
 };
 
-export function TurnManager({ characters, activeCharacter, setActiveCharacter }: TurnManagerProps) {
+export function TurnManager({ 
+  characters, 
+  activeCharacter, 
+  setActiveCharacter,
+  currentUserId,
+  hostId,
+  playMode
+}: TurnManagerProps) {
   
   const handleValueChange = (characterId: string) => {
     const newActiveCharacter = characters.find(c => c.id === characterId);
@@ -27,13 +37,16 @@ export function TurnManager({ characters, activeCharacter, setActiveCharacter }:
     }
   };
 
+  const isHost = currentUserId === hostId;
+  const canChangeTurn = playMode === 'local' || isHost;
+
   return (
     <div className="p-4 border-b bg-card space-y-4">
       {characters.length > 1 && (
          <div className="max-w-4xl mx-auto flex items-center gap-3">
             <Users className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm font-medium text-muted-foreground">Active Character:</span>
-            <Select value={activeCharacter?.id} onValueChange={handleValueChange}>
+            <Select value={activeCharacter?.id} onValueChange={handleValueChange} disabled={!canChangeTurn}>
               <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Select a character..." />
               </SelectTrigger>
@@ -61,3 +74,5 @@ export function TurnManager({ characters, activeCharacter, setActiveCharacter }:
     </div>
   );
 }
+
+    

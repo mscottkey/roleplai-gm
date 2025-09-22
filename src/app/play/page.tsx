@@ -467,14 +467,16 @@ The stage is set. What do you do?
         toast({
             variant: "destructive",
             title: "Error",
-            description: "An active character and game state are required to proceed.",
+            description: "A character and game state are required to proceed.",
         });
         return;
     }
     
     const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
     
-    const authorName = activeCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
+    // Determine the character sending the message - could be the active one, or another if they are asking a question.
+    const actingCharacter = characters.find(c => c.claimedBy === user.uid) || activeCharacter;
+    const authorName = actingCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
 
     const newMessage: Message = {
       id: `${user.uid}-${Date.now()}`,
@@ -485,53 +487,54 @@ The stage is set. What do you do?
 
     const newMessages: Message[] = [...messagesWithoutRecap, newMessage ];
     setMessages(newMessages);
-setIsLoading(true);
+    setIsLoading(true);
 
     try {
         const { intent } = await routePlayerInput({ playerInput });
 
-        if (intent === 'Action' && !confirmed) {
-            const consequenceResult = await checkConsequences({
-                actionDescription: playerInput,
-                worldState,
-                character: {
-                    ...activeCharacter,
-                    stats: activeCharacter.stats || {},
-                    id: activeCharacter.id || '',
-                },
-            });
-
-            if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
-                setConfirmation({
-                    message: consequenceResult.confirmationMessage,
-                    onConfirm: () => {
-                        setConfirmation(null);
-                        handleSendMessage(playerInput, true); // Resend with confirmation
-                    },
-                });
+        if (intent === 'Action') {
+            // ACTION: This is turn-based.
+            if (activeCharacter.claimedBy !== user.uid && gameData?.playMode === 'remote') {
+                toast({ variant: "destructive", title: "Not Your Turn", description: `It's currently ${activeCharacter.name}'s turn to act.` });
                 setMessages(messagesWithoutRecap);
                 setIsLoading(false);
                 return;
             }
-        }
-        
-        let assistantMessage: Message;
-        const characterForAI = {
-          ...activeCharacter,
-          id: activeCharacter.id || '',
-          stats: activeCharacter.stats || {},
-        };
 
-        if (intent === 'Action') {
+            if (!confirmed) {
+                const consequenceResult = await checkConsequences({
+                    actionDescription: playerInput,
+                    worldState,
+                    character: {
+                        ...activeCharacter,
+                        stats: activeCharacter.stats || {},
+                        id: activeCharacter.id || '',
+                    },
+                });
+
+                if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
+                    setConfirmation({
+                        message: consequenceResult.confirmationMessage,
+                        onConfirm: () => {
+                            setConfirmation(null);
+                            handleSendMessage(playerInput, true); // Resend with confirmation
+                        },
+                    });
+                    setMessages(messagesWithoutRecap);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+        
             const response = await continueStory({
                 actionDescription: playerInput,
                 worldState,
-                character: characterForAI,
+                characterId: activeCharacter.id,
                 ruleAdapter: 'FateCore',
                 mechanicsVisibility,
             });
 
-            assistantMessage = {
+            const assistantMessage: Message = {
                 id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: response.narrativeResult,
@@ -545,7 +548,6 @@ setIsLoading(true);
             const nextIndex = (currentIndex + 1) % characters.length;
             const nextCharacter = characters[nextIndex];
 
-            // Create a serializable version of the world state
             const serializableWorldState = JSON.parse(JSON.stringify(worldState));
 
             updateWorldState({
@@ -566,15 +568,17 @@ setIsLoading(true);
             }).catch(err => {
                 console.error("Failed to update world state:", err);
             });
+            setMessages(prev => [...prev, assistantMessage]);
 
-        } else { // Intent is 'Question'
+        } else { 
+            // QUESTION: Not turn-based.
             const response = await getAnswerToQuestion({
                 question: playerInput,
                 worldState,
-                character: characterForAI,
+                characterId: actingCharacter.id,
             });
 
-            assistantMessage = {
+            const assistantMessage: Message = {
                 id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: response.answer,
@@ -586,9 +590,8 @@ setIsLoading(true);
                     messages: [...newMessages, assistantMessage],
                 }
             });
+            setMessages(prev => [...prev, assistantMessage]);
         }
-
-        setMessages(prev => [...prev, assistantMessage]);
 
     } catch (error) {
         const err = error as Error;
@@ -765,6 +768,7 @@ The stage is set. What do you do?
             onUndo={handleUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={handleRegenerateStoryline}
+            currentUser={user}
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
@@ -813,3 +817,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    

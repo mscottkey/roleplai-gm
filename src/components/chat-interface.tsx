@@ -15,15 +15,18 @@ import { cn, formatDialogue } from '@/lib/utils';
 import type { Message, Character } from '@/app/lib/types';
 import { SendHorizonal, User, Bot, History } from 'lucide-react';
 import { SpeechInput } from './speech-input';
+import type { User as FirebaseUser } from 'firebase/auth';
+
 
 type ChatInterfaceProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   activeCharacter: Character | null;
+  currentUser: FirebaseUser | null;
 };
 
-export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter }: ChatInterfaceProps) {
+export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter, currentUser }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -171,3 +174,5 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
     </div>
   );
 }
+
+    

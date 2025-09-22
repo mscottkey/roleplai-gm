@@ -8,6 +8,8 @@ import { StoryDrawer } from '@/components/story-drawer';
 import { TurnManager } from '@/components/turn-manager';
 import { Button } from './ui/button';
 import { RotateCcw } from 'lucide-react';
+import type { User as FirebaseUser } from 'firebase/auth';
+
 
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
@@ -27,6 +29,7 @@ type GameControlsProps = {
   onUndo: () => void;
   canUndo: boolean;
   onRegenerateStoryline: () => void;
+  currentUser: FirebaseUser | null;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -53,6 +56,7 @@ export function GameControls({
   onUndo,
   canUndo,
   onRegenerateStoryline,
+  currentUser,
   // TTS Props
   isSpeaking,
   isPaused,
@@ -83,6 +87,9 @@ export function GameControls({
         characters={characters}
         activeCharacter={activeCharacter}
         setActiveCharacter={setActiveCharacter}
+        currentUserId={currentUser?.uid}
+        hostId={gameData.userId}
+        playMode={gameData.playMode}
       />
       <div className="flex-1 overflow-y-auto">
         <ChatInterface
@@ -90,6 +97,7 @@ export function GameControls({
           onSendMessage={onSendMessage}
           isLoading={isLoading}
           activeCharacter={activeCharacter}
+          currentUser={currentUser}
         />
       </div>
       {canUndo && (
@@ -113,3 +121,5 @@ export function GameControls({
     </div>
   );
 }
+
+    
