@@ -72,7 +72,7 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
         await signInWithRedirect(auth, provider);
-        // The redirect result will be handled by the useAuth hook
+        // The redirect result will be handled by the useAuth hook on page load
     } catch (error) {
         console.error("Google sign-in error:", error);
         toast({
