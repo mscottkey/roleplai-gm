@@ -14,10 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User, Settings, ShieldCheck } from 'lucide-react';
+import { LogOut, User, Settings, ShieldCheck, Award } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { setAdminClaim } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 
 type UserMenuProps = {
   onOpenAccount: () => void;
@@ -28,10 +30,30 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
   const { user, isAdmin } = useAuth();
   const { state } = useSidebar();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/login');
+  };
+
+  const handleMakeAdmin = async () => {
+    if (!user) return;
+    const result = await setAdminClaim(user.uid);
+    if (result.success) {
+      toast({
+        title: "Admin Granted!",
+        description: "You now have admin privileges. Please refresh the page.",
+      });
+      // Force a reload to get new token with admin claim
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Failed to Grant Admin",
+        description: result.message,
+      });
+    }
   };
 
   if (!user) {
@@ -69,10 +91,15 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Account Settings</span>
               </DropdownMenuItem>
-              {isAdmin && (
+              {isAdmin ? (
                 <DropdownMenuItem onClick={() => router.push('/admin')}>
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   <span>Admin Dashboard</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleMakeAdmin}>
+                  <Award className="mr-2 h-4 w-4" />
+                  <span>Become Admin (Dev)</span>
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
@@ -113,12 +140,17 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
             <Settings className="mr-2 h-4 w-4" />
             <span>Account Settings</span>
           </DropdownMenuItem>
-           {isAdmin && (
+           {isAdmin ? (
             <DropdownMenuItem onClick={() => router.push('/admin')}>
               <ShieldCheck className="mr-2 h-4 w-4" />
               <span>Admin Dashboard</span>
             </DropdownMenuItem>
-          )}
+           ) : (
+            <DropdownMenuItem onClick={handleMakeAdmin}>
+                <Award className="mr-2 h-4 w-4" />
+                <span>Become Admin (Dev)</span>
+            </DropdownMenuItem>
+           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
