@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -25,7 +25,7 @@ type UserMenuProps = {
 
 
 export function UserMenu({ onOpenAccount }: UserMenuProps) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { state } = useSidebar();
   const router = useRouter();
 
@@ -69,6 +69,12 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Account Settings</span>
               </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => router.push('/admin')}>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <span>Admin Dashboard</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -107,6 +113,12 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
             <Settings className="mr-2 h-4 w-4" />
             <span>Account Settings</span>
           </DropdownMenuItem>
+           {isAdmin && (
+            <DropdownMenuItem onClick={() => router.push('/admin')}>
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              <span>Admin Dashboard</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />

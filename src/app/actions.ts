@@ -165,7 +165,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
 }
 
 export async function continueStory(input: ResolveActionInput): Promise<ResolveActionOutput> {
-  const { characterId, worldState } = input;
+  const { characterId, worldState } = input as any; // Cast to any to access properties
   
   // Server-side validation
   const app = await getServerApp();
@@ -186,10 +186,10 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
   }
   
   try {
-    const character = worldState.characters.find(c => c.id === characterId);
+    const character = worldState.characters.find((c: any) => c.id === characterId);
     if (!character) throw new Error("Character not found in world state.");
     
-    return await resolveAction({ ...input, character });
+    return await resolveAction({ ...input, character } as ResolveActionInput);
   } catch (error) {
     console.error("Error in continueStory action:", error);
     throw new Error("The story could not be continued. Please try again.");
@@ -459,4 +459,14 @@ export async function updateUserProfile(userId: string, updates: { displayName?:
     }
 }
 
-    
+export async function setAdminClaim(userId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    getAdminSDK(); // Ensure admin app is initialized
+    await getAdminAuth().setCustomUserClaims(userId, { admin: true });
+    return { success: true, message: `Successfully set admin claim for user ${userId}.` };
+  } catch (error) {
+    console.error(`Error setting admin claim for user ${userId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    return { success: false, message };
+  }
+}
