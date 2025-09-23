@@ -15,7 +15,8 @@ export async function updateUserPreferences(userId: string, prefs: UserPreferenc
   }
 
   try {
-    const db = getFirestore(getServerApp());
+    const app = await getServerApp();
+    const db = getFirestore(app);
     const userRef = doc(db, 'users', userId);
     await setDoc(userRef, prefs, { merge: true });
     return { success: true };
@@ -32,7 +33,8 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
   }
 
   try {
-    const db = getFirestore(getServerApp());
+    const app = await getServerApp();
+    const db = getFirestore(app);
     const userRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userRef);
 

@@ -18,7 +18,7 @@ import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNod
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
 import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
-import { updateUserPreferences } from './user-preferences';
+import { updateUserPreferences } from './actions/user-preferences';
 
 
 import { z } from 'genkit';
@@ -70,7 +70,7 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export function getServerApp() {
+export async function getServerApp() {
   if (!getApps().length) {
     return initializeApp(firebaseConfig);
   }
@@ -104,7 +104,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     const newGame = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
     console.log("Game generated successfully:", newGame);
     
-    const app = getServerApp();
+    const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(collection(db, 'games'));
     console.log("Game document ID will be:", gameRef.id);
@@ -168,7 +168,7 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
   const { characterId, worldState } = input;
   
   // Server-side validation
-  const app = getServerApp();
+  const app = await getServerApp();
   const db = getFirestore(app);
   
   // A bit of a hacky way to find the gameId from the worldState
@@ -229,7 +229,7 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   const { gameId, updates, playerAction, gmResponse, currentWorldState } = input;
   
   try {
-    const app = getServerApp();
+    const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(db, 'games', gameId);
 
@@ -337,7 +337,7 @@ export async function generateRecap(input: GenerateRecapInput): Promise<Generate
 
 export async function undoLastAction(gameId: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const app = getServerApp();
+    const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(db, 'games', gameId);
 
@@ -391,7 +391,7 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
 
 export async function deleteGame(gameId: string): Promise<{ success: boolean; message?: string }> {
     try {
-        const app = getServerApp();
+        const app = await getServerApp();
         const db = getFirestore(app);
         await deleteDoc(doc(db, "games", gameId));
         return { success: true };
@@ -407,7 +407,7 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
         return { success: false, message: "Game name cannot be empty." };
     }
     try {
-        const app = getServerApp();
+        const app = await getServerApp();
         const db = getFirestore(app);
         const gameRef = doc(db, 'games', gameId);
         await updateDoc(gameRef, {
@@ -458,3 +458,5 @@ export async function updateUserProfile(userId: string, updates: { displayName?:
         return { success: false, message };
     }
 }
+
+    
