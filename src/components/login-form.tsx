@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -71,14 +71,14 @@ export function LoginForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-        await signInWithPopup(auth, provider);
-        // The auth state listener will handle redirection
+        await signInWithRedirect(auth, provider);
+        // The redirect result will be handled by the useAuth hook
     } catch (error) {
         console.error("Google sign-in error:", error);
         toast({
             variant: "destructive",
             title: "Google Sign-In Failed",
-            description: "Could not sign in with Google. Please try again."
+            description: "Could not initiate Google sign-in. Please try again."
         });
         setIsGoogleLoading(false);
     }
