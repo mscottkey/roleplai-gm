@@ -28,10 +28,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    setRedirectLoading(true);
+    // This effect handles the result of a redirect sign-in attempt.
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
+          // This means the user has just signed in via redirect.
           toast({
             title: "Signed In Successfully",
             description: `Welcome back, ${result.user.displayName || 'user'}!`,
@@ -47,9 +48,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             description: "There was an error during the sign-in process."
         });
       }).finally(() => {
+        // Whether there was a redirect result or not, the check is complete.
         setRedirectLoading(false);
       });
 
+    // This listener handles all auth state changes, including initial load and sign-in/sign-out.
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
