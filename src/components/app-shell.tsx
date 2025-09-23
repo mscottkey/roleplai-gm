@@ -8,12 +8,12 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarMenuButton,
   SidebarTrigger,
   SidebarProvider,
   SidebarInset,
   SidebarFooter,
   SidebarSeparator,
-  SidebarMenuButton,
   SidebarRail
 } from '@/components/ui/sidebar'
 import { Logo } from './logo'
@@ -36,13 +36,11 @@ type AppShellProps = {
 }
 
 function AppShellHeader() {
-  const { isMobile } = useSidebar();
   const router = useRouter();
   return (
       <SidebarHeader>
         <div className="flex items-center justify-between p-2">
            <div className="flex items-center gap-2">
-            {isMobile && <SidebarTrigger />}
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
                 <Logo 
                   imageSrc="/roleplai-logo.png?v=2" 
@@ -54,11 +52,24 @@ function AppShellHeader() {
                 <span className="font-headline text-lg font-bold text-primary group-data-[collapsible=icon]:hidden">RoleplAI GM</span>
             </div>
            </div>
-           {!isMobile && <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />}
+           <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>
   )
 }
+
+function MobileHeader() {
+    const { isMobile } = useSidebar();
+    if (!isMobile) return null;
+    
+    return (
+        <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
+            <SidebarTrigger />
+            {/* You can add other mobile header elements here if needed */}
+        </header>
+    )
+}
+
 export function AppShell({ children, games, activeGameId, onNewGame, onSelectGame, onDeleteGame, onRenameGame, onOpenAccount }: AppShellProps) {
   return (
     <SidebarProvider>
@@ -88,6 +99,7 @@ export function AppShell({ children, games, activeGameId, onNewGame, onSelectGam
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
+        <MobileHeader />
         {children}
       </SidebarInset>
     </SidebarProvider>
