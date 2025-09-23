@@ -1,84 +1,80 @@
 
-'use client';
+'use client'
 
-import React, { useState, useEffect, useContext, createContext } from 'react';
-import { onAuthStateChanged, getRedirectResult, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useToast } from './use-toast';
+import React, { useState, useEffect, useContext, createContext } from 'react'
+import { onAuthStateChanged, getRedirectResult, type User } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { useToast } from './use-toast'
 
 type AuthContextType = {
-  user: User | null;
-  isAdmin: boolean;
-  loading: boolean;
-};
+  user: User | null
+  isAdmin: boolean
+  loading: boolean
+  redirectLoading: boolean
+}
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
-});
+  redirectLoading: true,
+})
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [redirectLoading, setRedirectLoading] = useState(true)
+  const { toast } = useToast()
 
+  // Handle the Google redirect result exactly once
   useEffect(() => {
-    // This effect runs once on mount to handle both the redirect result
-    // and the initial auth state.
-    const processAuth = async () => {
+    let cancelled = false
+    ;(async () => {
       try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          // This happens if the user just signed in via redirect.
+        const result = await getRedirectResult(auth)
+        console.log('[auth] getRedirectResult =>', result)
+        if (result && !cancelled) {
           toast({
-            title: "Signed In Successfully",
-            description: `Welcome, ${result.user.displayName || 'friend'}!`,
-          });
-          // The onAuthStateChanged listener below will handle setting the user.
+            title: 'Signed In',
+            description: `Welcome, ${result.user.displayName || result.user.email || 'player'}!`,
+          })
         }
-      } catch (error) {
-        console.error("Auth redirect error:", error);
-        toast({
-          variant: "destructive",
-          title: "Sign-In Failed",
-          description: "There was an error during the sign-in process."
-        });
+      } catch (e) {
+        console.error('[auth] getRedirectResult error', e)
+        toast({ variant: 'destructive', title: 'Sign-In Failed', description: 'Error finishing sign-in.' })
+      } finally {
+        if (!cancelled) setRedirectLoading(false)
       }
+    })()
+    return () => { cancelled = true }
+  }, [toast])
 
-      // Set up the listener for ongoing auth state changes.
-      // This will also fire right after getRedirectResult, ensuring we have the final user state.
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        setUser(user);
-        if (user) {
-          try {
-            const tokenResult = await user.getIdTokenResult();
-            setIsAdmin(!!tokenResult.claims.admin);
-          } catch (error) {
-            console.error("Error getting user token:", error);
-            setIsAdmin(false);
-          }
-        } else {
-          setIsAdmin(false);
+  // Subscribe to Firebase auth state
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      console.log('[auth] onAuthStateChanged user =>', u?.uid || null)
+      setUser(u)
+      if (u) {
+        try {
+          const tokenResult = await u.getIdTokenResult()
+          setIsAdmin(!!tokenResult.claims.admin)
+        } catch {
+          setIsAdmin(false)
         }
-        // Crucially, set loading to false only after the first auth state has been determined.
-        setLoading(false);
-      });
-
-      // Cleanup the listener on unmount
-      return () => unsubscribe();
-    };
-
-    processAuth();
-  }, [toast]);
-
+      } else {
+        setIsAdmin(false)
+      }
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, redirectLoading }}>
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext)

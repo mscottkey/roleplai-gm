@@ -1,37 +1,17 @@
-
-import type { Metadata } from 'next';
-import { Toaster } from "@/components/ui/toaster"
-import { ThemeProvider } from '@/components/theme-provider';
-import '../globals.css';
-import { AuthProvider } from '@/hooks/use-auth';
-import { FirebaseProvider } from '@/components/firebase-provider';
-import { AuthGuard } from '@/components/auth-guard';
+import type { Metadata } from 'next'
+import { AuthGuard } from '@/components/auth-guard'
 
 export const metadata: Metadata = {
   title: 'RoleplAI GM - Play',
   description: 'Your AI-powered Game Master for tabletop RPGs.',
-};
+}
 
-export default function PlayLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function PlayLayout({ children }: { children: React.ReactNode }) {
+  // AuthProvider is in the root layout.
+  // We only need the AuthGuard here to protect the /play route.
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      <FirebaseProvider>
-        <AuthProvider>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
-        </AuthProvider>
-      </FirebaseProvider>
-      <Toaster />
-    </ThemeProvider>
-  );
+    <AuthGuard>
+      {children}
+    </AuthGuard>
+  )
 }

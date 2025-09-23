@@ -1,34 +1,11 @@
-
-import type { Metadata } from 'next';
-import { Toaster } from "@/components/ui/toaster"
-import { ThemeProvider } from '@/components/theme-provider';
-import '../globals.css';
-import { AuthProvider } from '@/hooks/use-auth';
-import { FirebaseProvider } from '@/components/firebase-provider';
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'RoleplAI GM - Login',
   description: 'Login to your AI-powered Game Master for tabletop RPGs.',
-};
+}
 
-export default function LoginLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <FirebaseProvider>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </FirebaseProvider>
-      <Toaster />
-    </ThemeProvider>
-  );
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
+  // Providers are now in the root layout, so this can be a simple fragment.
+  return <>{children}</>;
 }
