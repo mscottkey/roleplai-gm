@@ -39,11 +39,21 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
 
   const handleMakeAdmin = async () => {
     if (!user) return;
+    
+    if (user.isAnonymous) {
+      toast({
+        variant: "destructive",
+        title: "Admin Promotion Failed",
+        description: "Guest users cannot be promoted to admin. Please sign up with an email and password.",
+      });
+      return;
+    }
+
     const result = await setAdminClaim(user.uid);
     if (result.success) {
       toast({
         title: "Admin Granted!",
-        description: "You now have admin privileges. Please refresh the page.",
+        description: "You now have admin privileges. The page will reload.",
       });
       // Force a reload to get new token with admin claim
       setTimeout(() => window.location.reload(), 1500);
@@ -61,7 +71,7 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
   }
 
   const displayName = user.isAnonymous ? "Guest User" : user.displayName || user.email || "User";
-  const displayId = user.isAnonymous ? user.uid : user.email;
+  const displayId = user.isAnonymous ? `Guest ID: ${user.uid.substring(0,6)}...` : user.email;
 
   if (state === 'collapsed') {
     return (

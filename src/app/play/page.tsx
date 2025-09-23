@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
-import type { Character as AICharacter } from '@/ai/schemas/generate-character-schemas';
+import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -882,9 +882,9 @@ The stage is set. What do you do?
 
   const handleProfileUpdate = async (updates: { displayName: string; defaultGender: string; }) => {
     if (!user) return;
-    const result = await updateUserProfile(user.uid, updates);
+    const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
     if (result.success) {
-      toast({ title: 'Profile Updated', description: 'Your display name has been changed.' });
+      toast({ title: 'Profile Updated', description: 'Your preferences have been saved.' });
       setIsAccountDialogOpen(false);
       // Auth state listener should pick up the change eventually, force a reload if needed
       // Forcing a hard reload to ensure user object is updated everywhere

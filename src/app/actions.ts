@@ -28,7 +28,8 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
-import type { GenerateCharacterInput, GenerateCharacterOutput, Character } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput, GenerateCharacterOutput, Character as AICharacter } from "@/ai/schemas/generate-character-schemas";
+import type { Character } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
@@ -421,7 +422,7 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { displayName?: string; defaultGender?: string; }): Promise<{ success: boolean; message?: string }> {
+export async function updateUserProfile(userId: string, isAnonymous: boolean, updates: { displayName?: string; defaultGender?: string; }): Promise<{ success: boolean; message?: string }> {
     if (!userId) {
         return { success: false, message: "User ID is required." };
     }
@@ -431,9 +432,11 @@ export async function updateUserProfile(userId: string, updates: { displayName?:
     try {
         getAdminSDK(); // Ensure admin app is initialized
         
-        // Update Firebase Auth display name if provided
+        // Update Firebase Auth display name if provided and user is not anonymous
         if (displayName && displayName.trim().length >= 3) {
-            await getAdminAuth().updateUser(userId, { displayName });
+            if (!isAnonymous) {
+                await getAdminAuth().updateUser(userId, { displayName });
+            }
         } else if (displayName) {
              return { success: false, message: "Display name must be at least 3 characters long." };
         }
