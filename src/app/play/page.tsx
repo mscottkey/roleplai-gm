@@ -155,8 +155,10 @@ export default function RoleplAIGMPage() {
     }
 
     // Fetch user preferences
-    getUserPreferences(user.uid).then(setUserPreferences);
-
+    if (user) {
+      getUserPreferences(user.uid).then(setUserPreferences);
+    }
+    
     const db = getFirestore();
     const q = query(
       collection(db, 'games'), 
