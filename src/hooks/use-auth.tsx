@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // This effect handles the result of a redirect sign-in attempt.
+    // It should only run once on initial mount.
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
