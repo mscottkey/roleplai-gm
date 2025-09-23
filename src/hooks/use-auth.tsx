@@ -10,31 +10,33 @@ type AuthContextType = {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
+  redirectLoading: boolean; // New state to track redirect processing
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
+  redirectLoading: true, // Start as true
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [redirectLoading, setRedirectLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Handle the redirect result from Google Sign-In
+    setRedirectLoading(true);
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
-          // User has successfully signed in or linked.
-          // The onAuthStateChanged listener will handle the user state update.
           toast({
-            title: "Signed In",
-            description: `Welcome, ${result.user.displayName || 'user'}!`,
-          })
+            title: "Signed In Successfully",
+            description: `Welcome back, ${result.user.displayName || 'user'}!`,
+          });
+          // The onAuthStateChanged listener below will handle setting the user state.
         }
       })
       .catch((error) => {
@@ -45,15 +47,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             description: "There was an error during the sign-in process."
         });
       }).finally(() => {
-         // This is also where you could stop a loading spinner specific to the redirect check
+        setRedirectLoading(false);
       });
-
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const tokenResult = await user.getIdTokenResult();
-        setIsAdmin(!!tokenResult.claims.admin);
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          setIsAdmin(!!tokenResult.claims.admin);
+        } catch (error) {
+            console.error("Error getting user token:", error);
+            setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -64,7 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [toast]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, redirectLoading }}>
       {children}
     </AuthContext.Provider>
   );
