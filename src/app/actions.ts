@@ -28,7 +28,7 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
-import type { GenerateCharacterInput, GenerateCharacterOutput, Character as AICharacter } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
 import type { Character } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';

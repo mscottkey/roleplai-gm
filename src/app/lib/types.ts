@@ -27,11 +27,6 @@ export type Character = {
   playerId: string; // User ID of the player who created/claimed this character
 };
 
-export type PlayerSlot = {
-  id: string;
-  character: Character | null;
-};
-
 export type GameData = GenerateNewGameOutput & {
   userId?: string; // The user who created the game
   characters?: Character[];
@@ -58,3 +53,14 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
+
+export type PlayerSlot = {
+    id: string;
+    character: Character | null;
+    preferences?: {
+        playerName?: string;
+        name?: string;
+        vision?: string;
+        gender?: string;
+    }
+}

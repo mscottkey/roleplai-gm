@@ -28,10 +28,10 @@ export const CharacterSchema = z.object({
     gender: z.string().optional().describe("The character's gender."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
-    stats: CharacterStatsSchema,
+    stats: CharacterStatsSchema.optional(),
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });
-export type Character = z.infer<typeof CharacterSchema>;
+export type AICharacter = z.infer<typeof CharacterSchema>;
 
 
 const CharacterSlotSchema = z.object({
