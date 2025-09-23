@@ -19,7 +19,7 @@ export default function LoginPage() {
   }, [user, loading, router]);
 
   // Show a loading screen while auth state is resolving or if we have a user and are about to redirect.
-  if (loading || user) {
+  if (loading || (!loading && user)) {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
         <BrandedLoadingSpinner className="h-24 w-24" />

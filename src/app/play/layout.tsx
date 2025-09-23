@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
 import '../globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { FirebaseProvider } from '@/components/firebase-provider';
+import { AuthGuard } from '@/components/auth-guard';
 
 export const metadata: Metadata = {
   title: 'RoleplAI GM - Play',
@@ -24,7 +26,9 @@ export default function PlayLayout({
     >
       <FirebaseProvider>
         <AuthProvider>
-          {children}
+          <AuthGuard>
+            {children}
+          </AuthGuard>
         </AuthProvider>
       </FirebaseProvider>
       <Toaster />

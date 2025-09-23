@@ -17,7 +17,6 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
 import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
-import { LoginForm } from '@/components/login-form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -145,19 +144,13 @@ export default function RoleplAIGMPage() {
   }
 
   useEffect(() => {
-    if (authLoading) {
-      setStep('loading');
-      return;
-    }
+    // AuthGuard now handles the auth-related loading and redirection
     if (!user) {
-      router.push('/login');
       return;
     }
 
     // Fetch user preferences
-    if (user) {
-      getUserPreferences(user.uid).then(setUserPreferences);
-    }
+    getUserPreferences(user.uid).then(setUserPreferences);
     
     const db = getFirestore();
     const q = query(
@@ -190,7 +183,7 @@ export default function RoleplAIGMPage() {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, router, searchParams, toast]);
+  }, [user, searchParams, toast]);
 
   useEffect(() => {
     const gameId = searchParams.get('game');
@@ -291,10 +284,9 @@ export default function RoleplAIGMPage() {
     );
   }
   
+  // This should not be reachable if AuthGuard is working, but it's a good failsafe.
   if (!user) {
-    // This case is handled by the useEffect above which redirects to /login
-    // It's good practice to have a fallback.
-    return <LoginForm />;
+    return null;
   }
 
   const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
@@ -944,6 +936,7 @@ The stage is set. What do you do?
           />
         );
       default:
+        // This case should be covered by the top-level loading check, but it's a good failsafe.
         return (
           <div className="flex h-full w-full items-center justify-center">
             <LoadingSpinner className="h-8 w-8" />
