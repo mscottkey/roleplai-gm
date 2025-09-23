@@ -18,6 +18,7 @@ import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNod
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
 import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
+import { updateUserPreferences } from './user-preferences';
 
 
 import { z } from 'genkit';
@@ -69,7 +70,7 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function getServerApp() {
+export function getServerApp() {
   if (!getApps().length) {
     return initializeApp(firebaseConfig);
   }
@@ -420,20 +421,36 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
     }
 }
 
-export async function updateUserProfile(userId: string, updates: { displayName?: string }): Promise<{ success: boolean; message?: string }> {
+export async function updateUserProfile(userId: string, updates: { displayName?: string; defaultGender?: string; }): Promise<{ success: boolean; message?: string }> {
     if (!userId) {
         return { success: false, message: "User ID is required." };
     }
     
-    if (!updates.displayName || updates.displayName.trim().length < 3) {
-        return { success: false, message: "Display name must be at least 3 characters long." };
-    }
-
+    const { displayName, defaultGender } = updates;
+    
     try {
         getAdminSDK(); // Ensure admin app is initialized
-        await getAdminAuth().updateUser(userId, {
-            displayName: updates.displayName,
-        });
+        
+        // Update Firebase Auth display name if provided
+        if (displayName && displayName.trim().length >= 3) {
+            await getAdminAuth().updateUser(userId, { displayName });
+        } else if (displayName) {
+             return { success: false, message: "Display name must be at least 3 characters long." };
+        }
+
+        // Update custom preferences in Firestore
+        const prefsToUpdate: { displayName?: string; defaultGender?: string } = {};
+        if (displayName) prefsToUpdate.displayName = displayName;
+        if (defaultGender) prefsToUpdate.defaultGender = defaultGender;
+
+        if (Object.keys(prefsToUpdate).length > 0) {
+            const firestoreResult = await updateUserPreferences(userId, prefsToUpdate);
+            if (!firestoreResult.success) {
+                // If this fails, we should still return success if the auth update succeeded, but log the error.
+                console.error("Failed to update user preferences in Firestore, but auth may have succeeded.", firestoreResult.message);
+            }
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Error in updateUserProfile action:", error);

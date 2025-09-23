@@ -29,6 +29,7 @@ import type { Character as AICharacter } from '@/ai/schemas/generate-character-s
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
+import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -94,6 +95,7 @@ export default function RoleplAIGMPage() {
   const deletingGameId = useRef<string | null>(null);
 
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
 
 
   const { toast } = useToast();
@@ -151,6 +153,9 @@ export default function RoleplAIGMPage() {
       router.push('/login');
       return;
     }
+
+    // Fetch user preferences
+    getUserPreferences(user.uid).then(setUserPreferences);
 
     const db = getFirestore();
     const q = query(
@@ -875,9 +880,9 @@ The stage is set. What do you do?
     }
   }
 
-  const handleProfileUpdate = async (newName: string) => {
+  const handleProfileUpdate = async (updates: { displayName: string; defaultGender: string; }) => {
     if (!user) return;
-    const result = await updateUserProfile(user.uid, { displayName: newName });
+    const result = await updateUserProfile(user.uid, updates);
     if (result.success) {
       toast({ title: 'Profile Updated', description: 'Your display name has been changed.' });
       setIsAccountDialogOpen(false);
@@ -905,6 +910,7 @@ The stage is set. What do you do?
             currentUser={user}
             onUpdatePlayerSlots={handleUpdatePlayerSlots}
             activeGameId={activeGameId}
+            userPreferences={userPreferences}
           />
         );
       case 'play':
@@ -1051,6 +1057,7 @@ The stage is set. What do you do?
           isOpen={isAccountDialogOpen}
           onOpenChange={setIsAccountDialogOpen}
           user={user}
+          preferences={userPreferences}
           onProfileUpdate={handleProfileUpdate}
         />
       )}

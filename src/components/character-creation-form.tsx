@@ -23,6 +23,7 @@ import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
+import type { UserPreferences } from '@/app/actions/user-preferences';
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
@@ -55,6 +56,7 @@ type CharacterCreationFormProps = {
   currentUser: FirebaseUser | null;
   onUpdatePlayerSlots: (slots: PlayerSlot[]) => void;
   activeGameId: string | null;
+  userPreferences: UserPreferences | null;
 };
 
 
@@ -128,7 +130,8 @@ export function CharacterCreationForm({
   isLoading,
   currentUser,
   onUpdatePlayerSlots,
-  activeGameId
+  activeGameId,
+  userPreferences,
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
@@ -144,23 +147,23 @@ export function CharacterCreationForm({
         const slots: PlayerSlot[] = initialCharacters.map(char => ({
             id: char.id,
             character: char,
-            preferences: {
-              playerName: char.playerName || ''
-            }
         }));
         setPlayerSlots(slots);
     } else {
         const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
+        const hostDefaultGender = userPreferences?.defaultGender || 'Any';
+        
         const initialSlot: PlayerSlot = { 
             id: `${formId}-slot-0`, 
             character: null,
             preferences: {
-                playerName: hostPlayerName
+                playerName: hostPlayerName,
+                gender: hostDefaultGender,
             }
         };
         setPlayerSlots([initialSlot]);
     }
-}, [initialCharacters, formId, currentUser]);
+  }, [initialCharacters, formId, currentUser, userPreferences]);
 
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
@@ -173,7 +176,7 @@ export function CharacterCreationForm({
       id: `${formId}-slot-${playerSlots.length}`,
       character: null,
       preferences: {
-        playerName: ''
+        playerName: '',
       }
     };
     updateSlots([...playerSlots, newSlot]);
@@ -212,7 +215,7 @@ export function CharacterCreationForm({
                 isCustom: false,
                 playerId: currentUserPlayerId!,
             };
-            const newSlots = playerSlots.map(s => s.id === slotId ? { ...s, character: newCharacter } : s);
+            const newSlots = playerSlots.map(s => s.id === slotId ? { ...s, character: newCharacter, preferences: {} } : s);
             updateSlots(newSlots);
         }
         
@@ -238,12 +241,18 @@ export function CharacterCreationForm({
   };
   
 const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; onGenerate: (prefs: any) => void; onRemove: () => void; }) => {
-    const [charName, setCharName] = useState('');
-    const [vision, setVision] = useState('');
-    const [gender, setGender] = useState('Any');
+    const [charName, setCharName] = useState(slot.preferences?.name || '');
+    const [vision, setVision] = useState(slot.preferences?.vision || '');
+    const [gender, setGender] = useState(slot.preferences?.gender || 'Any');
     const [isCreating, setIsCreating] = useState(false);
 
     const canCreate = !userHasCharacter && !slot.character;
+
+    useEffect(() => {
+        setCharName(slot.preferences?.name || '');
+        setVision(slot.preferences?.vision || '');
+        setGender(slot.preferences?.gender || 'Any');
+    }, [slot.preferences]);
 
     if (slot.character) {
         return (
@@ -271,11 +280,11 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
             {isCreating ? (
                 <div className="w-full space-y-4 text-left p-4">
                     <Label>Character Vision</Label>
-                    <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} />
+                    <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} disabled={!isHost} />
                     <Label>Character Name (Optional)</Label>
-                    <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} />
+                    <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} disabled={!isHost} />
                     <Label>Gender</Label>
-                    <Select value={gender} onValueChange={setGender}>
+                    <Select value={gender} onValueChange={setGender} disabled={!isHost}>
                         <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Any">Any</SelectItem>
@@ -284,7 +293,7 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
                             <SelectItem value="Non-binary">Non-binary</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button className="w-full" onClick={() => onGenerate({ name: charName, vision, gender })} disabled={isGenerating}>
+                    <Button className="w-full" onClick={() => onGenerate({ name: charName, vision, gender, playerName: slot.preferences?.playerName })} disabled={isGenerating}>
                         <Wand2 className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
                         Generate My Character
                     </Button>
@@ -374,10 +383,11 @@ if (gameData.playMode === 'remote') {
     
     useEffect(() => {
         const newPrefs = slot.preferences || {};
-        setPlayerName(newPrefs.playerName || '');
-        setCharName(newPrefs.name || '');
-        setVision(newPrefs.vision || '');
-        setGender(newPrefs.gender || 'Any');
+        // Only update from parent if the local state is out of sync (e.g. initial load)
+        if (newPrefs.playerName !== playerName) setPlayerName(newPrefs.playerName || '');
+        if (newPrefs.name !== charName) setCharName(newPrefs.name || '');
+        if (newPrefs.vision !== vision) setVision(newPrefs.vision || '');
+        if (newPrefs.gender !== gender) setGender(newPrefs.gender || 'Any');
     }, [slot.preferences]);
 
 
@@ -410,7 +420,7 @@ if (gameData.playMode === 'remote') {
             <div className="w-full space-y-4 text-left p-4">
                 <Label>Player Name</Label>
                 <Input 
-                    placeholder="e.g. Sarah" 
+                    placeholder="Enter player name" 
                     value={playerName} 
                     onChange={e => setPlayerName(e.target.value)} 
                     onBlur={e => handleUpdate('playerName', e.target.value)}
