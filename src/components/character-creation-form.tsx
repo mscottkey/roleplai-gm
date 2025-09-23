@@ -375,15 +375,13 @@ if (gameData.playMode === 'remote') {
 // Local Play Mode
   const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
     
-    const pref = slot.preferences || {};
-    const [playerName, setPlayerName] = useState(pref.playerName || '');
-    const [charName, setCharName] = useState(pref.name || '');
-    const [vision, setVision] = useState(pref.vision || '');
-    const [gender, setGender] = useState(pref.gender || 'Any');
+    const [playerName, setPlayerName] = useState(slot.preferences?.playerName || '');
+    const [charName, setCharName] = useState(slot.preferences?.name || '');
+    const [vision, setVision] = useState(slot.preferences?.vision || '');
+    const [gender, setGender] = useState(slot.preferences?.gender || 'Any');
     
     useEffect(() => {
         const newPrefs = slot.preferences || {};
-        // Only update from parent if the local state is out of sync (e.g. initial load)
         if (newPrefs.playerName !== playerName) setPlayerName(newPrefs.playerName || '');
         if (newPrefs.name !== charName) setCharName(newPrefs.name || '');
         if (newPrefs.vision !== vision) setVision(newPrefs.vision || '');
@@ -564,19 +562,21 @@ const handleGenerateAll = async () => {
                  </Card>
                </TabsContent>
               <TabsContent value="party">
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {playerSlots.map((slot) => (
-                        <LocalPlayerSlot 
-                            key={slot.id} 
-                            slot={slot} 
-                            onUpdate={updateSlotPreferences}
-                            onRemove={removePlayerSlot}
-                        />
-                    ))}
-                    <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
-                        <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
-                    </Button>
-                </div>
+                 <form>
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {playerSlots.map((slot) => (
+                          <LocalPlayerSlot 
+                              key={slot.id} 
+                              slot={slot} 
+                              onUpdate={updateSlotPreferences}
+                              onRemove={removePlayerSlot}
+                          />
+                      ))}
+                      <Button variant="outline" type="button" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
+                          <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
+                      </Button>
+                  </div>
+                 </form>
               </TabsContent>
             </Tabs>
         </CardContent>
