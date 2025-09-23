@@ -1,7 +1,5 @@
 
 'use server';
-import { config } from 'dotenv';
-config();
 
 import '@/ai/flows/generate-new-game.ts';
 import '@/ai/flows/integrate-rules-adapter.ts';
