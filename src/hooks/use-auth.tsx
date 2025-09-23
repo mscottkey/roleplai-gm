@@ -10,14 +10,14 @@ type AuthContextType = {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  redirectLoading: boolean; // New state to track redirect processing
+  redirectLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
-  redirectLoading: true, // Start as true
+  redirectLoading: true,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
