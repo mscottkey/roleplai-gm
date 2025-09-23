@@ -718,7 +718,7 @@ The stage is set. What do you do?
     }
   };
 
-  const handleRegenerateStoryline = async () => {
+  const onRegenerateStoryline = async () => {
     if (!activeGameId || !gameData) return;
 
     setIsLoading(true);
