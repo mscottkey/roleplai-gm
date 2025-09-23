@@ -25,69 +25,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // We need to wait for both the redirect result and the initial auth state change.
+    // This effect runs once on mount to handle both the redirect result
+    // and the initial auth state.
     const processAuth = async () => {
-      const redirectResultPromise = getRedirectResult(auth)
-        .then((result) => {
-          if (result) {
-            toast({
-              title: "Signed In Successfully",
-              description: `Welcome back, ${result.user.displayName || 'user'}!`,
-            });
-          }
-        })
-        .catch((error) => {
-          console.error("Auth redirect error:", error);
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          // This happens if the user just signed in via redirect.
           toast({
-            variant: "destructive",
-            title: "Sign-In Failed",
-            description: "There was an error during the sign-in process."
+            title: "Signed In Successfully",
+            description: `Welcome, ${result.user.displayName || 'friend'}!`,
           });
+          // The onAuthStateChanged listener below will handle setting the user.
+        }
+      } catch (error) {
+        console.error("Auth redirect error:", error);
+        toast({
+          variant: "destructive",
+          title: "Sign-In Failed",
+          description: "There was an error during the sign-in process."
         });
+      }
 
-      const authStateReadyPromise = new Promise<void>((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          setUser(user);
-          if (user) {
-            try {
-              const tokenResult = await user.getIdTokenResult();
-              setIsAdmin(!!tokenResult.claims.admin);
-            } catch (error) {
-              console.error("Error getting user token:", error);
-              setIsAdmin(false);
-            }
-          } else {
+      // Set up the listener for ongoing auth state changes.
+      // This will also fire right after getRedirectResult, ensuring we have the final user state.
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setUser(user);
+        if (user) {
+          try {
+            const tokenResult = await user.getIdTokenResult();
+            setIsAdmin(!!tokenResult.claims.admin);
+          } catch (error) {
+            console.error("Error getting user token:", error);
             setIsAdmin(false);
           }
-          unsubscribe(); // We only need the first result to know auth is ready.
-          resolve();
-        });
+        } else {
+          setIsAdmin(false);
+        }
+        // Crucially, set loading to false only after the first auth state has been determined.
+        setLoading(false);
       });
-      
-      // Wait for both to complete before setting loading to false
-      await Promise.all([redirectResultPromise, authStateReadyPromise]);
-      setLoading(false);
+
+      // Cleanup the listener on unmount
+      return () => unsubscribe();
     };
 
     processAuth();
-    
-    // This second listener will handle live auth changes after initial load.
-    const unsubscribeLive = onAuthStateChanged(auth, async (user) => {
-       setUser(user);
-       if (user) {
-         try {
-           const tokenResult = await user.getIdTokenResult();
-           setIsAdmin(!!tokenResult.claims.admin);
-         } catch {
-            setIsAdmin(false);
-         }
-       } else {
-         setIsAdmin(false);
-       }
-    });
-
-    return () => unsubscribeLive();
   }, [toast]);
+
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, loading }}>

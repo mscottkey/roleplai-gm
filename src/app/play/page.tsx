@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -64,7 +63,7 @@ const normalizeInlineBulletsInSections = (md: string) => {
 
 
 export default function RoleplAIGMPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth(); // AuthGuard handles loading state
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -144,10 +143,7 @@ export default function RoleplAIGMPage() {
   }
 
   useEffect(() => {
-    // AuthGuard now handles the auth-related loading and redirection
-    if (!user) {
-      return;
-    }
+    if (!user) return; // AuthGuard ensures user is present
 
     // Fetch user preferences
     getUserPreferences(user.uid).then(setUserPreferences);
@@ -169,7 +165,8 @@ export default function RoleplAIGMPage() {
       // If no game is selected via URL, and we have games, default to the latest one.
       const currentGameId = searchParams.get('game');
       if (!currentGameId && userGames.length > 0) {
-        // router.push(`/play?game=${userGames[0].id}`);
+        // You can uncomment this to auto-select the first game.
+        // router.replace(`/play?game=${userGames[0].id}`);
       } else if (!currentGameId) {
         setStep('create');
       }
@@ -183,7 +180,7 @@ export default function RoleplAIGMPage() {
     });
 
     return () => unsubscribe();
-  }, [user, searchParams, toast]);
+  }, [user, searchParams, router, toast]);
 
   useEffect(() => {
     const gameId = searchParams.get('game');
@@ -209,7 +206,7 @@ export default function RoleplAIGMPage() {
 
   useEffect(() => {
     if (!activeGameId) {
-        if (!authLoading) setStep('create');
+        setStep('create');
         return;
     }
     
@@ -273,9 +270,9 @@ export default function RoleplAIGMPage() {
     });
     return () => unsub();
     
-  }, [activeGameId, authLoading, router, toast]);
+  }, [activeGameId, router, toast]);
   
-  if (authLoading || step === 'loading') {
+  if (step === 'loading') {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
         <BrandedLoadingSpinner className="w-48 h-48" />
@@ -284,8 +281,8 @@ export default function RoleplAIGMPage() {
     );
   }
   
-  // This should not be reachable if AuthGuard is working, but it's a good failsafe.
   if (!user) {
+    // This should not be reachable if AuthGuard is working, but it's a good failsafe.
     return null;
   }
 

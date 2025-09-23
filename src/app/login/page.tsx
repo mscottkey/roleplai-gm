@@ -11,25 +11,27 @@ export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  // The AuthGuard in the /play layout now handles redirecting logged-in users.
+  // We only need to handle the case where a user lands here *after* logging in.
   useEffect(() => {
-    // Only redirect when loading is false and user is present.
     if (!loading && user) {
-      router.push('/play');
+      router.replace('/play');
     }
   }, [user, loading, router]);
 
-  // Show a loading screen while auth state is resolving or if we have a user and are about to redirect.
-  if (loading || (!loading && user)) {
+
+  // Show loading spinner while auth is resolving or if we are about to redirect.
+  if (loading || user) {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
         <BrandedLoadingSpinner className="h-24 w-24" />
         <p className="text-muted-foreground text-sm animate-pulse">
-          Loading Session...
+          Authenticating...
         </p>
       </div>
     );
   }
 
-  // Only show the login form if loading is done and there's no user.
+  // Only show the login form if we are done loading and there is no user.
   return <LoginForm />;
 }
