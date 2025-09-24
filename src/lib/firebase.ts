@@ -1,3 +1,4 @@
+
 // /lib/firebase.ts
 import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
@@ -12,9 +13,10 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 }
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
-const auth = getAuth(app)
-const db = getFirestore(app)
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 
 // Set persistence on the client-side only
 if (typeof window !== 'undefined') {
