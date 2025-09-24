@@ -164,11 +164,11 @@ export function GameView({
           <Button
             key={char.id}
             variant={activeCharacter?.id === char.id ? "default" : "outline"}
-            className="h-20 flex-col gap-1 items-center justify-center text-center"
+            className="h-auto min-h-20 py-2 flex-col gap-1 items-center justify-center text-center whitespace-normal"
             onClick={() => setActiveCharacter(char)}
           >
-            <span className="font-bold text-sm leading-tight">{char.playerName}</span>
-            <span className="text-xs text-muted-foreground leading-tight">({char.name})</span>
+            <span className="font-bold text-xs sm:text-sm leading-tight break-words">{char.playerName}</span>
+            <span className="text-xs text-muted-foreground leading-tight break-words">({char.name})</span>
           </Button>
         ))}
       </div>
