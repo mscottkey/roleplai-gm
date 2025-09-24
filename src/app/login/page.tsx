@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getAuthWithPersistence } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -14,7 +13,7 @@ import { ArrowRight, LogIn } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -26,10 +25,10 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-
 export default function LoginPage() {
-  const { user, loading, redirectLoading } = useAuth();
+  const { user, loading, redirectLoading, redirectProcessed } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGuestLoading, setIsGuestLoading] = useState(false);
@@ -38,34 +37,70 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const { toast } = useToast();
 
+  // Check if we're returning from a redirect
+  const isReturningFromRedirect = searchParams.get('authReturn') === 'true';
+
   useEffect(() => {
-    if (!loading && !redirectLoading && user) {
-      router.replace('/play');
+    // Only redirect to /play if:
+    // 1. We have a user
+    // 2. Auth is fully loaded
+    // 3. Either we're returning from redirect OR redirect has been processed
+    if (!loading && user && (isReturningFromRedirect || redirectProcessed)) {
+      // Clear the authReturn param if it exists
+      if (isReturningFromRedirect) {
+        router.replace('/play');
+      } else {
+        router.push('/play');
+      }
     }
-  }, [loading, redirectLoading, user, router]);
+  }, [loading, user, router, isReturningFromRedirect, redirectProcessed]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const auth = getAuthWithPersistence();
+
     try {
-      const auth = getAuthWithPersistence();
-      await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email, password);
+        // On success, the auth state listener will handle the redirect.
     } catch (error: any) {
-      console.error("Email sign-in failed:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error?.message || 'Could not sign in with that email and password. Please try again.',
-      });
-      setIsLoading(false);
+        if (error.code === 'auth/user-not-found') {
+            // If user doesn't exist, try creating a new account.
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                // On success, the auth state listener will handle the redirect.
+            } catch (createError: any) {
+                console.error("Email sign-up failed:", createError);
+                toast({
+                    variant: 'destructive',
+                    title: 'Sign Up Failed',
+                    description: createError.message || 'Could not create an account. Please try again.',
+                });
+            }
+        } else {
+            console.error("Email sign-in failed:", error);
+            let description = 'Could not sign in with that email and password. Please try again.';
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                description = 'Incorrect password. Please try again.';
+            }
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: error.message || description,
+            });
+        }
+    } finally {
+        setIsLoading(false);
     }
   };
+
 
   const handleGuestLogin = async () => {
     setIsGuestLoading(true);
     try {
       const auth = getAuthWithPersistence();
       await signInAnonymously(auth);
+      // The auth state listener will handle the redirect
     } catch (error: any) {
       console.error("Anonymous sign-in failed:", error);
       toast({
@@ -81,48 +116,68 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       const auth = getAuthWithPersistence();
-      await setPersistence(auth, browserLocalPersistence)
+      await setPersistence(auth, browserLocalPersistence);
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
       
-      await signInWithRedirect(auth, provider);
+      // Store that we're initiating a Google auth redirect
+      sessionStorage.setItem('google_auth_redirect', 'true');
+      
+      // Try popup first for better UX
+      try {
+        await signInWithPopup(auth, provider);
+        sessionStorage.removeItem('google_auth_redirect');
+        // Success - auth state listener will redirect
+      } catch (popupError: any) {
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.code === 'auth/cancelled-popup-request') {
+          // Popup failed, use redirect
+          const { signInWithRedirect } = await import('firebase/auth');
+          await signInWithRedirect(auth, provider);
+          // Page will redirect to Google
+        } else {
+          // Some other error
+          sessionStorage.removeItem('google_auth_redirect');
+          throw popupError;
+        }
+      }
     } catch (error: any) {
       console.error("Google sign-in error:", error);
+      sessionStorage.removeItem('google_auth_redirect');
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: "Could not start the Google sign-in process. Please try again."
+        description: error.message || "Could not sign in with Google. Please try again."
       });
       setIsGoogleLoading(false);
     }
   };
 
-  if (loading || redirectLoading) {
+  // Show loading state while checking auth
+  if (loading || (redirectLoading && !redirectProcessed)) {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
         <BrandedLoadingSpinner className="h-24 w-24" />
         <p className="text-muted-foreground text-sm animate-pulse">
-          {redirectLoading ? 'Finalizing sign-in…' : 'Loading session…'}
+          {redirectLoading && !redirectProcessed ? 'Finalizing sign-in…' : 'Loading session…'}
         </p>
       </div>
     );
   }
 
-  // The user object is available, but we are still on the login page.
-  // The useEffect above will trigger a navigation to `/play`.
-  // We can render null or a minimal loading state to avoid a flash of the login form.
-  if (user) {
+  // If user exists and we're done processing redirects, show redirect screen
+  if (user && redirectProcessed) {
     return (
-       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
         <BrandedLoadingSpinner className="h-24 w-24" />
         <p className="text-muted-foreground text-sm animate-pulse">
-          Redirecting...
+          Welcome! Redirecting to your games...
         </p>
       </div>
     );
   }
-
 
   return (
     <div className="relative flex items-center justify-center min-h-screen w-full bg-cover bg-center p-4" style={{backgroundImage: "url('/landing-background.png')"}}>
@@ -149,6 +204,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading || isGuestLoading || isGoogleLoading}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -160,6 +216,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading || isGuestLoading || isGoogleLoading}
+                autoComplete="current-password"
               />
             </div>
             <Button type="submit" className="w-full h-12" disabled={isLoading || isGuestLoading || isGoogleLoading || !email || !password}>
@@ -206,3 +263,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
