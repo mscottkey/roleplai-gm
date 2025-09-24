@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import { ArrowRight, LogIn } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 48 48" {...props}>
@@ -22,13 +25,23 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+
 export default function LoginPage() {
+  const { user, loading, redirectLoading } = useAuth();
+  const router = useRouter();
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!loading && !redirectLoading && user) {
+      router.replace('/play');
+    }
+  }, [loading, redirectLoading, user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,61 +77,47 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    
-    // Add additional scopes if needed
     provider.addScope('email');
     provider.addScope('profile');
     
     try {
-      // Try popup first, fallback to redirect
-      if (window.innerWidth > 768) { // Desktop - try popup
-        try {
-          const result = await signInWithPopup(auth, provider);
-          console.log("✅ Google popup sign-in successful:", result.user);
-          toast({
-            title: "Signed In Successfully",
-            description: `Welcome, ${result.user.displayName || 'friend'}!`,
-          });
-          return;
-        } catch (popupError: any) {
-          console.log("Popup failed, trying redirect:", popupError.code);
-          if (popupError.code === 'auth/popup-blocked' || 
-              popupError.code === 'auth/popup-closed-by-user' ||
-              popupError.code === 'auth/cancelled-popup-request') {
-            // Fallback to redirect
-            await signInWithRedirect(auth, provider);
-            return;
-          } else {
-            throw popupError; // Re-throw other errors
-          }
-        }
-      } else {
-        // Mobile - use redirect directly
-        await signInWithRedirect(auth, provider);
-      }
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error("Google sign-in error:", error);
-      console.error("Error code:", error?.code);
-      console.error("Error message:", error?.message);
-      
-      let errorMessage = "Could not sign in with Google. Please try again.";
-      
-      if (error?.code === 'auth/unauthorized-domain') {
-        errorMessage = "This domain is not authorized for Google sign-in. Please contact support.";
-      } else if (error?.code === 'auth/operation-not-allowed') {
-        errorMessage = "Google sign-in is not enabled. Please contact support.";
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
-        description: errorMessage
+        description: "Could not start the Google sign-in process. Please try again."
       });
       setIsGoogleLoading(false);
     }
   };
+
+  if (loading || redirectLoading) {
+    return (
+      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+        <BrandedLoadingSpinner className="h-24 w-24" />
+        <p className="text-muted-foreground text-sm animate-pulse">
+          {redirectLoading ? 'Finalizing sign-in…' : 'Loading session…'}
+        </p>
+      </div>
+    );
+  }
+
+  // The user object is available, but we are still on the login page.
+  // The useEffect above will trigger a navigation to `/play`.
+  // We can render null or a minimal loading state to avoid a flash of the login form.
+  if (user) {
+    return (
+       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+        <BrandedLoadingSpinner className="h-24 w-24" />
+        <p className="text-muted-foreground text-sm animate-pulse">
+          Redirecting...
+        </p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="relative flex items-center justify-center min-h-screen w-full bg-cover bg-center p-4" style={{backgroundImage: "url('/landing-background.png')"}}>
@@ -202,3 +201,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
