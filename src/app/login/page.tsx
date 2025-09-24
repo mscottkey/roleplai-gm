@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -81,12 +82,12 @@ export default function LoginPage() {
             console.error("Email sign-in failed:", error);
             let description = 'Could not sign in with that email and password. Please try again.';
             if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                description = 'Incorrect password. Please try again.';
+                description = 'Incorrect email or password. Please try again.';
             }
             toast({
                 variant: 'destructive',
                 title: 'Login Failed',
-                description: error.message || description,
+                description: description,
             });
         }
     } finally {
@@ -263,5 +264,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
