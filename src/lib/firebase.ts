@@ -13,6 +13,11 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 }
 
+// Dynamically set authDomain on the client-side
+if (typeof window !== 'undefined') {
+  firebaseConfig.authDomain = window.location.hostname;
+}
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
@@ -25,9 +30,8 @@ export function getAuthWithPersistence(): Auth {
   }
   
   const auth = getAuth(app);
-  if (typeof window !== 'undefined') {
-    setPersistence(auth, browserLocalPersistence);
-  }
+  // Persistence is now handled in the login page directly before the redirect.
+  // This function just ensures we get the singleton auth instance.
   
   authInstance = auth;
   return auth;
