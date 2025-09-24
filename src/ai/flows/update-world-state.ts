@@ -30,7 +30,7 @@ Current World State:
 - Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
 - Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - All Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
+- Story Aspects: {{#each world.storyAspects}}- {{{this}}}{{/each}}
 - Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 
