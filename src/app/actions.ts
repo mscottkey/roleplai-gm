@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -72,6 +73,9 @@ const firebaseConfig = {
 };
 
 export async function getServerApp() {
+  if (typeof window !== 'undefined') {
+    throw new Error('getServerApp should not be called on the client');
+  }
   if (!getApps().length) {
     return initializeApp(firebaseConfig);
   }
@@ -193,6 +197,9 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
     return await resolveAction({ ...input, character } as ResolveActionInput);
   } catch (error) {
     console.error("Error in continueStory action:", error);
+    if (error instanceof Error) {
+        throw new Error(`The story could not be continued: ${error.message}`);
+    }
     throw new Error("The story could not be continued. Please try again.");
   }
 }
@@ -256,6 +263,9 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
 
   } catch (error) {
     console.error("Error in updateWorldState action:", error);
+    if (error instanceof Error) {
+        throw new Error(`Failed to update the world state: ${error.message}`);
+    }
     throw new Error("Failed to update the world state. Please try again.");
   }
 }
@@ -265,6 +275,9 @@ export async function routePlayerInput(input: ClassifyIntentInput): Promise<Clas
     return await classifyIntent(input);
   } catch (error) {
     console.error("Error in routePlayerInput action:", error);
+    if (error instanceof Error) {
+        throw new Error(`Failed to classify player intent: ${error.message}`);
+    }
     throw new Error("Failed to classify player intent. Please try again.");
   }
 }
@@ -278,6 +291,9 @@ export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQ
     return await askQuestion({ ...input, character });
   } catch (error) {
     console.error("Error in getAnswerToQuestion action:", error);
+    if (error instanceof Error) {
+        throw new Error(`Failed to get an answer from the GM: ${error.message}`);
+    }
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
 }
@@ -287,6 +303,9 @@ export async function generateCore(input: GenerateCampaignStructureInput): Promi
         return await generateCampaignCore(input);
     } catch (error) {
         console.error("Error in generateCore action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate campaign core concepts: ${error.message}`);
+        }
         throw new Error("Failed to generate campaign core concepts. Please try again.");
     }
 }
@@ -296,6 +315,9 @@ export async function generateFactionsAction(input: GenerateFactionsInput): Prom
         return await generateCampaignFactions(input);
     } catch (error) {
         console.error("Error in generateFactionsAction:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate factions: ${error.message}`);
+        }
         throw new Error("Failed to generate factions. Please try again.");
     }
 }
@@ -305,6 +327,9 @@ export async function generateNodesAction(input: GenerateNodesInput): Promise<No
         return await generateCampaignNodes(input);
     } catch (error) {
         console.error("Error in generateNodesAction:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate situation nodes: ${error.message}`);
+        }
         throw new Error("Failed to generate situation nodes. Please try again.");
     }
 }
@@ -314,6 +339,9 @@ export async function getCostEstimation(input: EstimateCostInput): Promise<Estim
         return await estimateCostFlow(input);
     } catch (error) {
         console.error("Error in getCostEstimation action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to get cost estimation: ${error.message}`);
+        }
         throw new Error("Failed to get cost estimation. Please try again.");
     }
 }
@@ -323,6 +351,9 @@ export async function checkConsequences(input: AssessConsequencesInput): Promise
         return await assessConsequences(input);
     } catch (error) {
         console.error("Error in checkConsequences action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to assess consequences: ${error.message}`);
+        }
         throw new Error("Failed to assess consequences. Please try again.");
     }
 }
@@ -332,6 +363,9 @@ export async function generateRecap(input: GenerateRecapInput): Promise<Generate
         return await generateRecapFlow(input);
     } catch (error) {
         console.error("Error in generateRecap action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate recap: ${error.message}`);
+        }
         throw new Error("Failed to generate recap. Please try again.");
     }
 }
@@ -473,3 +507,5 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     return { success: false, message };
   }
 }
+
+    
