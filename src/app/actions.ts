@@ -257,8 +257,30 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
       return newWorldState;
 
     } else if (updates) {
-      // This is a direct data update
-      await updateDoc(gameRef, updates);
+       // This is a direct data update, handle with a transaction to avoid array update issues
+      await runTransaction(db, async (transaction) => {
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) {
+          throw new Error("Game document does not exist!");
+        }
+        
+        let gameData = gameDoc.data();
+
+        // This is a hacky way to handle the messages[0].content update
+        if (updates['messages[0].content']) {
+          const newContent = updates['messages[0].content'];
+          if (gameData.messages && gameData.messages.length > 0) {
+            gameData.messages[0].content = newContent;
+          }
+          // Remove the problematic key from updates
+          delete updates['messages[0].content'];
+        }
+        
+        // Merge remaining updates
+        const finalUpdates = { ...gameData, ...updates };
+
+        transaction.set(gameRef, finalUpdates);
+      });
     }
 
   } catch (error) {
@@ -304,6 +326,8 @@ export async function generateCore(input: GenerateCampaignStructureInput): Promi
     } catch (error) {
         console.error("Error in generateCore action:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to generate campaign core concepts: ${error.message}`);
         }
         throw new Error("Failed to generate campaign core concepts. Please try again.");
@@ -316,6 +340,8 @@ export async function generateFactionsAction(input: GenerateFactionsInput): Prom
     } catch (error) {
         console.error("Error in generateFactionsAction:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to generate factions: ${error.message}`);
         }
         throw new Error("Failed to generate factions. Please try again.");
@@ -328,6 +354,8 @@ export async function generateNodesAction(input: GenerateNodesInput): Promise<No
     } catch (error) {
         console.error("Error in generateNodesAction:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to generate situation nodes: ${error.message}`);
         }
         throw new Error("Failed to generate situation nodes. Please try again.");
@@ -340,6 +368,8 @@ export async function getCostEstimation(input: EstimateCostInput): Promise<Estim
     } catch (error) {
         console.error("Error in getCostEstimation action:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to get cost estimation: ${error.message}`);
         }
         throw new Error("Failed to get cost estimation. Please try again.");
@@ -352,6 +382,8 @@ export async function checkConsequences(input: AssessConsequencesInput): Promise
     } catch (error) {
         console.error("Error in checkConsequences action:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to assess consequences: ${error.message}`);
         }
         throw new Error("Failed to assess consequences. Please try again.");
@@ -364,6 +396,8 @@ export async function generateRecap(input: GenerateRecapInput): Promise<Generate
     } catch (error) {
         console.error("Error in generateRecap action:", error);
         if (error instanceof Error) {
+            console.error("Error message:", error.message);
+            console.error("Error stack:", error.stack);
             throw new Error(`Failed to generate recap: ${error.message}`);
         }
         throw new Error("Failed to generate recap. Please try again.");
