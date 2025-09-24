@@ -18,20 +18,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      <FirebaseProvider>
-        <AuthProvider>
-            <AdminAuthGuard>
-                {children}
-            </AdminAuthGuard>
-        </AuthProvider>
-      </FirebaseProvider>
-      <Toaster />
-    </ThemeProvider>
+      <AdminAuthGuard>
+          {children}
+      </AdminAuthGuard>
   );
 }
