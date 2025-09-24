@@ -1,7 +1,7 @@
 
 // /lib/firebase.ts
 import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app'
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence, Auth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig: FirebaseOptions = {
@@ -14,19 +14,28 @@ const firebaseConfig: FirebaseOptions = {
 }
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Keep a client-side cache of the auth instance
+let authInstance: Auth | null = null;
 
-// Set persistence on the client-side only
-if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence);
+export function getAuthWithPersistence(): Auth {
+  if (authInstance) {
+    return authInstance;
+  }
+  
+  const auth = getAuth(app);
+  if (typeof window !== 'undefined') {
+    setPersistence(auth, browserLocalPersistence);
+  }
+  
+  authInstance = auth;
+  return auth;
 }
-
 
 // Handy debug hook in dev only
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   ;(window as any).__fb = { opts: app.options }
 }
 
-export { app, auth, db }
+export { app, db }

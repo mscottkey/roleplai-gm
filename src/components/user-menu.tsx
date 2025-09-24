@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getAuthWithPersistence } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ export function UserMenu({ onOpenAccount }: UserMenuProps) {
   const { toast } = useToast();
 
   const handleSignOut = async () => {
+    const auth = getAuthWithPersistence();
     await signOut(auth);
     router.push('/login');
   };

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useContext, createContext } from 'react';
 import { onAuthStateChanged, getRedirectResult, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getAuthWithPersistence } from '@/lib/firebase';
 import { useToast } from './use-toast';
 
 type AuthContextType = {
@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const auth = getAuthWithPersistence();
     const processRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [toast]);
 
   useEffect(() => {
+    const auth = getAuthWithPersistence();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {

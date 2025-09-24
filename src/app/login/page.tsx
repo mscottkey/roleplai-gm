@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getAuthWithPersistence } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 48" {...props}>
+    <svg viewBox="0 0 48 48" {...props}>
         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 9.122C34.786 5.613 29.735 3.5 24 3.5C13.257 3.5 4.5 12.257 4.5 23s8.757 19.5 19.5 19.5c10.164 0 18.986-7.836 19.489-18.067L43.611 20.083z"/>
         <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12.5 24 12.5c3.059 0 5.842 1.154 7.961 3.039l5.841-5.841C34.786 5.613 29.735 3.5 24 3.5C16.913 3.5 10.739 7.28 6.306 14.691z"/>
         <path fill="#4CAF50" d="M24 44.5c5.943 0 11.219-2.585 14.936-6.572l-6.53-5.438c-1.853 2.585-4.915 4.51-8.406 4.51c-5.223 0-9.651-3.657-11.303-8.25H4.5v8.067C9.014 40.164 16.035 44.5 24 44.5z"/>
@@ -47,6 +48,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      const auth = getAuthWithPersistence();
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
       console.error("Email sign-in failed:", error);
@@ -62,6 +64,7 @@ export default function LoginPage() {
   const handleGuestLogin = async () => {
     setIsGuestLoading(true);
     try {
+      const auth = getAuthWithPersistence();
       await signInAnonymously(auth);
     } catch (error: any) {
       console.error("Anonymous sign-in failed:", error);
@@ -77,6 +80,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
+      const auth = getAuthWithPersistence();
       await setPersistence(auth, browserLocalPersistence)
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
@@ -202,5 +206,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
