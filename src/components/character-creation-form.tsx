@@ -134,37 +134,33 @@ export function CharacterCreationForm({
   userPreferences,
 }: CharacterCreationFormProps) {
   const formId = useId();
-  const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
+  const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>(() => {
+    if (initialCharacters.length > 0) {
+      return initialCharacters.map(char => ({
+        id: char.id,
+        character: char,
+      }));
+    }
+    
+    const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
+    const hostDefaultGender = userPreferences?.defaultGender || 'Any';
+    
+    return [{ 
+      id: `${formId}-slot-0`, 
+      character: null,
+      preferences: {
+        playerName: hostPlayerName,
+        gender: hostDefaultGender,
+      }
+    }];
+  });
+
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   
   const isHost = currentUser?.uid === gameData.userId;
   const currentUserPlayerId = currentUser?.uid;
   const userHasCharacter = playerSlots.some(slot => slot.character?.playerId === currentUserPlayerId);
-
-  useEffect(() => {
-    if (initialCharacters.length > 0) {
-        const slots: PlayerSlot[] = initialCharacters.map(char => ({
-            id: char.id,
-            character: char,
-        }));
-        setPlayerSlots(slots);
-    } else {
-        const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
-        const hostDefaultGender = userPreferences?.defaultGender || 'Any';
-        
-        const initialSlot: PlayerSlot = { 
-            id: `${formId}-slot-0`, 
-            character: null,
-            preferences: {
-                playerName: hostPlayerName,
-                gender: hostDefaultGender,
-            }
-        };
-        setPlayerSlots([initialSlot]);
-    }
-  }, [initialCharacters, formId, currentUser, userPreferences]);
-
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
     setPlayerSlots(newSlots);
