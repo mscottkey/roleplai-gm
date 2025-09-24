@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -81,6 +81,7 @@ export default function LoginPage() {
     provider.addScope('profile');
     
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error("Google sign-in error:", error);
