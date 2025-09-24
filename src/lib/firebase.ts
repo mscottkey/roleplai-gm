@@ -13,11 +13,6 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 }
 
-// Dynamically set authDomain on the client-side
-if (typeof window !== 'undefined') {
-  firebaseConfig.authDomain = window.location.hostname;
-}
-
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
