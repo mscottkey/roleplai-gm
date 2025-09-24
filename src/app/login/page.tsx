@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -77,13 +77,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      // Force the auth domain to the current window's host
-      auth.tenantId = null;
-      auth.config = {
-        ...auth.config,
-        authDomain: window.location.hostname
-      };
-
+      await setPersistence(auth, browserLocalPersistence)
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
@@ -208,3 +202,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
