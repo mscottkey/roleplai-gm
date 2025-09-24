@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LoadingSpinner } from '@/components/icons';
+import { LoadingSpinner, BrandedLoadingSpinner } from '@/components/icons';
 import { ArrowRight, LogIn } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
