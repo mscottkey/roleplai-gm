@@ -369,27 +369,12 @@ export async function saveCampaignStructure(gameId: string, campaign: CampaignSt
     const db = getFirestore(app);
     const gameRef = doc(db, 'games', gameId);
 
-    const batch = writeBatch(db);
-
-    // Save campaign-level data to a single doc
-    const campaignRef = doc(collection(gameRef, 'campaign'));
-    batch.set(campaignRef, {
-      campaignIssues: campaign.campaignIssues,
-      campaignAspects: campaign.campaignAspects,
-    });
+    // Use a consistent ID for the campaign data document.
+    const campaignRef = doc(gameRef, 'campaign', 'data');
     
-    // Save each faction and node as a separate document in subcollections
-    campaign.factions.forEach(faction => {
-      const factionRef = doc(collection(campaignRef, 'factions'));
-      batch.set(factionRef, faction);
-    });
+    // Save the entire campaign structure object to this single document.
+    await setDoc(campaignRef, campaign);
 
-    campaign.nodes.forEach(node => {
-      const nodeRef = doc(collection(campaignRef, 'nodes'));
-      batch.set(nodeRef, node);
-    });
-
-    await batch.commit();
     return { success: true };
     
   } catch (error) {

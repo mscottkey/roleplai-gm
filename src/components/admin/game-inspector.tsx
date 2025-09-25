@@ -5,6 +5,14 @@ import type { GameSession } from '@/app/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 function JsonViewer({ data }: { data: any }) {
+    // A simple check to avoid trying to stringify undefined or null, which results in "null"
+    if (data === undefined || data === null) {
+        return (
+             <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                <code>No data available.</code>
+            </pre>
+        )
+    }
     return (
         <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
             <code>{JSON.stringify(data, null, 2)}</code>
@@ -29,9 +37,9 @@ export function GameInspector({ game }: { game: GameSession }) {
         </AccordionContent>
       </AccordionItem>
        <AccordionItem value="campaignStructure">
-        <AccordionTrigger>Campaign Structure</AccordionTrigger>
+        <AccordionTrigger>Campaign Structure (Subcollection)</AccordionTrigger>
         <AccordionContent>
-          <JsonViewer data={game.gameData.campaignStructure} />
+            <p className="text-xs text-muted-foreground p-2">Campaign data is now stored in a subcollection. Use the Firebase Console to view the `games/{game.id}/campaign/data` document.</p>
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="messages">
