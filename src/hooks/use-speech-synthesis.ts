@@ -88,7 +88,6 @@ export function useSpeechSynthesis({
 
   const primeEngine = () => {
     if (!isPrimedRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      console.log('[TTS Hook] Priming speech engine...');
       const synth = window.speechSynthesis;
       const primer = new SpeechSynthesisUtterance('');
       synth.speak(primer);
@@ -163,31 +162,27 @@ export function useSpeechSynthesis({
 
   const speak = useCallback((text: string) => {
     primeEngine();
-    console.log('[TTS Hook] `speak` function called.');
     if (!supported) {
-      console.log('[TTS Hook] Speech synthesis not supported.');
       return;
     }
 
     const synth = window.speechSynthesis;
+    // Always cancel before speaking to avoid race conditions and "interrupted" errors.
     if (synth.speaking) {
-      synth.cancel();
+        synth.cancel();
     }
     
     // Use a timeout to allow the cancel to process and avoid race conditions
     setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(text);
         utteranceRef.current = utterance; 
-        console.log(`[TTS Hook] Created new utterance for text: "${text.substring(0, 50)}..."`);
         
         utterance.onstart = () => {
-            console.log('[TTS Hook] Event: onstart');
             setIsSpeaking(true);
             setIsPaused(false);
         };
 
         utterance.onend = () => {
-            console.log('[TTS Hook] Event: onend');
             setIsSpeaking(false);
             setIsPaused(false);
             utteranceRef.current = null;
@@ -195,37 +190,25 @@ export function useSpeechSynthesis({
         };
 
         utterance.onpause = () => {
-            console.log('[TTS Hook] Event: onpause');
             setIsPaused(true);
             setIsSpeaking(true);
         };
 
         utterance.onresume = () => {
-            console.log('[TTS Hook] Event: onresume');
             setIsPaused(false);
             setIsSpeaking(true);
-        };
-
-        utterance.onerror = (e) => {
-          console.error('[TTS Hook] Event: onerror', e);
         };
 
         const voiceToUse = selectedVoiceRef.current;
         if (voiceToUse) {
             utterance.voice = voiceToUse;
-            console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
-        } else {
-            console.log('[TTS Hook] No specific voice selected, using browser default.');
         }
 
         utterance.rate = rate;
         utterance.pitch = pitch;
         utterance.volume = volume;
-        console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
 
-        console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
         synth.speak(utterance);
-        console.log('[TTS Hook] synth.speak() has been called.');
     }, 100);
 
 }, [supported, rate, pitch, volume, onEnd]);
