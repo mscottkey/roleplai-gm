@@ -803,8 +803,9 @@ The stage is set. What do you do?
 
     const gameIdToDelete = deleteConfirmation.id;
     deletingGameId.current = gameIdToDelete;
-
-    setDeleteConfirmation(null); // Close dialog immediately
+    
+    router.push('/play'); // Navigate away first
+    setDeleteConfirmation(null); // Close dialog
 
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
@@ -914,7 +915,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={onUndo}
+            onUndo={handleUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
