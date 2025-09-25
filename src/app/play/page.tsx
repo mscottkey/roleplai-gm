@@ -122,18 +122,24 @@ export default function RoleplAIGMPage() {
   }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
+    console.log('[TTS Debug] handlePlayAll triggered.');
     if (isPaused) {
+      console.log('[TTS Debug] Resuming...');
       resume();
       return;
     }
     
     if (isSpeaking) {
+      console.log('[TTS Debug] Stopping current speech.');
       cancel();
     }
     
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
+    console.log('[TTS Debug] State: isPaused=' + isPaused + ', isSpeaking=' + isSpeaking);
     
     if (storyText.trim()) {
+      console.log('[TTS Debug] Selected Voice:', selectedVoice?.name);
+      console.log('[TTS Debug] Text to speak:', storyText.substring(0, 100) + '...');
       speak(storyText);
     }
   }

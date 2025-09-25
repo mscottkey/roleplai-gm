@@ -84,7 +84,6 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isPrimedRef = useRef(false);
 
   useEffect(() => {
@@ -167,6 +166,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     const synth = window.speechSynthesis;
     if (synth.speaking || synth.pending) return;
 
+    console.log('[TTS Hook] Priming speech engine...');
     const primer = new SpeechSynthesisUtterance('');
     synth.speak(primer);
     isPrimedRef.current = true;
@@ -185,6 +185,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   const cancel = useCallback(() => {
     if (!supported) return;
+    console.log('[TTS Hook] `cancel` called.');
     const synth = window.speechSynthesis;
     utteranceQueue.length = 0; // Clear the queue
     synth.cancel();
@@ -194,17 +195,20 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   const pause = useCallback(() => {
     if (!supported) return;
+    console.log('[TTS Hook] `pause` called.');
     window.speechSynthesis.pause();
     setIsPaused(true);
   }, [supported]);
 
   const resume = useCallback(() => {
     if (!supported) return;
+    console.log('[TTS Hook] `resume` called.');
     window.speechSynthesis.resume();
     setIsPaused(false);
   }, [supported]);
 
   const speak = useCallback((options: SpeakOptions | string) => {
+    console.log('[TTS Hook] `speak` function called.');
     if (!supported) return;
 
     primeEngine();
@@ -217,17 +221,19 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     
     const synth = window.speechSynthesis;
     
+    console.log('[TTS Hook] Created new utterance for text:', `"${content.substring(0, 50)}..."`);
     const utterance = new SpeechSynthesisUtterance(content);
 
     utterance.onstart = () => {
+        console.log('[TTS Hook] Event: onstart');
         setIsSpeaking(true);
         setIsPaused(false);
     };
 
     utterance.onend = () => {
+        console.log('[TTS Hook] Event: onend');
         setIsSpeaking(false);
         setIsPaused(false);
-        // Remove this utterance from the queue
         const index = utteranceQueue.indexOf(utterance);
         if (index > -1) {
             utteranceQueue.splice(index, 1);
@@ -235,30 +241,43 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     };
     
     utterance.onpause = () => {
+        console.log('[TTS Hook] Event: onpause');
         setIsPaused(true);
     };
     
     utterance.onresume = () => {
+        console.log('[TTS Hook] Event: onresume');
         setIsPaused(false);
+    };
+
+    utterance.onerror = (e) => {
+      console.error('[TTS Hook] Event: onerror', e);
     };
     
     const voiceToUse = selectedVoiceRef.current;
     if (voiceToUse) {
+        console.log('[TTS Hook] Applying voice:', voiceToUse.name, `(${voiceToUse.voiceURI})`);
         utterance.voice = voiceToUse;
+    } else {
+        console.warn('[TTS Hook] No selected voice available. Using browser default.');
     }
 
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
+    console.log('[TTS Hook] Settings: rate=' + rate + ', pitch=' + pitch + ', volume=' + volume);
 
-    // Add to the queue to prevent garbage collection
-    utteranceQueue.push(utterance);
 
     if (synth.speaking) {
+      console.log('[TTS Hook] Synth is already speaking. Cancelling previous speech.');
       synth.cancel();
     }
     
+    // Add to the queue to prevent garbage collection
+    utteranceQueue.push(utterance);
+    
     setTimeout(() => {
+      console.log('[TTS Hook] synth.speak() has been called.');
       synth.speak(utterance);
     }, 100);
 
