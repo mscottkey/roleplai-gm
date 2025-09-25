@@ -18,19 +18,19 @@ export type Faction = z.infer<typeof FactionSchema>;
 
 const FaceSchema = z.object({
     name: z.string().describe('The name of the NPC.'),
-    role: z.string().describe('The role or job of the NPC at this node (e.g., "Lead Investigator", "Security Chief", "Bartender").'),
-    aspect: z.string().describe("A descriptive aspect that implies their capabilities and challenge level (e.g., 'Battle-Scarred Veteran', 'Deceptive Diplomat')."),
+    role: z.string().describe('The role or job of the NPC at this node (e.g., "Merchant", "Guard Captain").'),
+    aspect: z.string().describe("A descriptive aspect that implies their capabilities and personality (e.g., 'Deceptively Honest', 'Haunted by the Past')."),
     description: z.string().describe('A one-sentence description of the NPC.'),
 });
 
 
 export const NodeSchema = z.object({
-    title: z.string().describe('A clear, evocative name for the node (e.g., "The Whispering Tombs").'),
+    title: z.string().describe('A clear, evocative name for the situation or location.'),
     description: z.string().describe('A one-paragraph description of the situation at this node.'),
     isStartingNode: z.boolean().describe('Set to true for exactly one node, which will be the campaign entry point.'),
     leads: z.array(z.string()).describe('A list of 2-3 titles of other nodes this one provides leads to.'),
     stakes: z.string().describe('What changes if the PCs succeed, fail, or get delayed here.'),
-    challenges: z.array(z.string()).describe("A list of 2-3 general challenges, obstacles, or minion groups at this node (e.g., 'A group of surly guards', 'A treacherous environmental hazard')."),
+    challenges: z.array(z.string()).describe("A list of 2-3 general challenges or obstacles at this node."),
     faces: z.array(FaceSchema).describe('1-2 key NPCs at this node, with their roles and aspects.'),
     aspects: z.array(z.string()).describe('Two Fate Aspects specific to this node.'),
 });

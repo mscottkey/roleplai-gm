@@ -27,7 +27,7 @@ export const CharacterSchema = z.object({
     aspect: z.string().describe('A key concept or catch-phrase for the character, like "A knight with a mysterious past."'),
     pronouns: z.string().optional().describe("The character's pronouns (e.g., 'She/Her', 'They/Them')."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
-    archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
+    archetype: z.string().optional().describe("The character's archetype or role in the party."),
     stats: CharacterStatsSchema.optional(),
     playerName: z.string().optional().describe("The name of the player controlling this character."),
 });

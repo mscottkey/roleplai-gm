@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -21,26 +22,26 @@ const prompt = ai.definePrompt({
   input: {schema: AssessConsequencesInputSchema},
   output: {schema: AssessConsequencesOutputSchema},
   model: MODEL_ANALYSIS,
-  prompt: `You are an expert Game Master reviewing a player's intended action. Your task is to determine if the action is significant enough to warrant a confirmation.
+  prompt: `You are an expert Game Master reviewing a player's intended action. Your task is to determine if the action is significant enough to warrant a confirmation from the player.
 
 A confirmation is needed if the action is:
-1.  **Irreversible:** e.g., killing a key NPC, destroying a unique item, burning down a city.
-2.  **Morally Significant:** e.g., betraying an ally, committing a major crime, making a choice that leads to widespread suffering.
-3.  **World-Altering:** e.g., declaring war, revealing a secret that changes political dynamics, unleashing a sealed evil.
-4.  **A Major Detour:** e.g., abandoning the main quest line entirely.
+1.  **Irreversible:** An action that permanently changes the world or a character in a way that cannot be easily undone.
+2.  **Morally Significant:** An action that represents a major ethical choice or has significant moral implications for the character or world.
+3.  **World-Altering:** An action that could dramatically shift the balance of power, change political landscapes, or have widespread, unforeseen consequences.
+4.  **A Major Detour:** An action that would lead the party to abandon a primary objective or questline.
 
 Do NOT ask for confirmation for routine actions, even if they are risky (e.g., attacking a monster, picking a lock, negotiating a price).
 
 ## World State
 - Summary: {{{worldState.summary}}}
 - Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
-- Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
+- Recent Events: {{#each world.recentEvents}}- {{{this}}}{{/each}}
 
 ## Player's Intended Action
 Character: {{{character.name}}}
 Action: "{{{actionDescription}}}"
 
-Based on the action and the world state, does this require confirmation? If so, provide a clear, concise question to the player.
+Based on the action and the world state, does this require confirmation? If so, provide a clear, concise question to the player that states the potential consequence (e.g., "This could start a war. Are you sure?").
 `,
 });
 
