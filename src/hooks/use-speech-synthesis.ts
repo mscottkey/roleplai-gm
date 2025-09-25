@@ -201,6 +201,8 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
   const speak = useCallback((options: SpeakOptions | string) => {
     if (!supported) return;
 
+    primeEngine();
+
     const { text, rate = 1.0, pitch = 1.0, volume = 1.0 } =
       typeof options === 'string' ? { text: options } as SpeakOptions : options;
 
@@ -213,6 +215,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     
     const utterance = new SpeechSynthesisUtterance(content);
     utteranceRef.current = utterance; // Keep reference to avoid GC
+    console.log('[TTS Hook] Created new utterance for text:', `"${content.substring(0, 50)}..."`);
     
     utterance.onstart = () => {
         console.log('[TTS Hook] Event: onstart');
@@ -238,7 +241,9 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     };
 
     utterance.onerror = (e) => {
+      if (e.error !== 'interrupted' && e.error !== 'canceled') {
         console.error('[TTS Hook] Event: onerror', e);
+      }
     };
 
     const voiceToUse = selectedVoiceRef.current;
@@ -254,17 +259,19 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     utterance.volume = volume;
     console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
 
-    // This is the defensive pattern to avoid race conditions.
+    // Defensive pattern to avoid race conditions.
     if (synth.speaking) {
       synth.cancel();
     }
     
+    console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
+    // Using a timeout gives the browser a moment to process the cancel call.
     setTimeout(() => {
-      console.log('[TTS Hook] synth.speak() is being called inside timeout.');
+      console.log('[TTS Hook] synth.speak() has been called.');
       synth.speak(utterance);
     }, 100);
 
-  }, [supported]);
+  }, [supported, primeEngine]);
 
 
   return {
