@@ -111,15 +111,19 @@ export default function RoleplAIGMPage() {
   }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
+    // If we are paused, just resume.
     if (isPaused) {
       resume();
       return;
     }
+    
+    // If not paused, we start a new narration.
+    // First, cancel any speech that might be happening for some other reason.
     if (isSpeaking) {
-      // If it's speaking but not paused, it might be an old utterance.
-      // We cancel it and start fresh.
       cancel();
     }
+    
+    // Then, collect all story text and speak it from the beginning.
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
     if (storyText.trim()) {
       speak(storyText);
