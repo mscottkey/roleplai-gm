@@ -24,6 +24,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/t
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
 import type { UserPreferences } from '@/app/actions/user-preferences';
+import { getFirestore, doc, runTransaction } from 'firebase/firestore';
 
 const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
@@ -526,6 +527,30 @@ const handleGenerateAll = async () => {
         return newSlots;
     });
 };
+
+  const handleUpdatePlayerSlots = async (slots: PlayerSlot[]) => {
+    if (!activeGameId) return;
+
+    const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
+    const db = getFirestore();
+    
+    try {
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'games', activeGameId);
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) {
+          throw "Game not found!";
+        }
+        transaction.update(gameRef, { 
+          'worldState.characters': updatedCharacters,
+          'gameData.characters': updatedCharacters
+        });
+      });
+    } catch(e) {
+      const err = e as Error;
+      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
+    }
+  };
 
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
   return (
