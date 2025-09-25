@@ -285,7 +285,7 @@ export default function RoleplAIGMPage() {
 
     setIsLoading(true);
     try {
-      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+      const { gameId, warningMessage, newGame } = await startNewGame({ request, userId: user.uid, playMode });
       
       if (warningMessage) {
         toast({
@@ -418,19 +418,10 @@ export default function RoleplAIGMPage() {
 
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         
-        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
-
         const finalInitialMessageContent = `
-# Welcome to ${gameData.name}!
-
-## Setting
-${cleanMarkdown(gameData.setting)}
-
-## Tone
-${cleanMarkdown(gameData.tone)}
-
----
-
+# The Adventure Begins...
+        
+## ${startingNode.title}
 ${startingNode.description}
 
 The stage is set. What do you do?
@@ -546,7 +537,7 @@ The stage is set. What do you do?
             const response = await continueStory({
                 actionDescription: playerInput,
                 worldState,
-                characterId: activeCharacter.id,
+                character: activeCharacter,
                 ruleAdapter: 'FateCore',
                 mechanicsVisibility,
             });
@@ -1019,6 +1010,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
 
 
 
