@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -12,7 +13,7 @@ import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } 
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, Volume2 } from 'lucide-react';
 import { cn, formatDialogue } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -47,7 +48,7 @@ type GameViewProps = {
   isPaused: boolean;
   isAutoPlayEnabled: boolean;
   isTTSSupported: boolean;
-  onPlay: () => void;
+  onPlay: (text?: string) => void;
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
@@ -157,7 +158,15 @@ export function GameView({
             {storyMessages.map((message, index) => {
               const contentWithDialogue = formatDialogue(message.content);
               return (
-                <div key={index}>
+                <div key={index} className="relative group">
+                   <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute -left-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => onPlay(message.content)}
+                    >
+                        <Volume2 className="h-5 w-5 text-muted-foreground" />
+                    </Button>
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
                     {contentWithDialogue}
                   </ReactMarkdown>

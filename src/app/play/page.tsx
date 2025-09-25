@@ -92,12 +92,13 @@ export default function RoleplAIGMPage() {
   const cleanForSpeech = (text: string) => {
     if (!text) return '';
     return text
-      // Remove markdown headers (e.g., #, ##, ###)
-      .replace(/^#+\s/gm, '')
-      // Remove bolded labels (e.g., **Label:**)
-      .replace(/\*\*.*?\*\*:/g, '')
-      // Remove all other markdown symbols
+      // Remove markdown headers and titles (e.g., #, ##, ###, **Title:**)
+      .replace(/^#+\s.*$/gm, '')
+      .replace(/\*\*(.*?)\*\*/g, '')
+      // Remove all other markdown symbols like *, _, `
       .replace(/[*_`]/g, '')
+      // Remove any lines that are just whitespace
+      .replace(/^\s*$/gm, '')
       // Trim whitespace from the start and end of the string
       .trim();
   };
@@ -107,6 +108,7 @@ export default function RoleplAIGMPage() {
     if (
       supported &&
       userInteractedRef.current &&
+      document.visibilityState === 'visible' &&
       isAutoPlayEnabled &&
       generationProgress === null && // Only play when generation is complete
       lastMessage &&
@@ -121,29 +123,34 @@ export default function RoleplAIGMPage() {
     }
   }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
-  const handlePlayAll = () => {
-    console.log('[TTS Debug] handlePlayAll triggered.');
+  const handlePlayAll = (text?: string) => {
     if (isPaused) {
-      console.log('[TTS Debug] Resuming...');
       resume();
       return;
     }
-    
+  
     if (isSpeaking) {
-      console.log('[TTS Debug] Stopping current speech.');
       cancel();
+      // If text is provided, we want to start speaking it immediately after cancelling.
+      // If no text, it was just a stop action.
+      if (!text) return;
     }
-    
-    const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-    console.log('[TTS Debug] State: isPaused=' + isPaused + ', isSpeaking=' + isSpeaking);
-    
+  
+    if (!userInteractedRef.current) {
+      toast({
+        title: 'Click to enable audio',
+        description: 'Tap or click once anywhere, then press Play again.',
+      });
+      return;
+    }
+  
+    const storyText = text || storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
     if (storyText.trim()) {
-      console.log('[TTS Debug] Selected Voice:', selectedVoice?.name);
-      console.log('[TTS Debug] Text to speak:', storyText.substring(0, 100) + '...');
       speak(storyText);
     }
-  }
-
+  };
+  
+  
   useEffect(() => {
     if (!user) return; // AuthGuard ensures user is present
 
@@ -908,7 +915,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
