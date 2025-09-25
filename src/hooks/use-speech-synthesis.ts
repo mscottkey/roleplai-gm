@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -201,6 +202,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   const speak = useCallback((options: SpeakOptions | string) => {
     if (!supported) return;
+    console.log('[TTS Hook] `speak` function called.');
 
     primeEngine();
 
@@ -210,12 +212,10 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     const content = (text ?? '').trim();
     if (!content) return;
     
-    console.log('[TTS Hook] `speak` function called.');
-    
     const synth = window.speechSynthesis;
     
     const utterance = new SpeechSynthesisUtterance(content);
-    utteranceRef.current = utterance; // Keep reference to avoid GC
+    utteranceRef.current = utterance;
     console.log('[TTS Hook] Created new utterance for text:', `"${content.substring(0, 50)}..."`);
     
     utterance.onstart = () => {
@@ -242,9 +242,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     };
 
     utterance.onerror = (e) => {
-      if (e.error !== 'interrupted' && e.error !== 'canceled') {
-        console.error('[TTS Hook] Event: onerror', e);
-      }
+      console.error('[TTS Hook] Event: onerror', e);
     };
 
     const voiceToUse = selectedVoiceRef.current;
@@ -260,13 +258,10 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     utterance.volume = volume;
     console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
 
-    // Defensive pattern to avoid race conditions.
     if (synth.speaking) {
       synth.cancel();
     }
     
-    console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
-    // Using a timeout gives the browser a moment to process the cancel call.
     setTimeout(() => {
       console.log('[TTS Hook] synth.speak() has been called.');
       synth.speak(utterance);
@@ -277,7 +272,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   return {
     supported,
-    voices: categorizedVoices, // Use the categorized and sorted list for UI
+    voices: categorizedVoices,
     selectedVoice,
     selectVoice,
     isSpeaking,

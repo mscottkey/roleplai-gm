@@ -72,7 +72,7 @@ export default function RoleplAIGMPage() {
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
   
   const { speak, pause, resume, cancel, isSpeaking, isPaused, supported, voices, selectVoice, selectedVoice } = useSpeechSynthesis({
-    preferredVoiceURI: userPreferences?.defaultVoiceURI
+    preferredVoiceURI: userPreferences?.defaultVoiceURI,
   });
 
   const lastSpokenMessageRef = useRef<Message | null>(null);
@@ -122,6 +122,8 @@ export default function RoleplAIGMPage() {
   }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
+    console.log('[TTS Debug] handlePlayAll triggered.');
+    console.log(`[TTS Debug] State: isPaused=${isPaused}, isSpeaking=${isSpeaking}`);
     if (isPaused) {
       resume();
       return;
@@ -132,6 +134,8 @@ export default function RoleplAIGMPage() {
     }
     
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
+    console.log(`[TTS Debug] Selected Voice: ${selectedVoice?.name}`);
+    console.log(`[TTS Debug] Text to speak: ${storyText.substring(0, 100)}...`);
     
     if (storyText.trim()) {
       speak(storyText);
