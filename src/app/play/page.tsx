@@ -31,39 +31,6 @@ import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
 
-const normalizeOrderedList = (s: string) => {
-  if (!s) return s;
-  return s
-    .trim()
-    .replace(/(\d+)\.\s/g, '\n$1. ')
-    .replace(/^\s*1\./, '1.')
-    .replace(/\n{2,}/g, '\n');
-};
-
-const normalizeInlineBulletsInSections = (md: string) => {
-    if (!md) return md;
-
-    const fixLine = (title: string, text: string) => {
-        return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
-            if (!b) return a;
-            const listItems = b.replace(/([*-])\s/g, '\n$1. ').trim();
-            return `${a.trim()}\n\n${listItems}`;
-        });
-    };
-
-    let processedMd = md;
-    processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
-    processedMd = processedMd.replace(/^\s*-\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
-    
-    processedMd = fixLine('Key Factions', processedMd);
-    processedMd = fixLine('Notable Locations', processedMd);
-    processedMd = fixLine('Tone Levers', processedMd);
-
-    return cleanMarkdown(processedMd);
-};
-
-
-
 export default function RoleplAIGMPage() {
   const { user } = useAuth(); // AuthGuard handles loading state
   const router = useRouter();
@@ -445,22 +412,28 @@ export default function RoleplAIGMPage() {
         }
 
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
-        const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
+        
+        const initialScene = startingNode
+            ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}`
+            : "## The Adventure Begins...";
 
-        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : '';
+        const newHooks = startingNode
+            ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`
+            : 'The stage is set. What do you do?';
+
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
 # Welcome to ${gameData.name}!
 
 ## Setting
-${normalizeInlineBulletsInSections(gameData.setting)}
+${cleanMarkdown(gameData.setting)}
 
 ## Tone
-${normalizeInlineBulletsInSections(gameData.tone)}
+${cleanMarkdown(gameData.tone)}
 
 ## Initial Hooks
-${normalizeOrderedList(newHooks)}
+${newHooks}
 
 ## Your Party
 ${characterList}
@@ -483,6 +456,9 @@ The stage is set. What do you do?
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
                 'worldState.storyAspects': campaignStructure.campaignAspects,
+                'worldState.places': campaignStructure.nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] })),
+                'worldState.knownPlaces': [{ name: startingNode.title, description: startingNode.description.split('.')[0] }],
+                'worldState.knownFactions': [],
                 previousWorldState: null,
             }
         });
@@ -751,22 +727,28 @@ The stage is set. What do you do?
         };
         
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
-        const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
+        
+        const initialScene = startingNode
+            ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}`
+            : "## The Adventure Begins...";
 
-        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
+        const newHooks = startingNode
+            ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`
+            : 'The stage is set. What do you do?';
+
         const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
-${normalizeInlineBulletsInSections(gameData.setting)}
+${cleanMarkdown(gameData.setting)}
 
 ## Tone
-${normalizeInlineBulletsInSections(gameData.tone)}
+${cleanMarkdown(gameData.tone)}
 
 ## Initial Hooks
-${normalizeOrderedList(newHooks)}
+${newHooks}
 
 ## Your Party
 ${characterList}
@@ -783,7 +765,6 @@ The stage is set. What do you do?
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                'gameData.initialHooks': newHooks,
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
@@ -923,7 +904,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={onUndo}
+            onUndo={handleUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
@@ -1061,5 +1042,6 @@ The stage is set. What do you do?
     </>
   );
 }
+
 
 
