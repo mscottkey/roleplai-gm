@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams }
 from 'next/navigation';
 import type { GameData, Message, MechanicsVisibility, Character, GameSession, PlayerSlot } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame, updateUserProfile } from '@/app/actions';
+import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame, updateUserProfile, saveCampaignStructure } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -129,6 +129,11 @@ export default function RoleplAIGMPage() {
       lastMessage.role === 'assistant' &&
       lastMessage !== lastSpokenMessageRef.current
     ) {
+      // Don't auto-play system messages, especially the placeholder during generation
+      if (lastMessage.role === 'system' && lastMessage.id.startsWith('placeholder-')) {
+          return;
+      }
+
       const cleanedText = cleanForSpeech(lastMessage.content);
       if (cleanedText.trim()) {
         speak(cleanedText);
@@ -206,9 +211,9 @@ export default function RoleplAIGMPage() {
     }
     return () => {
         // Cleanup TTS when navigating away from any game
-        cancel();
+        if (supported) cancel();
     }
-  }, [searchParams, activeGameId, cancel]);
+  }, [searchParams, activeGameId, cancel, supported]);
 
   useEffect(() => {
     if (!activeGameId) {
@@ -425,7 +430,7 @@ ${characterList}
 *The stage is being set. The AI is ${status}...*
 `.trim();
 
-        const placeholderMessage: Message = { id: `placeholder-${Date.now()}`, role: 'assistant', content: generatePlaceholderMessage("weaving a web of intrigue") };
+        const placeholderMessage: Message = { id: `placeholder-${Date.now()}`, role: 'system', content: generatePlaceholderMessage("weaving a web of intrigue") };
 
         await updateWorldState({
             gameId: activeGameId,
@@ -454,9 +459,13 @@ ${characterList}
             factions,
             nodes,
         };
-
-        const updatedGameData = { ...gameData, characters: finalCharacters, campaignStructure };
         
+        // Save the generated campaign to its own subcollection
+        const saveResult = await saveCampaignStructure(activeGameId, campaignStructure);
+        if (!saveResult.success) {
+            throw new Error(saveResult.message || 'Failed to save campaign structure.');
+        }
+
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
@@ -466,10 +475,10 @@ ${characterList}
 # Welcome to your adventure!
 
 ## Setting
-${normalizeInlineBulletsInSections(updatedGameData.setting)}
+${normalizeInlineBulletsInSections(gameData.setting)}
 
 ## Tone
-${normalizeInlineBulletsInSections(updatedGameData.tone)}
+${normalizeInlineBulletsInSections(gameData.tone)}
 
 ## Initial Hooks
 ${normalizeOrderedList(newHooks)}
@@ -489,7 +498,7 @@ The stage is set. What do you do?
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                gameData: { ...updatedGameData, initialHooks: newHooks },
+                'gameData.initialHooks': newHooks,
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
@@ -791,7 +800,6 @@ The stage is set. What do you do?
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                'gameData.campaignStructure': campaignStructure,
                 'gameData.initialHooks': newHooks,
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),

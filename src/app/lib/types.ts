@@ -30,7 +30,7 @@ export type Character = {
 export type GameData = GenerateNewGameOutput & {
   userId?: string; // The user who created the game
   characters?: Character[];
-  campaignStructure?: CampaignStructure;
+  campaignStructure?: CampaignStructure; // This is now optional, as it will be loaded from a subcollection
   difficulty?: string;
   playMode?: 'local' | 'remote';
 };

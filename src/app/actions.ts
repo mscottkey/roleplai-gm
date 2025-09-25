@@ -15,7 +15,7 @@ import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/
 import { assessConsequences } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
-import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node } from "@/ai/schemas/campaign-structure-schemas";
+import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node, CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
 import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
@@ -27,7 +27,7 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
 import type { Character } from "@/app/lib/types";
@@ -265,19 +265,20 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
         }
         
         let gameData = gameDoc.data();
+        let newUpdates = { ...updates };
 
         // This is a hacky way to handle the messages[0].content update
-        if (updates['messages[0].content']) {
-          const newContent = updates['messages[0].content'];
+        if (newUpdates['messages[0].content']) {
+          const newContent = newUpdates['messages[0].content'];
           if (gameData.messages && gameData.messages.length > 0) {
             gameData.messages[0].content = newContent;
           }
           // Remove the problematic key from updates
-          delete updates['messages[0].content'];
+          delete newUpdates['messages[0].content'];
         }
         
         // Merge remaining updates
-        const finalUpdates = { ...gameData, ...updates };
+        const finalUpdates = { ...gameData, ...newUpdates };
 
         transaction.set(gameRef, finalUpdates);
       });
@@ -361,6 +362,43 @@ export async function generateNodesAction(input: GenerateNodesInput): Promise<No
         throw new Error("Failed to generate situation nodes. Please try again.");
     }
 }
+
+export async function saveCampaignStructure(gameId: string, campaign: CampaignStructure): Promise<{ success: boolean; message?: string }> {
+  try {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, 'games', gameId);
+
+    const batch = writeBatch(db);
+
+    // Save campaign-level data to a single doc
+    const campaignRef = doc(collection(gameRef, 'campaign'));
+    batch.set(campaignRef, {
+      campaignIssues: campaign.campaignIssues,
+      campaignAspects: campaign.campaignAspects,
+    });
+    
+    // Save each faction and node as a separate document in subcollections
+    campaign.factions.forEach(faction => {
+      const factionRef = doc(collection(campaignRef, 'factions'));
+      batch.set(factionRef, faction);
+    });
+
+    campaign.nodes.forEach(node => {
+      const nodeRef = doc(collection(campaignRef, 'nodes'));
+      batch.set(nodeRef, node);
+    });
+
+    await batch.commit();
+    return { success: true };
+    
+  } catch (error) {
+    console.error("Error in saveCampaignStructure action:", error);
+    const message = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message };
+  }
+}
+
 
 export async function getCostEstimation(input: EstimateCostInput): Promise<EstimateCostOutput> {
     try {
