@@ -139,11 +139,11 @@ Create a web of 5 to 7 interconnected situation nodes (these can be people, plac
 3.  **isStartingNode:** Designate **exactly one** node as the starting point for the campaign by setting this to \`true\`. This should be the most logical and exciting entry point for the created party. All other nodes must have this set to \`false\`.
 4.  **leads:** List 2-3 other node titles that this node provides clear leads to. This creates the "web."
 5.  **stakes:** Briefly describe what changes if the PCs succeed, fail, or get delayed at this node. Focus on consequences.
-6.  **challenges (2-3):** Provide 2-3 general challenges, obstacles, or groups of minions present at this node. Examples: "A group of surly guards", "A treacherous environmental hazard", "A complex security system".
+6.  **challenges (2-3):** Provide 2-3 general challenges, obstacles, or groups of minions present at this node. Examples: "A group of surly guards", "A treacherous environmental hazard", "A magically sealed door".
 7.  **faces (1-2):** Name 1 or 2 key NPCs at this node. For each Face, provide:
     *   **name:** The NPC's name.
-    *   **role:** Their job or function (e.g., "Lead Investigator", "Security Chief").
-    *   **aspect:** A descriptive aspect implying their skills and challenge (e.g., "Heavily-Armored Veteran", "Deceptive Diplomat").
+    *   **role:** Their job or function (e.g., "Village Elder", "Guard Captain").
+    *   **aspect:** A descriptive aspect implying their skills and challenge (e.g., "Battle-Scarred Veteran", "Deceptive Diplomat").
     *   **description:** A one-sentence descriptor.
 8.  **aspects (2):** Provide two Fate Aspects specific to this node.
 
