@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -489,6 +490,7 @@ The stage is set. What do you do?
     } finally {
         setGenerationProgress(null);
         setIsLoading(false);
+        setStep('play');
     }
   };
 
@@ -803,9 +805,8 @@ The stage is set. What do you do?
 
     const gameIdToDelete = deleteConfirmation.id;
     deletingGameId.current = gameIdToDelete;
-    
-    router.push('/play'); // Navigate away first
     setDeleteConfirmation(null); // Close dialog
+    router.push('/play'); // Navigate away first
 
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
@@ -837,12 +838,16 @@ The stage is set. What do you do?
     const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
     
     try {
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: { 
-            'worldState.characters': updatedCharacters,
-            'gameData.characters': updatedCharacters,
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'games', activeGameId);
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) {
+          throw "Game not found!";
         }
+        transaction.update(gameRef, { 
+          'worldState.characters': updatedCharacters,
+          'gameData.characters': updatedCharacters
+        });
       });
     } catch(e) {
       const err = e as Error;
