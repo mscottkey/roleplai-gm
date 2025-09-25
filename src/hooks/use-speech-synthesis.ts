@@ -34,6 +34,7 @@ export function useSpeechSynthesis({
   const [voices, setVoices] = useState<Voice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const isPrimedRef = useRef(false);
 
   // Detect voice quality and provider
   const analyzeVoice = (voice: SpeechSynthesisVoice): { quality: Voice['quality'], provider: string } => {
@@ -43,41 +44,35 @@ export function useSpeechSynthesis({
     const name = voice.name.toLowerCase();
     const uri = voice.voiceURI.toLowerCase();
     
-    // Google voices (usually highest quality in Chrome)
     if (name.includes('google') || uri.includes('google')) {
       quality = 'premium';
       provider = 'Google';
     }
-    // Microsoft Edge voices
     else if (name.includes('microsoft') || name.includes('edge') || name.includes('azure')) {
       quality = 'premium';
       provider = 'Microsoft';
     }
-    // Amazon Polly voices (if installed)
     else if (name.includes('amazon') || name.includes('polly')) {
       quality = 'premium';
       provider = 'Amazon';
     }
-    // Remote/Cloud voices
     else if (!voice.localService) {
       quality = 'high';
       provider = 'Cloud';
     }
-    // Enhanced system voices
     else if (name.includes('enhanced') || name.includes('premium') || name.includes('neural')) {
       quality = 'high';
       provider = 'System Enhanced';
     }
-    // Specific high-quality voices
     else if (
-      name.includes('samantha') || // iOS/macOS high quality
-      name.includes('alex') || // macOS
-      name.includes('victoria') || // Windows
-      name.includes('zira') || // Windows
-      name.includes('david') || // Windows
-      name.includes('hazel') || // Windows UK
-      name.includes('susan') || // macOS
-      name.includes('fred') // macOS
+      name.includes('samantha') ||
+      name.includes('alex') ||
+      name.includes('victoria') ||
+      name.includes('zira') ||
+      name.includes('david') ||
+      name.includes('hazel') ||
+      name.includes('susan') ||
+      name.includes('fred')
     ) {
       quality = 'high';
       provider = 'System';
@@ -85,6 +80,16 @@ export function useSpeechSynthesis({
     
     return { quality, provider };
   };
+
+  const primeEngine = () => {
+    if (!isPrimedRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      console.log('[TTS Hook] Priming speech engine...');
+      const synth = window.speechSynthesis;
+      const primer = new SpeechSynthesisUtterance('');
+      synth.speak(primer);
+      isPrimedRef.current = true;
+    }
+  }
 
   // Load available voices
   useEffect(() => {
@@ -95,7 +100,6 @@ export function useSpeechSynthesis({
       const loadVoices = () => {
         const availableVoices = synth.getVoices();
         
-        // Map to simpler voice objects and sort by quality
         const voiceList: Voice[] = availableVoices.map(v => {
           const { quality, provider } = analyzeVoice(v);
           return {
@@ -108,12 +112,10 @@ export function useSpeechSynthesis({
             provider
           };
         }).sort((a, b) => {
-          // Sort by quality first
           const qualityOrder = { premium: 0, high: 1, standard: 2 };
           const qualityDiff = qualityOrder[a.quality] - qualityOrder[b.quality];
           if (qualityDiff !== 0) return qualityDiff;
           
-          // Then prioritize English voices
           const aEnglish = a.lang.startsWith('en');
           const bEnglish = b.lang.startsWith('en');
           if (aEnglish && !bEnglish) return -1;
@@ -140,15 +142,12 @@ export function useSpeechSynthesis({
         }
       };
 
-      // Load voices immediately
       loadVoices();
       
-      // Chrome loads voices asynchronously
       if (synth.onvoiceschanged !== undefined) {
         synth.onvoiceschanged = loadVoices;
       }
       
-      // Cleanup function to cancel speech when the component unmounts
       return () => {
         if (synth.speaking) {
           synth.cancel();
@@ -158,6 +157,7 @@ export function useSpeechSynthesis({
   }, [preferredVoiceURI]);
 
   const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice | null) => {
+    primeEngine();
     console.log('[TTS Hook] `speak` function called.');
     if (!supported) {
       console.log('[TTS Hook] Speech synthesis not supported.');
@@ -165,61 +165,63 @@ export function useSpeechSynthesis({
     }
 
     const synth = window.speechSynthesis;
-
     if (synth.speaking) {
       synth.cancel();
     }
     
-    const utterance = new SpeechSynthesisUtterance(text);
-    utteranceRef.current = utterance; 
-    console.log(`[TTS Hook] Created new utterance for text: "${text.substring(0, 50)}..."`);
-    
-    utterance.onstart = () => {
-        console.log('[TTS Hook] Event: onstart');
-        setIsSpeaking(true);
-        setIsPaused(false);
-    };
+    // Use a timeout to allow the cancel to process
+    setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utteranceRef.current = utterance; 
+        console.log(`[TTS Hook] Created new utterance for text: "${text.substring(0, 50)}..."`);
+        
+        utterance.onstart = () => {
+            console.log('[TTS Hook] Event: onstart');
+            setIsSpeaking(true);
+            setIsPaused(false);
+        };
 
-    utterance.onend = () => {
-        console.log('[TTS Hook] Event: onend');
-        setIsSpeaking(false);
-        setIsPaused(false);
-        utteranceRef.current = null;
-        onEnd();
-    };
+        utterance.onend = () => {
+            console.log('[TTS Hook] Event: onend');
+            setIsSpeaking(false);
+            setIsPaused(false);
+            utteranceRef.current = null;
+            onEnd();
+        };
 
-    utterance.onpause = () => {
-        console.log('[TTS Hook] Event: onpause');
-        setIsPaused(true);
-        setIsSpeaking(true);
-    };
+        utterance.onpause = () => {
+            console.log('[TTS Hook] Event: onpause');
+            setIsPaused(true);
+            setIsSpeaking(true);
+        };
 
-    utterance.onresume = () => {
-        console.log('[TTS Hook] Event: onresume');
-        setIsPaused(false);
-        setIsSpeaking(true);
-    };
+        utterance.onresume = () => {
+            console.log('[TTS Hook] Event: onresume');
+            setIsPaused(false);
+            setIsSpeaking(true);
+        };
 
-    utterance.onerror = (e) => {
-        console.error('[TTS Hook] Event: onerror', e);
-    };
+        utterance.onerror = (e) => {
+          console.error('[TTS Hook] Event: onerror', e);
+        };
 
-    const voiceToUse = voiceOverride || selectedVoice;
-    if (voiceToUse) {
-        utterance.voice = voiceToUse;
-        console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
-    } else {
-        console.log('[TTS Hook] No specific voice selected, using browser default.');
-    }
+        const voiceToUse = voiceOverride || selectedVoice;
+        if (voiceToUse) {
+            utterance.voice = voiceToUse;
+            console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
+        } else {
+            console.log('[TTS Hook] No specific voice selected, using browser default.');
+        }
 
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-    console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
+        utterance.rate = rate;
+        utterance.pitch = pitch;
+        utterance.volume = volume;
+        console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
 
-    console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
-    synth.speak(utterance);
-    console.log('[TTS Hook] synth.speak() has been called.');
+        console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
+        synth.speak(utterance);
+        console.log('[TTS Hook] synth.speak() has been called.');
+    }, 100);
 
 }, [supported, selectedVoice, rate, pitch, volume, onEnd]);
 
@@ -230,6 +232,7 @@ export function useSpeechSynthesis({
   }, [supported, isPaused]);
 
   const resume = useCallback(() => {
+    primeEngine();
     if (!supported || !window.speechSynthesis.speaking || !isPaused) return;
     window.speechSynthesis.resume();
   }, [supported, isPaused]);
@@ -244,6 +247,7 @@ export function useSpeechSynthesis({
   }, [supported]);
 
   const selectVoice = useCallback((voiceURI: string) => {
+    primeEngine();
     const synth = window.speechSynthesis;
     const allVoices = synth.getVoices();
     if (allVoices.length === 0) {
