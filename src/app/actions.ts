@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -267,7 +268,16 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
         if (!gameDoc.exists()) {
           throw new Error("Game document does not exist!");
         }
-        transaction.update(gameRef, updates);
+        const gameData = gameDoc.data();
+        
+        // If updates include a messages array, it should overwrite, not merge.
+        const newUpdates = { ...updates };
+        if (newUpdates.messages) {
+            transaction.update(gameRef, { messages: newUpdates.messages });
+            delete newUpdates.messages;
+        }
+
+        transaction.update(gameRef, newUpdates);
       });
     }
 
@@ -550,6 +560,8 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     return { success: false, message };
   }
 }
+
+    
 
     
 
