@@ -77,6 +77,17 @@ export default function RoleplAIGMPage() {
 
   const lastSpokenMessageRef = useRef<Message | null>(null);
   const sessionLoadedRef = useRef<string | null>(null);
+  const userInteractedRef = useRef(false);
+
+  useEffect(() => {
+    const setTrue = () => { userInteractedRef.current = true; };
+    window.addEventListener('click', setTrue, { once: true });
+    window.addEventListener('touchend', setTrue, { once: true });
+    return () => {
+      window.removeEventListener('click', setTrue);
+      window.removeEventListener('touchend', setTrue);
+    };
+  }, []);
 
   const cleanForSpeech = (text: string) => {
     if (!text) return '';
@@ -95,6 +106,7 @@ export default function RoleplAIGMPage() {
     const lastMessage = messages[messages.length - 1];
     if (
       supported &&
+      userInteractedRef.current &&
       isAutoPlayEnabled &&
       generationProgress === null && // Only play when generation is complete
       lastMessage &&
@@ -110,28 +122,19 @@ export default function RoleplAIGMPage() {
   }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
-    console.log('[TTS Debug] handlePlayAll triggered.');
-    console.log(`[TTS Debug] State: isPaused=${isPaused}, isSpeaking=${isSpeaking}`);
-
     if (isPaused) {
-      console.log('[TTS Debug] Resuming paused speech.');
       resume();
       return;
     }
     
     if (isSpeaking) {
-      console.log('[TTS Debug] Cancelling ongoing speech before starting new one.');
       cancel();
     }
     
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-    console.log('[TTS Debug] Selected Voice:', selectedVoice?.name);
-    console.log('[TTS Debug] Text to speak:', storyText.substring(0, 100) + '...');
     
     if (storyText.trim()) {
       speak(storyText);
-    } else {
-      console.log('[TTS Debug] No story text to speak.');
     }
   }
 
