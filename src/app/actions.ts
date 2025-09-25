@@ -145,6 +145,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         tone: newGame.tone,
         difficulty: newGame.difficulty,
         playMode: input.playMode,
+        initialHooks: newGame.initialHooks,
       },
       worldState: initialWorldState,
       previousWorldState: null,
@@ -172,8 +173,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
   }
 }
 
-export async function continueStory(input: ResolveActionInput & { characterId: string }): Promise<ResolveActionOutput> {
-  const { characterId, worldState } = input;
+export async function continueStory(input: ResolveActionInput): Promise<ResolveActionOutput> {
+  const { character, worldState } = input;
   
   // Server-side validation
   const app = await getServerApp();
@@ -189,18 +190,12 @@ export async function continueStory(input: ResolveActionInput & { characterId: s
   const gameDoc = gameSnapshot.docs[0];
   const gameData = gameDoc.data();
 
-  if (gameData.gameData.playMode === 'remote' && gameData.activeCharacterId !== characterId) {
+  if (gameData.gameData.playMode === 'remote' && gameData.activeCharacterId !== character.id) {
       throw new Error("It is not this character's turn to act.");
   }
   
   try {
-    const character = worldState.characters.find((c: any) => c.id === characterId);
-    if (!character) throw new Error("Character not found in world state.");
-    
-    // Create a version of the input that matches ResolveActionInput, without characterId
-    const { characterId: _, ...flowInput } = input;
-    
-    return await resolveAction({ ...flowInput, character });
+    return await resolveAction(input);
   } catch (error) {
     console.error("Error in continueStory action:", error);
     if (error instanceof Error) {
@@ -552,4 +547,5 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     
 
     
+
 
