@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
+import { useSpeechSynthesis, type Voice } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
@@ -71,8 +71,9 @@ export default function RoleplAIGMPage() {
 
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
   
-  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported } = useSpeechSynthesis({
-    onEnd: () => {}
+  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported, voices, selectVoice, selectedVoice } = useSpeechSynthesis({
+    onEnd: () => {},
+    preferredVoiceURI: userPreferences?.defaultVoiceURI
   });
 
   const lastSpokenMessageRef = useRef<Message | null>(null);
@@ -826,7 +827,7 @@ The stage is set. What do you do?
     }
   }
 
-  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; }) => {
+  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string; }) => {
     if (!user) return;
     const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
     if (result.success) {
@@ -897,6 +898,10 @@ The stage is set. What do you do?
             onPause={pause}
             onStop={cancel}
             onSetAutoPlay={setIsAutoPlayEnabled}
+            // Voice selection
+            voices={voices}
+            selectedVoice={selectedVoice}
+            onSelectVoice={selectVoice}
           />
         );
       default:
@@ -1018,6 +1023,9 @@ The stage is set. What do you do?
           user={user}
           preferences={userPreferences}
           onProfileUpdate={handleProfileUpdate}
+          voices={voices}
+          currentVoiceURI={selectedVoice?.voiceURI}
+          onSelectVoice={selectVoice}
         />
       )}
     </>

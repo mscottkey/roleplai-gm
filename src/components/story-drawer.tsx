@@ -39,12 +39,14 @@ import {
     BookOpen,
     History,
     RefreshCcw,
+    Mic,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
 import { Button } from './ui/button';
 import { LoadingSpinner } from './icons';
 import { ShareGameInvite } from './share-game-invite';
+import { VoiceSelector } from './ui/voice-selector';
 
 
 import type { GameData, MechanicsVisibility } from "@/app/lib/types";
@@ -52,6 +54,7 @@ import type { WorldState } from "@/ai/schemas/world-state-schemas";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useSearchParams } from 'next/navigation';
+import type { Voice } from '@/hooks/use-speech-synthesis';
 
 type StoryDrawerProps = {
     isOpen: boolean;
@@ -62,6 +65,9 @@ type StoryDrawerProps = {
     setMechanicsVisibility: (value: MechanicsVisibility) => void;
     onRegenerateStoryline: () => void;
     isLoading: boolean;
+    voices: Voice[];
+    selectedVoice: SpeechSynthesisVoice | null;
+    onSelectVoice: (voiceURI: string) => boolean;
 };
 
 const getSkillDisplay = (rank: number) => {
@@ -81,7 +87,10 @@ export function StoryDrawer({
     mechanicsVisibility,
     setMechanicsVisibility,
     onRegenerateStoryline,
-    isLoading
+    isLoading,
+    voices,
+    selectedVoice,
+    onSelectVoice
 }: StoryDrawerProps) {
     const { characters, campaignStructure, setting, tone, playMode } = gameData;
     const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
@@ -252,6 +261,15 @@ export function StoryDrawer({
                                 <Label htmlFor="vis-full">Full (Rolls &amp; resources)</Label>
                             </div>
                         </RadioGroup>
+                    </div>
+                    <Separator />
+                    <div className="space-y-4">
+                        <h4 className="font-medium text-foreground flex items-center gap-2"><Mic className="h-4 w-4" />Voice Settings</h4>
+                        <VoiceSelector 
+                            voices={voices}
+                            selectedVoice={selectedVoice}
+                            onSelectVoice={onSelectVoice}
+                        />
                     </div>
                      <Separator />
                      <div className="space-y-4">

@@ -9,18 +9,26 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { UserPreferences } from '@/app/actions/user-preferences';
+import type { Voice } from '@/hooks/use-speech-synthesis';
+import { Badge } from './ui/badge';
+import { Globe, HardDrive, Sparkles } from 'lucide-react';
+import { ScrollArea } from './ui/scroll-area';
 
 type AccountDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   user: FirebaseUser;
   preferences: UserPreferences | null;
-  onProfileUpdate: (updates: { displayName: string, defaultPronouns: string }) => Promise<void>;
+  onProfileUpdate: (updates: { displayName: string, defaultPronouns: string, defaultVoiceURI: string }) => Promise<void>;
+  voices: Voice[];
+  currentVoiceURI?: string;
+  onSelectVoice: (voiceURI: string) => boolean;
 };
 
-export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfileUpdate }: AccountDialogProps) {
+export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfileUpdate, voices, currentVoiceURI, onSelectVoice }: AccountDialogProps) {
   const [displayName, setDisplayName] = useState('');
   const [defaultPronouns, setDefaultPronouns] = useState('Any');
+  const [defaultVoiceURI, setDefaultVoiceURI] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -29,21 +37,53 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
     }
     if (preferences) {
       setDefaultPronouns(preferences.defaultPronouns || 'Any');
+      setDefaultVoiceURI(preferences.defaultVoiceURI || '');
     }
   }, [user, preferences]);
+  
+  useEffect(() => {
+    if (currentVoiceURI) {
+      setDefaultVoiceURI(currentVoiceURI);
+    }
+  }, [currentVoiceURI]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await onProfileUpdate({ displayName, defaultPronouns });
+    await onProfileUpdate({ displayName, defaultPronouns, defaultVoiceURI });
     setIsLoading(false);
   };
 
-  const hasChanges = displayName !== (user.displayName || '') || defaultPronouns !== (preferences?.defaultPronouns || 'Any');
+  const handleVoiceChange = (uri: string) => {
+    if (onSelectVoice(uri)) {
+      setDefaultVoiceURI(uri);
+    }
+  };
+
+  const hasChanges = displayName !== (user.displayName || '') || defaultPronouns !== (preferences?.defaultPronouns || 'Any') || defaultVoiceURI !== (preferences?.defaultVoiceURI || '');
+  
+  const getQualityBadge = (quality: Voice['quality']) => {
+    switch (quality) {
+      case 'premium':
+        return <Badge className="ml-2" variant="default"><Sparkles className="w-3 h-3 mr-1" />Premium</Badge>;
+      case 'high':
+        return <Badge className="ml-2" variant="secondary">High</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  const getProviderIcon = (provider: string) => {
+    if (provider.includes('Cloud') || provider.includes('Google') || provider.includes('Amazon') || provider.includes('Microsoft')) {
+      return <Globe className="w-4 h-4 text-muted-foreground" />;
+    }
+    return <HardDrive className="w-4 h-4 text-muted-foreground" />;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Account Settings</DialogTitle>
           <DialogDescription>
@@ -51,7 +91,7 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="display-name" className="text-right">
                 Display Name
@@ -62,7 +102,7 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="col-span-3"
                 autoFocus
-                disabled={isLoading}
+                disabled={isLoading || user.isAnonymous}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -93,6 +133,32 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
                   <SelectItem value="It/Its">It/Its</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+             <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="default-voice" className="text-right pt-2">
+                Default Voice
+              </Label>
+              <div className="col-span-3">
+                <Select value={defaultVoiceURI} onValueChange={handleVoiceChange} disabled={isLoading || voices.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a default voice" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <ScrollArea className="h-[200px]">
+                      {voices.map((voice) => (
+                        <SelectItem key={voice.voiceURI} value={voice.voiceURI}>
+                          <div className="flex items-center gap-2">
+                            {getProviderIcon(voice.provider)}
+                            <span className="truncate">{voice.name} ({voice.lang})</span>
+                            {getQualityBadge(voice.quality)}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </ScrollArea>
+                  </SelectContent>
+                </Select>
+                {voices.length === 0 && <p className="text-xs text-muted-foreground mt-2">No voices available in your browser.</p>}
+              </div>
             </div>
           </div>
           <DialogFooter>

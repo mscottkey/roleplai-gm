@@ -495,12 +495,12 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
     }
 }
 
-export async function updateUserProfile(userId: string, isAnonymous: boolean, updates: { displayName?: string; defaultPronouns?: string; }): Promise<{ success: boolean; message?: string }> {
+export async function updateUserProfile(userId: string, isAnonymous: boolean, updates: { displayName?: string; defaultPronouns?: string; defaultVoiceURI?: string; }): Promise<{ success: boolean; message?: string }> {
     if (!userId) {
         return { success: false, message: "User ID is required." };
     }
     
-    const { displayName, defaultPronouns } = updates;
+    const { displayName, defaultPronouns, defaultVoiceURI } = updates;
     
     try {
         getAdminSDK(); // Ensure admin app is initialized
@@ -515,9 +515,10 @@ export async function updateUserProfile(userId: string, isAnonymous: boolean, up
         }
 
         // Update custom preferences in Firestore
-        const prefsToUpdate: { displayName?: string; defaultPronouns?: string } = {};
+        const prefsToUpdate: { displayName?: string; defaultPronouns?: string; defaultVoiceURI?: string; } = {};
         if (displayName) prefsToUpdate.displayName = displayName;
         if (defaultPronouns) prefsToUpdate.defaultPronouns = defaultPronouns;
+        if (defaultVoiceURI) prefsToUpdate.defaultVoiceURI = defaultVoiceURI;
 
         if (Object.keys(prefsToUpdate).length > 0) {
             const firestoreResult = await updateUserPreferences(userId, prefsToUpdate);

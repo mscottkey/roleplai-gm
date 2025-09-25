@@ -7,6 +7,7 @@ import { getServerApp } from '@/app/actions';
 export type UserPreferences = {
   displayName?: string;
   defaultPronouns?: string;
+  defaultVoiceURI?: string;
 };
 
 export async function updateUserPreferences(userId: string, prefs: UserPreferences): Promise<{ success: boolean; message?: string }> {

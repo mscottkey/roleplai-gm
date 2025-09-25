@@ -22,6 +22,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { User as FirebaseUser } from 'firebase/auth';
+import type { Voice } from '@/hooks/use-speech-synthesis';
 import { ChatInterface } from './chat-interface';
 
 
@@ -50,6 +51,10 @@ type GameViewProps = {
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
+  // Voice Selection
+  voices: Voice[];
+  selectedVoice: SpeechSynthesisVoice | null;
+  onSelectVoice: (voiceURI: string) => boolean;
 };
 
 export function GameView({
@@ -77,6 +82,10 @@ export function GameView({
   onPause,
   onStop,
   onSetAutoPlay,
+  // Voice Selection
+  voices,
+  selectedVoice,
+  onSelectVoice
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const storyContentRef = useRef<HTMLDivElement>(null);
@@ -237,6 +246,10 @@ export function GameView({
               onPause={onPause}
               onStop={onStop}
               onSetAutoPlay={onSetAutoPlay}
+              // Voice Selection
+              voices={voices}
+              selectedVoice={selectedVoice}
+              onSelectVoice={onSelectVoice}
             />
       </div>
     </div>

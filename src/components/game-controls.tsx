@@ -14,6 +14,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 
 import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
+import type { Voice } from '@/hooks/use-speech-synthesis';
 
 type GameControlsProps = {
   messages: Message[];
@@ -40,6 +41,10 @@ type GameControlsProps = {
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
+  // Voice Selection
+  voices: Voice[];
+  selectedVoice: SpeechSynthesisVoice | null;
+  onSelectVoice: (voiceURI: string) => boolean;
 };
 
 export function GameControls({
@@ -67,6 +72,10 @@ export function GameControls({
   onPause,
   onStop,
   onSetAutoPlay,
+  // Voice Selection
+  voices,
+  selectedVoice,
+  onSelectVoice
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { playMode } = gameData;
@@ -122,6 +131,9 @@ export function GameControls({
         setMechanicsVisibility={setMechanicsVisibility}
         onRegenerateStoryline={onRegenerateStoryline}
         isLoading={isLoading}
+        voices={voices}
+        selectedVoice={selectedVoice}
+        onSelectVoice={onSelectVoice}
       />
     </div>
   );
