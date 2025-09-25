@@ -429,6 +429,9 @@ The stage is set. What do you do?
 
         const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
         
+        const knownPlaces = campaignStructure.nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
+        const startingPlace = knownPlaces.find(p => p.name === startingNode.title)!;
+
         await updateWorldState({
             gameId: activeGameId,
             updates: {
@@ -438,9 +441,15 @@ The stage is set. What do you do?
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
                 'worldState.storyAspects': campaignStructure.campaignAspects,
-                'worldState.places': campaignStructure.nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] })),
-                'worldState.knownPlaces': [{ name: startingNode.title, description: startingNode.description.split('.')[0] }],
+                'worldState.places': knownPlaces,
+                'worldState.knownPlaces': [startingPlace],
                 'worldState.knownFactions': [],
+                'worldState.currentLocation': {
+                    name: startingNode.title,
+                    description: startingNode.description,
+                    environmentalConditions: [],
+                    connections: startingNode.leads,
+                },
                 previousWorldState: null,
             }
         });
@@ -876,6 +885,7 @@ The stage is set. What do you do?
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
+            // TTS props
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
@@ -1010,9 +1020,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-
-
-
-
-

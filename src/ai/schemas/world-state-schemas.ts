@@ -8,6 +8,13 @@ export const PlaceSchema = z.object({
 });
 export type Place = z.infer<typeof PlaceSchema>;
 
+const LocationDetailsSchema = z.object({
+    name: z.string().describe("The name of the party's current, specific location (e.g., 'The Dragon's Tooth Tavern', 'Blackwood Forest - Western Edge')."),
+    description: z.string().describe("A 2-3 sentence description of the immediate surroundings, focusing on sensory details."),
+    environmentalConditions: z.array(z.string()).describe("A list of any active environmental effects or conditions (e.g., 'Heavy Rain', 'Magical Darkness', 'Unstable Ground')."),
+    connections: z.array(z.string()).describe("A list of names of directly adjacent or reachable known places from the current location."),
+});
+
 export const WorldStateSchema = z.object({
   summary: z.string().describe("A high-level summary of the adventure so far."),
   storyOutline: z.array(z.string()).describe("A list of potential future scenes or plot points. The GM's plan."),
@@ -15,8 +22,9 @@ export const WorldStateSchema = z.object({
   characters: z.array(CharacterSchema).describe("The player characters in the game."),
   places: z.array(PlaceSchema).describe("A list of all significant places in the world, discovered or not."),
   storyAspects: z.array(z.string()).describe("A list of key, recurring concepts, themes, or non-player entities in the story."),
-  knownPlaces: z.array(PlaceSchema).optional().describe("A list of significant places the players have discovered."),
-  knownFactions: z.array(FactionSchema).optional().describe("A list of factions the players have discovered."),
+  knownPlaces: z.array(PlaceSchema).describe("A list of significant places the players have discovered."),
+  knownFactions: z.array(FactionSchema).describe("A list of factions the players have discovered."),
+  currentLocation: LocationDetailsSchema.describe("Details about the party's immediate location."),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 

@@ -9,6 +9,7 @@ Current World State:
 - Story Aspects: {{#each world.storyAspects}}- {{{this}}}{{/each}}
 - Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
+- Current Location: {{{worldState.currentLocation.name}}} - {{{worldState.currentLocation.description}}}
 
 Latest Game Event:
 - Player: {{{playerAction.characterName}}}
@@ -23,5 +24,6 @@ Your task is to return a NEW, UPDATED world state object.
 5.  **places**: If the narration introduced a new, significant named location, add it to the list with a brief description.
 6.  **knownPlaces**: If the narration or event resulted in the players learning about a new location from the main 'places' list, add it here.
 7.  **knownFactions**: If the narration or event resulted in the players learning about a faction, add it here.
-8.  **storyAspects**: If the narration introduced a new, important story element, theme, or recurring concept (like a mysterious organization or a strange magical effect), add it to the list.
+8.  **storyAspects**: If the narration introduced a new, important story element, theme, or recurring concept, add it to the list.
+9.  **currentLocation**: If the party moves to a new location, update this object. If they remain in the same location, update the description or environmental conditions to reflect the consequences of the action. The 'name' should be one of the 'knownPlaces'. The 'connections' should be a list of other 'knownPlaces' reachable from here.
 `;

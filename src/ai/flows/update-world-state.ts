@@ -44,6 +44,13 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.storyAspects = updatedOutput.storyAspects || [];
     updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
     updatedOutput.knownFactions = updatedOutput.knownFactions || [];
+    
+    if (!updatedOutput.currentLocation) {
+        updatedOutput.currentLocation = input.worldState.currentLocation || { name: 'Unknown', description: 'The area has not been described.', environmentalConditions: [], connections: [] };
+    }
+    updatedOutput.currentLocation.environmentalConditions = updatedOutput.currentLocation.environmentalConditions || [];
+    updatedOutput.currentLocation.connections = updatedOutput.currentLocation.connections || [];
+
 
     return updatedOutput;
   }

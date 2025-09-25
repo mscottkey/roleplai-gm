@@ -123,6 +123,12 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       storyAspects: [],
       knownPlaces: [],
       knownFactions: [],
+      currentLocation: {
+        name: "Unknown",
+        description: "The adventure is about to begin.",
+        environmentalConditions: [],
+        connections: [],
+      }
     };
     
     const welcomeMessageText = input.playMode === 'remote'
@@ -145,7 +151,6 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         tone: newGame.tone,
         difficulty: newGame.difficulty,
         playMode: input.playMode,
-        initialHooks: newGame.initialHooks,
       },
       worldState: initialWorldState,
       previousWorldState: null,
@@ -541,11 +546,3 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     return { success: false, message };
   }
 }
-
-    
-
-    
-
-    
-
-
