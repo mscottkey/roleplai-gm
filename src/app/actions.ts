@@ -172,8 +172,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
   }
 }
 
-export async function continueStory(input: ResolveActionInput): Promise<ResolveActionOutput> {
-  const { characterId, worldState } = input as any; // Cast to any to access properties
+export async function continueStory(input: ResolveActionInput & { characterId: string }): Promise<ResolveActionOutput> {
+  const { characterId, worldState } = input;
   
   // Server-side validation
   const app = await getServerApp();
@@ -197,7 +197,10 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
     const character = worldState.characters.find((c: any) => c.id === characterId);
     if (!character) throw new Error("Character not found in world state.");
     
-    return await resolveAction({ ...input, character } as ResolveActionInput);
+    // Create a version of the input that matches ResolveActionInput, without characterId
+    const { characterId: _, ...flowInput } = input;
+    
+    return await resolveAction({ ...flowInput, character });
   } catch (error) {
     console.error("Error in continueStory action:", error);
     if (error instanceof Error) {
@@ -549,3 +552,4 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     
 
     
+

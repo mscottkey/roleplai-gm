@@ -30,6 +30,7 @@ import { ArrowRight } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
+import { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 
 export default function RoleplAIGMPage() {
   const { user } = useAuth(); // AuthGuard handles loading state
@@ -1018,6 +1019,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
 
 
 
