@@ -104,11 +104,11 @@ export default function RoleplAIGMPage() {
     ) {
       const cleanedText = cleanForSpeech(lastMessage.content);
       if (cleanedText.trim()) {
-        speak(cleanedText, selectedVoice);
+        speak(cleanedText);
       }
       lastSpokenMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress, selectedVoice]);
+  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
     console.log('[TTS Debug] handlePlayAll triggered.');
@@ -126,11 +126,11 @@ export default function RoleplAIGMPage() {
     }
     
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-    console.log('[TTS Debug] Selected Voice:', selectedVoice?.name, selectedVoice?.voiceURI);
+    console.log('[TTS Debug] Selected Voice:', selectedVoice?.name);
     console.log('[TTS Debug] Text to speak:', storyText.substring(0, 100) + '...');
     
     if (storyText.trim()) {
-      speak(storyText, selectedVoice);
+      speak(storyText);
     } else {
       console.log('[TTS Debug] No story text to speak.');
     }

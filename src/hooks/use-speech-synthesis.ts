@@ -35,6 +35,11 @@ export function useSpeechSynthesis({
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isPrimedRef = useRef(false);
+  const selectedVoiceRef = useRef(selectedVoice);
+
+  useEffect(() => {
+    selectedVoiceRef.current = selectedVoice;
+  }, [selectedVoice]);
 
   // Detect voice quality and provider
   const analyzeVoice = (voice: SpeechSynthesisVoice): { quality: Voice['quality'], provider: string } => {
@@ -130,7 +135,7 @@ export function useSpeechSynthesis({
         
         if (preferred) {
             setSelectedVoice(preferred);
-        } else if (voiceList.length > 0 && !selectedVoice) {
+        } else if (voiceList.length > 0 && !selectedVoiceRef.current) {
           const bestEnglish = availableVoices.find(v => {
             const { quality } = analyzeVoice(v);
             return v.lang.startsWith('en') && quality === 'premium';
@@ -156,7 +161,7 @@ export function useSpeechSynthesis({
     }
   }, [preferredVoiceURI]);
 
-  const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice | null) => {
+  const speak = useCallback((text: string) => {
     primeEngine();
     console.log('[TTS Hook] `speak` function called.');
     if (!supported) {
@@ -169,7 +174,7 @@ export function useSpeechSynthesis({
       synth.cancel();
     }
     
-    // Use a timeout to allow the cancel to process
+    // Use a timeout to allow the cancel to process and avoid race conditions
     setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(text);
         utteranceRef.current = utterance; 
@@ -205,7 +210,7 @@ export function useSpeechSynthesis({
           console.error('[TTS Hook] Event: onerror', e);
         };
 
-        const voiceToUse = voiceOverride || selectedVoice;
+        const voiceToUse = selectedVoiceRef.current;
         if (voiceToUse) {
             utterance.voice = voiceToUse;
             console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
@@ -223,7 +228,7 @@ export function useSpeechSynthesis({
         console.log('[TTS Hook] synth.speak() has been called.');
     }, 100);
 
-}, [supported, selectedVoice, rate, pitch, volume, onEnd]);
+}, [supported, rate, pitch, volume, onEnd]);
 
 
   const pause = useCallback(() => {
@@ -251,6 +256,8 @@ export function useSpeechSynthesis({
     const synth = window.speechSynthesis;
     const allVoices = synth.getVoices();
     if (allVoices.length === 0) {
+      // Voices may not be loaded yet, try again after a short delay
+      setTimeout(() => selectVoice(voiceURI), 100);
       return false;
     }
     const voice = allVoices.find(v => v.voiceURI === voiceURI);
