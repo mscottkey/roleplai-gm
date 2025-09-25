@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { MODEL_GAMEPLAY } from '../models';
+import { narratePlayerActionsPromptText } from '../prompts/narrate-player-actions-prompt';
 
 const NarratePlayerActionsInputSchema = z.object({
   playerAction: z.string().describe('The action the player is taking.'),
@@ -34,15 +35,7 @@ const narratePlayerActionsPrompt = ai.definePrompt({
   input: {schema: NarratePlayerActionsInputSchema},
   output: {schema: NarratePlayerActionsOutputSchema},
   model: MODEL_GAMEPLAY,
-  prompt: `You are the AI Gamemaster for a tabletop RPG.
-
-The player, controlling {{{character.name}}}, has taken the following action: {{{playerAction}}}
-
-The current game state is:
-{{{gameState}}}
-
-Narrate the outcome of the player's action in 2-5 sentences. Be evocative and descriptive, and dynamically update the game world based on the player's choices. For any spoken dialogue in your response, you must use double quotes ("").
-`,
+  prompt: narratePlayerActionsPromptText,
 });
 
 const narratePlayerActionsFlow = ai.defineFlow(

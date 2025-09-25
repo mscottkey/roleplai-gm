@@ -17,3 +17,16 @@ import '@/ai/flows/generate-recap.ts';
 import '@/ai/schemas/assess-consequences-schemas.ts';
 import '@/ai/schemas/generate-recap-schemas.ts';
 import '@/ai/models.ts';
+import '@/ai/prompts/ask-question-prompt.ts';
+import '@/ai/prompts/assess-consequences-prompt.ts';
+import '@/ai/prompts/classify-intent-prompt.ts';
+import '@/ai/prompts/estimate-cost-prompt.ts';
+import '@/ai/prompts/generate-campaign-pieces-prompts.ts';
+import '@/ai/prompts/generate-character-prompt.ts';
+import '@/ai/prompts/generate-new-game-prompt.ts';
+import '@/ai/prompts/generate-recap-prompt.ts';
+import '@/ai/prompts/integrate-rules-adapter-prompt.ts';
+import '@/ai/prompts/narrate-player-actions-prompt.ts';
+import '@/ai/prompts/sanitize-ip-prompt.ts';
+import '@/ai/prompts/update-world-state-prompt.ts';
+
