@@ -127,12 +127,14 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     const welcomeMessageText = input.playMode === 'remote'
       ? `Once the party is assembled, the story will begin.`
       : `First, let's create your character(s). The story will begin once the party is ready.`;
-
-    const welcomeMessage = {
-        id: `welcome-${Date.now()}`,
-        role: 'system' as const,
-        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
-    };
+    
+    const messages = input.playMode === 'remote'
+      ? [{
+          id: `welcome-${Date.now()}`,
+          role: 'system' as const,
+          content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
+        }]
+      : [];
 
 
     const newGameDocument = {
@@ -148,8 +150,8 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       },
       worldState: initialWorldState,
       previousWorldState: null,
-      messages: [welcomeMessage],
-      storyMessages: [{content: welcomeMessage.content}],
+      messages: messages,
+      storyMessages: [],
       step: 'characters',
       activeCharacterId: null,
     };
@@ -260,30 +262,12 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
       return newWorldState;
 
     } else if (updates) {
-       // This is a direct data update, handle with a transaction to avoid array update issues
       await runTransaction(db, async (transaction) => {
         const gameDoc = await transaction.get(gameRef);
         if (!gameDoc.exists()) {
           throw new Error("Game document does not exist!");
         }
-        
-        let gameData = gameDoc.data();
-        let newUpdates = { ...updates };
-
-        // This is a hacky way to handle the messages[0].content update
-        if (newUpdates['messages[0].content']) {
-          const newContent = newUpdates['messages[0].content'];
-          if (gameData.messages && gameData.messages.length > 0) {
-            gameData.messages[0].content = newContent;
-          }
-          // Remove the problematic key from updates
-          delete newUpdates['messages[0].content'];
-        }
-        
-        // Merge remaining updates
-        const finalUpdates = { ...gameData, ...newUpdates };
-
-        transaction.set(gameRef, finalUpdates);
+        transaction.update(gameRef, updates);
       });
     }
 
@@ -370,10 +354,9 @@ export async function saveCampaignStructure(gameId: string, campaign: CampaignSt
   try {
     const app = await getServerApp();
     const db = getFirestore(app);
-    const gameRef = doc(db, 'games', gameId);
-
-    // Use a consistent ID for the campaign data document.
-    const campaignRef = doc(gameRef, 'campaign', 'data');
+    
+    // Create a reference to the subcollection document with a consistent ID.
+    const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
     
     // Save the entire campaign structure object to this single document.
     await setDoc(campaignRef, campaign);
@@ -567,5 +550,7 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     return { success: false, message };
   }
 }
+
+    
 
     
