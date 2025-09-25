@@ -446,7 +446,7 @@ export default function RoleplAIGMPage() {
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
-# Welcome to your adventure!
+# Welcome to ${gameData.name}!
 
 ## Setting
 ${normalizeInlineBulletsInSections(gameData.setting)}
