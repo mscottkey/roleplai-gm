@@ -104,7 +104,7 @@ export default function RoleplAIGMPage() {
     onEnd: () => {}
   });
 
-  const lastMessageRef = useRef<Message | null>(null);
+  const lastSpokenMessageRef = useRef<Message | null>(null);
   const sessionLoadedRef = useRef<string | null>(null);
 
   const cleanForSpeech = (text: string) => {
@@ -122,14 +122,20 @@ export default function RoleplAIGMPage() {
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (isAutoPlayEnabled && lastMessage && lastMessage.role === 'assistant' && lastMessage !== lastMessageRef.current) {
+    if (
+      supported &&
+      isAutoPlayEnabled &&
+      lastMessage &&
+      lastMessage.role === 'assistant' &&
+      lastMessage !== lastSpokenMessageRef.current
+    ) {
       const cleanedText = cleanForSpeech(lastMessage.content);
       if (cleanedText.trim()) {
         speak(cleanedText);
       }
-      lastMessageRef.current = lastMessage;
+      lastSpokenMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled]);
+  }, [messages, speak, isAutoPlayEnabled, supported]);
 
   const handlePlayAll = () => {
     if (isPaused) {

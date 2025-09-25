@@ -19,13 +19,16 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
       const synth = window.speechSynthesis;
       
       return () => {
-        synth.cancel();
+        if (synth.speaking) {
+          synth.cancel();
+        }
       };
     }
   }, []);
 
   const speak = useCallback((text: string) => {
     if (!supported) return;
+    // If it's currently speaking, cancel the old one before starting a new one.
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
@@ -55,6 +58,8 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
     };
     utterance.onerror = (e) => {
         if (e.error === 'interrupted' || e.error === 'canceled' || e.error === 'not-allowed') {
+            setIsSpeaking(false);
+            setIsPaused(false);
             return; // Don't log common, expected interruptions as errors
         }
         console.error("Speech synthesis error", e.error);
@@ -77,7 +82,9 @@ export function useSpeechSynthesis({ onEnd }: UseSpeechSynthesisProps) {
 
   const cancel = useCallback(() => {
     if (!supported) return;
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
     setIsPaused(false);
   }, [supported]);
