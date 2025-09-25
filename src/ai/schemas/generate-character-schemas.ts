@@ -24,7 +24,7 @@ export const CharacterSchema = z.object({
     id: z.string().describe('A unique identifier for the character.'),
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
-    aspect: z.string().describe('A key concept or catch-phrase for the character, like "Cyber-enhanced muscle with a hidden heart of gold."'),
+    aspect: z.string().describe('A key concept or catch-phrase for the character, like "A knight with a mysterious past."'),
     pronouns: z.string().optional().describe("The character's pronouns (e.g., 'She/Her', 'They/Them')."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
