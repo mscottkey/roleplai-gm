@@ -15,7 +15,7 @@ import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
-import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc, runTransaction } from 'firebase/firestore';
+import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -414,17 +414,23 @@ export default function RoleplAIGMPage() {
             stats: c.stats,
         }));
         
+        const generationInputBase = {
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characters: charactersForAI
+        };
+        
         // Step 1: Generate Core Concepts
         setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
-        const coreConcepts = await generateCore({ setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
+        const coreConcepts = await generateCore(generationInputBase);
 
         // Step 2: Generate Factions
         setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
-        const factions = await generateFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
+        const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
 
         // Step 3: Generate Nodes
         setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
-        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
+        const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
 
         const campaignStructure = {
             campaignIssues: coreConcepts.campaignIssues,
@@ -723,17 +729,21 @@ The stage is set. What do you do?
             age: c.age,
             stats: c.stats,
         }));
-
-        const { setting, tone } = gameData;
+        
+        const generationInputBase = {
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characters: charactersForAI
+        };
         
         setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
-        const coreConcepts = await generateCore({ setting, tone, characters: charactersForAI });
+        const coreConcepts = await generateCore(generationInputBase);
 
         setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
-        const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: charactersForAI });
+        const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
 
         setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
-        const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: charactersForAI });
+        const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
 
         const campaignStructure = {
             campaignIssues: coreConcepts.campaignIssues,
@@ -752,10 +762,10 @@ The stage is set. What do you do?
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
-${normalizeInlineBulletsInSections(setting)}
+${normalizeInlineBulletsInSections(gameData.setting)}
 
 ## Tone
-${normalizeInlineBulletsInSections(tone)}
+${normalizeInlineBulletsInSections(gameData.tone)}
 
 ## Initial Hooks
 ${normalizeOrderedList(newHooks)}
@@ -807,11 +817,8 @@ The stage is set. What do you do?
     deletingGameId.current = gameIdToDelete;
     setDeleteConfirmation(null); // Close dialog
     
-    // Check if the game being deleted is the active one
-    if (activeGameId === gameIdToDelete) {
-      router.push('/play'); // Navigate away first
-    }
-
+    router.push('/play'); // Navigate away first
+    
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
         toast({ title: "Game Deleted", description: "The game session has been successfully deleted." });
@@ -843,17 +850,10 @@ The stage is set. What do you do?
     const db = getFirestore();
     
     try {
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'games', activeGameId);
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) {
-          throw "Game not found!";
-        }
-        transaction.update(gameRef, { 
-          'worldState.characters': updatedCharacters,
-          'gameData.characters': updatedCharacters
+        await updateDoc(doc(db, "games", activeGameId), {
+            'worldState.characters': updatedCharacters,
+            'gameData.characters': updatedCharacters,
         });
-      });
     } catch(e) {
       const err = e as Error;
       toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
@@ -1063,3 +1063,4 @@ The stage is set. What do you do?
     </>
   );
 }
+
