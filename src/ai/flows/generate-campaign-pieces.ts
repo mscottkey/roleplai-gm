@@ -134,7 +134,7 @@ export const generateCampaignNodes = ai.defineFlow(
 
 ## Your Task
 Create a web of 5 to 7 interconnected situation nodes (these can be people, places, or problems). For each node:
-1.  **title:** A clear, evocative name (e.g., "The Rustgate Smugglers' Den," "Councilwoman Valerius's Secret").
+1.  **title:** A clear, evocative name (e.g., "The Whispering Tombs," "Blackwood's Ambush").
 2.  **description:** A one-paragraph description of the situation at this node.
 3.  **isStartingNode:** Designate **exactly one** node as the starting point for the campaign by setting this to \`true\`. This should be the most logical and exciting entry point for the created party. All other nodes must have this set to \`false\`.
 4.  **leads:** List 2-3 other node titles that this node provides clear leads to. This creates the "web."
