@@ -439,7 +439,6 @@ export default function RoleplAIGMPage() {
             nodes,
         };
         
-        // Save the generated campaign to its own subcollection
         const saveResult = await saveCampaignStructure(activeGameId, campaignStructure);
         if (!saveResult.success) {
             throw new Error(saveResult.message || 'Failed to save campaign structure.');
@@ -448,7 +447,7 @@ export default function RoleplAIGMPage() {
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
-        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
+        const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : '';
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
@@ -478,13 +477,12 @@ The stage is set. What do you do?
         await updateWorldState({
             gameId: activeGameId,
             updates: {
-                'gameData.initialHooks': newHooks,
+                'messages': [finalInitialMessage],
+                'storyMessages': [{ content: finalInitialMessageContent }],
                 'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
                 'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
                 'worldState.recentEvents': ["The adventure has just begun."],
                 'worldState.storyAspects': campaignStructure.campaignAspects,
-                'messages': [finalInitialMessage],
-                'storyMessages': [{ content: finalInitialMessageContent }],
                 previousWorldState: null,
             }
         });
@@ -925,7 +923,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
@@ -1063,4 +1061,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
 

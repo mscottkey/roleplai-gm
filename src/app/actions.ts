@@ -116,7 +116,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
 
     const initialWorldState: z.infer<typeof WorldStateSchema> = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
-      storyOutline: newGame.initialHooks.split('\n').filter(s => s.length > 0),
+      storyOutline: [],
       recentEvents: ["The adventure has just begun."],
       characters: [],
       places: [],
@@ -129,13 +129,11 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       ? `Once the party is assembled, the story will begin.`
       : `First, let's create your character(s). The story will begin once the party is ready.`;
     
-    const messages = input.playMode === 'remote'
-      ? [{
-          id: `welcome-${Date.now()}`,
-          role: 'system' as const,
-          content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
-        }]
-      : [];
+    const initialWelcomeMessage: Message = {
+        id: `welcome-${Date.now()}`,
+        role: 'system',
+        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
+    };
 
 
     const newGameDocument = {
@@ -145,13 +143,12 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         name: newGame.name,
         setting: newGame.setting,
         tone: newGame.tone,
-        initialHooks: newGame.initialHooks,
         difficulty: newGame.difficulty,
         playMode: input.playMode,
       },
       worldState: initialWorldState,
       previousWorldState: null,
-      messages: messages,
+      messages: [initialWelcomeMessage],
       storyMessages: [],
       step: 'characters',
       activeCharacterId: null,
@@ -263,22 +260,8 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
       return newWorldState;
 
     } else if (updates) {
-      await runTransaction(db, async (transaction) => {
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) {
-          throw new Error("Game document does not exist!");
-        }
-        const gameData = gameDoc.data();
-        
-        // If updates include a messages array, it should overwrite, not merge.
-        const newUpdates = { ...updates };
-        if (newUpdates.messages) {
-            transaction.update(gameRef, { messages: newUpdates.messages });
-            delete newUpdates.messages;
-        }
-
-        transaction.update(gameRef, newUpdates);
-      });
+      // This is a direct data update
+      await updateDoc(gameRef, updates);
     }
 
   } catch (error) {

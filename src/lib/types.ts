@@ -21,18 +21,19 @@ export type Character = {
   playerName: string;
   isCustom: boolean;
   archetype?: string;
-  gender?: string;
+  pronouns?: string;
   age?: string;
   stats?: CharacterStats;
-  claimedBy?: string; // User ID of the player who claimed this character
+  playerId: string; // User ID of the player who created/claimed this character
 };
 
 export type GameData = GenerateNewGameOutput & {
   userId?: string; // The user who created the game
   characters?: Character[];
-  campaignStructure?: CampaignStructure;
+  campaignStructure?: CampaignStructure; // This is now optional, as it will be loaded from a subcollection
   difficulty?: string;
   playMode?: 'local' | 'remote';
+  initialHooks?: string;
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
@@ -53,3 +54,14 @@ export type GameSession = {
   step: 'characters' | 'play';
   activeCharacterId: string | null;
 };
+
+export type PlayerSlot = {
+    id: string;
+    character: Character | null;
+    preferences?: {
+        playerName?: string;
+        name?: string;
+        vision?: string;
+        pronouns?: string;
+    }
+}
