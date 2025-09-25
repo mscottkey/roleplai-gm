@@ -113,11 +113,16 @@ export default function RoleplAIGMPage() {
   const handlePlayAll = () => {
     if (isPaused) {
       resume();
-    } else if (!isSpeaking) {
-      const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-      if (storyText.trim()) {
-        speak(storyText);
-      }
+      return;
+    }
+    if (isSpeaking) {
+      // If it's speaking but not paused, it might be an old utterance.
+      // We cancel it and start fresh.
+      cancel();
+    }
+    const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
+    if (storyText.trim()) {
+      speak(storyText);
     }
   }
 
