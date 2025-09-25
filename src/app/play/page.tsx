@@ -423,15 +423,11 @@ export default function RoleplAIGMPage() {
         const finalInitialMessageContent = `
 # ${gameData.name}
 
-*${cleanMarkdown(gameData.setting).split('.')[0]}.*
-
-## Your Story Begins
-
-${startingNode ? startingNode.description : "The stage is set for adventure."}
+${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
 ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
 
-The world holds its breath. What do you do?
+*The story awaits your choices.*
 `.trim();
 
         const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };

@@ -28,7 +28,7 @@ export const generateCampaignFactionsPromptText = `You are a master storyteller 
 
 ## Player Characters
 {{#each characters}}
-- **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
+- **{{this.name}}** (Played by {{this_playerName}}): {{this.description}}
 {{/each}}
 
 ## Your Task
@@ -58,6 +58,9 @@ export const generateCampaignNodesPromptText = `You are a master storyteller and
 
 ## For the **starting node** specifically:
 - Write a 2-3 paragraph description instead of one paragraph.
+- Begin the starting node description by immediately placing the characters in a specific location with concrete details.
+- Include at least one NPC interaction opportunity or environmental challenge in the opening scene.
+- Reference the broader campaign stakes naturally within the scene description.
 - Include sensory details (what players see, hear, smell).
 - Establish immediate geography and spatial relationships.
 - Make clear how this connects to the broader campaign stakes.
