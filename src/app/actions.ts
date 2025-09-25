@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -125,10 +124,14 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       knownFactions: [],
     };
     
+    const welcomeMessageText = input.playMode === 'remote'
+      ? `Once the party is assembled, the story will begin.`
+      : `First, let's create your character(s). The story will begin once the party is ready.`;
+
     const welcomeMessage = {
         id: `welcome-${Date.now()}`,
         role: 'system' as const,
-        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\nOnce the party is assembled, the story will begin.`
+        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
     };
 
 
@@ -564,3 +567,5 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     return { success: false, message };
   }
 }
+
+    
