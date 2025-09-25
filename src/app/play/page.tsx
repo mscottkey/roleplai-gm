@@ -114,21 +114,17 @@ export default function RoleplAIGMPage() {
     console.log('[TTS Debug] handlePlayAll triggered.');
     console.log(`[TTS Debug] State: isPaused=${isPaused}, isSpeaking=${isSpeaking}`);
 
-    // If we are paused, just resume.
     if (isPaused) {
       console.log('[TTS Debug] Resuming paused speech.');
       resume();
       return;
     }
     
-    // If not paused, we start a new narration.
-    // First, cancel any speech that might be happening for some other reason.
     if (isSpeaking) {
       console.log('[TTS Debug] Cancelling ongoing speech before starting new one.');
       cancel();
     }
     
-    // Then, collect all story text and speak it from the beginning.
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
     console.log('[TTS Debug] Selected Voice:', selectedVoice?.name, selectedVoice?.voiceURI);
     console.log('[TTS Debug] Text to speak:', storyText.substring(0, 100) + '...');
