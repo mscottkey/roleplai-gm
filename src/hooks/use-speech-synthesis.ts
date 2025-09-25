@@ -158,47 +158,54 @@ export function useSpeechSynthesis({
   }, [preferredVoiceURI]);
 
   const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice | null) => {
-    if (!supported) return;
+    console.log('[TTS Hook] `speak` function called.');
+    if (!supported) {
+      console.log('[TTS Hook] Speech synthesis not supported.');
+      return;
+    }
 
     const synth = window.speechSynthesis;
 
-    // It's crucial to cancel any existing speech before starting a new one.
     if (synth.speaking) {
+      console.log('[TTS Hook] Speech is already active. Cancelling previous speech.');
       synth.cancel();
     }
     
-    // Create a new utterance for the new speech request.
     const utterance = new SpeechSynthesisUtterance(text);
+    console.log(`[TTS Hook] Created new utterance for text: "${text.substring(0, 50)}..."`);
     
     utterance.onstart = () => {
+        console.log('[TTS Hook] Event: onstart');
         setIsSpeaking(true);
         setIsPaused(false);
     };
 
     utterance.onend = () => {
+        console.log('[TTS Hook] Event: onend');
         setIsSpeaking(false);
         setIsPaused(false);
         onEnd();
     };
 
     utterance.onpause = () => {
+        console.log('[TTS Hook] Event: onpause');
         setIsPaused(true);
         setIsSpeaking(true); // Still "speaking" but paused
     };
 
     utterance.onresume = () => {
+        console.log('[TTS Hook] Event: onresume');
         setIsPaused(false);
         setIsSpeaking(true);
     };
 
     utterance.onerror = (e) => {
-        // Interrupted errors are expected when we cancel speech, so we can ignore them.
+        console.error('[TTS Hook] Event: onerror', e);
         if (e.error === 'interrupted' || e.error === 'canceled' || e.error === 'not-allowed') {
             setIsSpeaking(false);
             setIsPaused(false);
             return;
         }
-        console.error("Speech synthesis error", e);
         setIsSpeaking(false);
         setIsPaused(false);
     };
@@ -206,17 +213,21 @@ export function useSpeechSynthesis({
     const voiceToUse = voiceOverride || selectedVoice;
     if (voiceToUse) {
         utterance.voice = voiceToUse;
+        console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
+    } else {
+        console.log('[TTS Hook] No specific voice selected, using browser default.');
     }
 
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
+    console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
 
-    // By assigning the utterance to a ref, we prevent it from being garbage collected
-    // before the speech synthesis engine can use it. This is a common pitfall.
     utteranceRef.current = utterance;
-
+    console.log('[TTS Hook] Stored utterance in ref. Calling synth.speak()...');
     synth.speak(utterance);
+    console.log('[TTS Hook] synth.speak() has been called.');
+
 }, [supported, selectedVoice, rate, pitch, volume, onEnd]);
 
 
