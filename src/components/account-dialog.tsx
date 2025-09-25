@@ -15,12 +15,12 @@ type AccountDialogProps = {
   onOpenChange: (open: boolean) => void;
   user: FirebaseUser;
   preferences: UserPreferences | null;
-  onProfileUpdate: (updates: { displayName: string, defaultGender: string }) => Promise<void>;
+  onProfileUpdate: (updates: { displayName: string, defaultPronouns: string }) => Promise<void>;
 };
 
 export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfileUpdate }: AccountDialogProps) {
   const [displayName, setDisplayName] = useState('');
-  const [defaultGender, setDefaultGender] = useState('Any');
+  const [defaultPronouns, setDefaultPronouns] = useState('Any');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -28,18 +28,18 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
       setDisplayName(user.displayName || '');
     }
     if (preferences) {
-      setDefaultGender(preferences.defaultGender || 'Any');
+      setDefaultPronouns(preferences.defaultPronouns || 'Any');
     }
   }, [user, preferences]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await onProfileUpdate({ displayName, defaultGender });
+    await onProfileUpdate({ displayName, defaultPronouns });
     setIsLoading(false);
   };
 
-  const hasChanges = displayName !== (user.displayName || '') || defaultGender !== (preferences?.defaultGender || 'Any');
+  const hasChanges = displayName !== (user.displayName || '') || defaultPronouns !== (preferences?.defaultPronouns || 'Any');
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -77,18 +77,20 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="default-gender" className="text-right">
-                Default Gender
+              <Label htmlFor="default-pronouns" className="text-right">
+                Default Pronouns
               </Label>
-              <Select value={defaultGender} onValueChange={setDefaultGender} disabled={isLoading}>
+              <Select value={defaultPronouns} onValueChange={setDefaultPronouns} disabled={isLoading}>
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a gender" />
+                  <SelectValue placeholder="Select pronouns" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Any">Any</SelectItem>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Non-binary">Non-binary</SelectItem>
+                  <SelectItem value="She/Her">She/Her</SelectItem>
+                  <SelectItem value="He/Him">He/Him</SelectItem>
+                  <SelectItem value="They/Them">They/Them</SelectItem>
+                  <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
+                  <SelectItem value="It/Its">It/Its</SelectItem>
                 </SelectContent>
               </Select>
             </div>

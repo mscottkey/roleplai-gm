@@ -83,7 +83,7 @@ const CharacterDisplay = ({ char }: { char: Character }) => (
     <div className="flex gap-4 text-sm">
         {char.archetype && <p><Shield className="inline h-3 w-3 mr-1"/>{char.archetype}</p>}
         {char.age && <p><Cake className="inline h-3 w-3 mr-1"/>{char.age}</p>}
-        {char.gender && <p><PersonStanding className="inline h-3 w-3 mr-1"/>{char.gender}</p>}
+        {char.pronouns && <p><PersonStanding className="inline h-3 w-3 mr-1"/>{char.pronouns}</p>}
     </div>
     
     {char.stats?.skills && char.stats.skills.length > 0 && (
@@ -139,21 +139,26 @@ export function CharacterCreationForm({
       return initialCharacters.map(char => ({
         id: char.id,
         character: char,
+        preferences: {
+          playerName: char.playerName,
+          pronouns: char.pronouns,
+        }
       }));
     }
     
     const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
-    const hostDefaultGender = userPreferences?.defaultGender || 'Any';
+    const hostDefaultPronouns = userPreferences?.defaultPronouns || 'Any';
     
     return [{ 
       id: `${formId}-slot-0`, 
       character: null,
       preferences: {
         playerName: hostPlayerName,
-        gender: hostDefaultGender,
+        pronouns: hostDefaultPronouns,
       }
     }];
   });
+
 
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -183,7 +188,7 @@ export function CharacterCreationForm({
     updateSlots(newSlots);
   };
   
-  const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; gender?: string; playerName?: string }) => {
+  const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; pronouns?: string; playerName?: string }) => {
     setIsGenerating(true);
 
     const playerName = preferences.playerName || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player';
@@ -197,7 +202,7 @@ export function CharacterCreationForm({
                 playerName: playerName,
                 name: preferences.name,
                 vision: preferences.vision,
-                gender: preferences.gender === 'Any' ? undefined : preferences.gender,
+                pronouns: preferences.pronouns === 'Any' ? undefined : preferences.pronouns,
             }],
         });
         
@@ -239,7 +244,7 @@ export function CharacterCreationForm({
 const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; onGenerate: (prefs: any) => void; onRemove: () => void; }) => {
     const [charName, setCharName] = useState(slot.preferences?.name || '');
     const [vision, setVision] = useState(slot.preferences?.vision || '');
-    const [gender, setGender] = useState(slot.preferences?.gender || 'Any');
+    const [pronouns, setPronouns] = useState(slot.preferences?.pronouns || 'Any');
     const [isCreating, setIsCreating] = useState(false);
 
     const canCreate = !userHasCharacter && !slot.character;
@@ -247,7 +252,7 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
     useEffect(() => {
         setCharName(slot.preferences?.name || '');
         setVision(slot.preferences?.vision || '');
-        setGender(slot.preferences?.gender || 'Any');
+        setPronouns(slot.preferences?.pronouns || 'Any');
     }, [slot.preferences]);
 
     if (slot.character) {
@@ -279,17 +284,19 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
                     <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} disabled={!isHost} />
                     <Label>Character Name (Optional)</Label>
                     <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} disabled={!isHost} />
-                    <Label>Gender</Label>
-                    <Select value={gender} onValueChange={setGender} disabled={!isHost}>
+                    <Label>Pronouns</Label>
+                    <Select value={pronouns} onValueChange={setPronouns} disabled={!isHost}>
                         <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Any">Any</SelectItem>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Non-binary">Non-binary</SelectItem>
+                            <SelectItem value="She/Her">She/Her</SelectItem>
+                            <SelectItem value="He/Him">He/Him</SelectItem>
+                            <SelectItem value="They/Them">They/Them</SelectItem>
+                            <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
+                            <SelectItem value="It/Its">It/Its</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button className="w-full" onClick={() => onGenerate({ name: charName, vision, gender, playerName: slot.preferences?.playerName })} disabled={isGenerating}>
+                    <Button className="w-full" onClick={() => onGenerate({ name: charName, vision, pronouns: pronouns, playerName: slot.preferences?.playerName })} disabled={isGenerating}>
                         <Wand2 className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
                         Generate My Character
                     </Button>
@@ -374,14 +381,14 @@ if (gameData.playMode === 'remote') {
     const [playerName, setPlayerName] = useState(slot.preferences?.playerName || '');
     const [charName, setCharName] = useState(slot.preferences?.name || '');
     const [vision, setVision] = useState(slot.preferences?.vision || '');
-    const [gender, setGender] = useState(slot.preferences?.gender || 'Any');
+    const [pronouns, setPronouns] = useState(slot.preferences?.pronouns || 'Any');
     
     useEffect(() => {
         const newPrefs = slot.preferences || {};
         if (newPrefs.playerName !== playerName) setPlayerName(newPrefs.playerName || '');
         if (newPrefs.name !== charName) setCharName(newPrefs.name || '');
         if (newPrefs.vision !== vision) setVision(newPrefs.vision || '');
-        if (newPrefs.gender !== gender) setGender(newPrefs.gender || 'Any');
+        if (newPrefs.pronouns !== pronouns) setPronouns(newPrefs.pronouns || 'Any');
     }, [slot.preferences]);
 
 
@@ -423,14 +430,16 @@ if (gameData.playMode === 'remote') {
                 <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => { setVision(e.target.value); handleUpdate('vision', e.target.value)}} />
                 <Label>Character Name (Optional)</Label>
                 <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => { setCharName(e.target.value); handleUpdate('name', e.target.value)}} />
-                <Label>Gender</Label>
-                <Select value={gender} onValueChange={val => { setGender(val); handleUpdate('gender', val)}}>
+                <Label>Pronouns</Label>
+                <Select value={pronouns} onValueChange={val => { setPronouns(val); handleUpdate('pronouns', val)}}>
                     <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="Any">Any</SelectItem>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                        <SelectItem value="Non-binary">Non-binary</SelectItem>
+                        <SelectItem value="She/Her">She/Her</SelectItem>
+                        <SelectItem value="He/Him">He/Him</SelectItem>
+                        <SelectItem value="They/Them">They/Them</SelectItem>
+                        <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
+                        <SelectItem value="It/Its">It/Its</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -460,7 +469,7 @@ const handleGenerateAll = async () => {
                 playerName: prefs.playerName,
                 name: prefs.name,
                 vision: prefs.vision,
-                gender: prefs.gender === 'Any' ? undefined : prefs.gender,
+                pronouns: prefs.pronouns === 'Any' ? undefined : prefs.pronouns,
             };
         });
 

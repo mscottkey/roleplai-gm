@@ -21,7 +21,7 @@ export type Character = {
   playerName: string;
   isCustom: boolean;
   archetype?: string;
-  gender?: string;
+  pronouns?: string;
   age?: string;
   stats?: CharacterStats;
   playerId: string; // User ID of the player who created/claimed this character
@@ -61,6 +61,6 @@ export type PlayerSlot = {
         playerName?: string;
         name?: string;
         vision?: string;
-        gender?: string;
+        pronouns?: string;
     }
 }

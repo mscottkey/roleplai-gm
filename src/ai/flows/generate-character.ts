@@ -40,7 +40,7 @@ Provide:
 - A unique name. If a 'Preferred Name' is given and is not empty, you MUST use it. Otherwise, generate a diverse name appropriate to the game's setting and avoid using common or repeated names.
 - A one-sentence description.
 - A core aspect.
-- A gender.
+- The character's pronouns (e.g., "She/Her", "He/Him", "They/Them").
 - An age (e.g., "Young Adult", "Middle-Aged", "Elderly", "Ancient").
 - An archetype or role (e.g., "Scout," "Face," "Bruiser," "Mage").
 - A \`stats\` object containing the character's game mechanics. For the Fate Core system, this object MUST contain:
@@ -51,7 +51,7 @@ Preferences:
 {{#if playerName}}Player Name: {{{playerName}}}{{/if}}
 {{#if name}}Preferred Character Name: {{{name}}}{{/if}}
 {{#if vision}}Character Vision: {{{vision}}}{{/if}}
-{{#if gender}}Preferred Gender: {{{gender}}}{{/if}}
+{{#if pronouns}}Preferred Pronouns: {{{pronouns}}}{{/if}}
 {{#if age}}Preferred Age: {{{age}}}{{/if}}
 {{#if archetype}}Preferred Archetype: {{{archetype}}}{{/if}}
 `,

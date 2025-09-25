@@ -25,7 +25,7 @@ export const CharacterSchema = z.object({
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
     aspect: z.string().describe('A key concept or catch-phrase for the character, like "Cyber-enhanced muscle with a hidden heart of gold."'),
-    gender: z.string().optional().describe("The character's gender."),
+    pronouns: z.string().optional().describe("The character's pronouns (e.g., 'She/Her', 'They/Them')."),
     age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
     archetype: z.string().optional().describe("The character's archetype or role (e.g., 'Healer', 'Rogue')."),
     stats: CharacterStatsSchema.optional(),
@@ -39,7 +39,7 @@ const CharacterSlotSchema = z.object({
   playerName: z.string().optional().describe("The name of the player for this slot."),
   name: z.string().optional().describe("A preferred name for the character."),
   vision: z.string().optional().describe("A player-provided vision or concept for the character."),
-  gender: z.string().optional().describe('A preferred gender for the character (e.g., "Female", "Non-binary").'),
+  pronouns: z.string().optional().describe('Preferred pronouns for the character (e.g., "She/Her", "They/Them").'),
   age: z.string().optional().describe('A preferred age or age range for the character (e.g., "Young Adult", "Veteran").'),
   archetype: z.string().optional().describe('A desired character archetype or role (e.g., "Healer", "Tank", "Rogue").'),
 });

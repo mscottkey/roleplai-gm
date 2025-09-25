@@ -356,7 +356,7 @@ export default function RoleplAIGMPage() {
         playerName: c.playerName,
         isCustom: c.isCustom,
         archetype: c.archetype,
-        gender: c.gender,
+        pronouns: c.pronouns,
         age: c.age,
         stats: c.stats,
         playerId: c.playerId,
@@ -388,7 +388,7 @@ export default function RoleplAIGMPage() {
             aspect: c.aspect,
             playerName: c.playerName,
             archetype: c.archetype,
-            gender: c.gender,
+            pronouns: c.pronouns,
             age: c.age,
             stats: c.stats,
         }));
@@ -728,7 +728,7 @@ The stage is set. What do you do?
             aspect: c.aspect,
             playerName: c.playerName,
             archetype: c.archetype,
-            gender: c.gender,
+            pronouns: c.pronouns,
             age: c.age,
             stats: c.stats,
         }));
@@ -871,7 +871,7 @@ The stage is set. What do you do?
     }
   }
 
-  const handleProfileUpdate = async (updates: { displayName: string; defaultGender: string; }) => {
+  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; }) => {
     if (!user) return;
     const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
     if (result.success) {
