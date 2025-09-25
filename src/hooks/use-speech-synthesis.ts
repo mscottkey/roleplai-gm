@@ -148,6 +148,7 @@ export function useSpeechSynthesis({
         synth.onvoiceschanged = loadVoices;
       }
       
+      // Cleanup function to cancel speech when the component unmounts
       return () => {
         if (synth.speaking) {
           synth.cancel();
@@ -158,62 +159,66 @@ export function useSpeechSynthesis({
 
   const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice | null) => {
     if (!supported) return;
-    
-    // Cancel any ongoing speech
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
 
     const synth = window.speechSynthesis;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utteranceRef.current = utterance;
 
-    // Set voice
+    // It's crucial to cancel any existing speech before starting a new one.
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    
+    // Create a new utterance for the new speech request.
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        onEnd();
+    };
+
+    utterance.onpause = () => {
+        setIsPaused(true);
+        setIsSpeaking(true); // Still "speaking" but paused
+    };
+
+    utterance.onresume = () => {
+        setIsPaused(false);
+        setIsSpeaking(true);
+    };
+
+    utterance.onerror = (e) => {
+        // Interrupted errors are expected when we cancel speech, so we can ignore them.
+        if (e.error === 'interrupted' || e.error === 'canceled' || e.error === 'not-allowed') {
+            setIsSpeaking(false);
+            setIsPaused(false);
+            return;
+        }
+        console.error("Speech synthesis error", e);
+        setIsSpeaking(false);
+        setIsPaused(false);
+    };
+
     const voiceToUse = voiceOverride || selectedVoice;
     if (voiceToUse) {
-      utterance.voice = voiceToUse;
+        utterance.voice = voiceToUse;
     }
 
-    // Set speech parameters
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
 
-    // Attach listeners
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setIsPaused(false);
-    };
-    
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      onEnd();
-    };
-    
-    utterance.onpause = () => {
-      setIsPaused(true);
-      setIsSpeaking(true);
-    };
-    
-    utterance.onresume = () => {
-      setIsPaused(false);
-      setIsSpeaking(true);
-    };
-    
-    utterance.onerror = (e) => {
-      if (e.error === 'interrupted' || e.error === 'canceled' || e.error === 'not-allowed') {
-        setIsSpeaking(false);
-        setIsPaused(false);
-        return;
-      }
-      console.error("Speech synthesis error", e.error);
-      setIsSpeaking(false);
-      setIsPaused(false);
-    };
-    
+    // By assigning the utterance to a ref, we prevent it from being garbage collected
+    // before the speech synthesis engine can use it. This is a common pitfall.
+    utteranceRef.current = utterance;
+
     synth.speak(utterance);
-  }, [supported, selectedVoice, rate, pitch, volume, onEnd]);
+}, [supported, selectedVoice, rate, pitch, volume, onEnd]);
+
 
   const pause = useCallback(() => {
     if (!supported || !window.speechSynthesis.speaking || isPaused) return;
@@ -238,7 +243,6 @@ export function useSpeechSynthesis({
     const synth = window.speechSynthesis;
     const allVoices = synth.getVoices();
     if (allVoices.length === 0) {
-      // Voices not loaded yet, this can happen on some browsers
       return false;
     }
     const voice = allVoices.find(v => v.voiceURI === voiceURI);
