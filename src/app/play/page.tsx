@@ -15,7 +15,7 @@ import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
-import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc, runTransaction } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -806,7 +806,11 @@ The stage is set. What do you do?
     const gameIdToDelete = deleteConfirmation.id;
     deletingGameId.current = gameIdToDelete;
     setDeleteConfirmation(null); // Close dialog
-    router.push('/play'); // Navigate away first
+    
+    // Check if the game being deleted is the active one
+    if (activeGameId === gameIdToDelete) {
+      router.push('/play'); // Navigate away first
+    }
 
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
@@ -836,6 +840,7 @@ The stage is set. What do you do?
     if (!activeGameId) return;
 
     const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
+    const db = getFirestore();
     
     try {
       await runTransaction(db, async (transaction) => {

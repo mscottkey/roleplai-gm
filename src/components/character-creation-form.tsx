@@ -528,30 +528,6 @@ const handleGenerateAll = async () => {
     });
 };
 
-  const handleUpdatePlayerSlots = async (slots: PlayerSlot[]) => {
-    if (!activeGameId) return;
-
-    const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
-    const db = getFirestore();
-    
-    try {
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'games', activeGameId);
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) {
-          throw "Game not found!";
-        }
-        transaction.update(gameRef, { 
-          'worldState.characters': updatedCharacters,
-          'gameData.characters': updatedCharacters
-        });
-      });
-    } catch(e) {
-      const err = e as Error;
-      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
-    }
-  };
-
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
