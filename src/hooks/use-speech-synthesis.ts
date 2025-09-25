@@ -276,6 +276,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     // Add to the queue to prevent garbage collection
     utteranceQueue.push(utterance);
     
+    // Defer speaking to allow the `cancel` to complete and avoid race conditions.
     setTimeout(() => {
       console.log('[TTS Hook] synth.speak() has been called.');
       synth.speak(utterance);
