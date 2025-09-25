@@ -69,6 +69,11 @@ function hasSpeech(): boolean {
          typeof (window as any).SpeechSynthesisUtterance !== 'undefined';
 }
 
+// This is the key fix: We need to keep a reference to the utterance object
+// outside of the React component lifecycle to prevent it from being garbage collected.
+const utteranceQueue: SpeechSynthesisUtterance[] = [];
+
+
 export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
   const { preferredVoiceURI = null } = options;
 
@@ -162,7 +167,6 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     const synth = window.speechSynthesis;
     if (synth.speaking || synth.pending) return;
 
-    console.log('[TTS Hook] Priming speech engine...');
     const primer = new SpeechSynthesisUtterance('');
     synth.speak(primer);
     isPrimedRef.current = true;
@@ -182,7 +186,7 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
   const cancel = useCallback(() => {
     if (!supported) return;
     const synth = window.speechSynthesis;
-    utteranceRef.current = null;
+    utteranceQueue.length = 0; // Clear the queue
     synth.cancel();
     setIsSpeaking(false);
     setIsPaused(false);
@@ -202,7 +206,6 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 
   const speak = useCallback((options: SpeakOptions | string) => {
     if (!supported) return;
-    console.log('[TTS Hook] `speak` function called.');
 
     primeEngine();
 
@@ -215,55 +218,47 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     const synth = window.speechSynthesis;
     
     const utterance = new SpeechSynthesisUtterance(content);
-    utteranceRef.current = utterance;
-    console.log('[TTS Hook] Created new utterance for text:', `"${content.substring(0, 50)}..."`);
-    
+
     utterance.onstart = () => {
-        console.log('[TTS Hook] Event: onstart');
         setIsSpeaking(true);
         setIsPaused(false);
     };
 
     utterance.onend = () => {
-        console.log('[TTS Hook] Event: onend');
         setIsSpeaking(false);
         setIsPaused(false);
-        utteranceRef.current = null;
+        // Remove this utterance from the queue
+        const index = utteranceQueue.indexOf(utterance);
+        if (index > -1) {
+            utteranceQueue.splice(index, 1);
+        }
     };
     
     utterance.onpause = () => {
-        console.log('[TTS Hook] Event: onpause');
         setIsPaused(true);
     };
     
     utterance.onresume = () => {
-        console.log('[TTS Hook] Event: onresume');
         setIsPaused(false);
     };
-
-    utterance.onerror = (e) => {
-      console.error('[TTS Hook] Event: onerror', e);
-    };
-
+    
     const voiceToUse = selectedVoiceRef.current;
     if (voiceToUse) {
         utterance.voice = voiceToUse;
-        console.log(`[TTS Hook] Applying voice: ${voiceToUse.name} (${voiceToUse.voiceURI})`);
-    } else {
-        console.warn('[TTS Hook] No voice selected, using browser default.');
     }
 
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
-    console.log(`[TTS Hook] Settings: rate=${rate}, pitch=${pitch}, volume=${volume}`);
+
+    // Add to the queue to prevent garbage collection
+    utteranceQueue.push(utterance);
 
     if (synth.speaking) {
       synth.cancel();
     }
     
     setTimeout(() => {
-      console.log('[TTS Hook] synth.speak() has been called.');
       synth.speak(utterance);
     }, 100);
 
