@@ -808,12 +808,9 @@ The stage is set. What do you do?
 
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
-      toast({ title: "Game Deleted", description: "The game session has been successfully deleted." });
-      if (activeGameId === gameIdToDelete) {
-        router.push('/play'); // Navigate to the base play page if the active game was deleted
-      }
+        toast({ title: "Game Deleted", description: "The game session has been successfully deleted." });
     } else {
-      toast({ variant: 'destructive', title: "Deletion Failed", description: result.message });
+        toast({ variant: 'destructive', title: "Deletion Failed", description: result.message });
     }
     deletingGameId.current = null;
   };
@@ -917,7 +914,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
