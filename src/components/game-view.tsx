@@ -22,6 +22,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { User as FirebaseUser } from 'firebase/auth';
+import { ChatInterface } from './chat-interface';
 
 
 type GameViewProps = {
@@ -139,6 +140,8 @@ export function GameView({
     }
   }, [storyMessages]); // Re-check when content changes
 
+  const isPostCharacterCreation = messages.length === 1 && messages[0].role === 'system' && storyMessages.length > 0;
+  
   const StoryContent = () => (
     <div className="p-12 text-foreground" ref={storyContentRef}>
         <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
@@ -209,32 +212,32 @@ export function GameView({
       {/* Right Pane: Game Controls */}
       <div className="h-full flex flex-col overflow-hidden">
           {gameData.playMode === 'local' && <LocalPlayerGrid />}
-          <GameControls
-            messages={messages}
-            onSendMessage={onSendMessage}
-            isLoading={isLoading}
-            gameData={gameData}
-            worldState={worldState}
-            characters={characters}
-            activeCharacter={activeCharacter}
-            setActiveCharacter={setActiveCharacter}
-            mechanicsVisibility={mechanicsVisibility}
-            setMechanicsVisibility={setMechanicsVisibility}
-            onOpenStory={() => setIsStoryOpen(true)}
-            onUndo={onUndo}
-            canUndo={canUndo}
-            onRegenerateStoryline={onRegenerateStoryline}
-            currentUser={currentUser}
-            // TTS Props
-            isSpeaking={isSpeaking}
-            isPaused={isPaused}
-            isAutoPlayEnabled={isAutoPlayEnabled}
-            isTTSSupported={isTTSSupported}
-            onPlay={onPlay}
-            onPause={onPause}
-            onStop={onStop}
-            onSetAutoPlay={onSetAutoPlay}
-          />
+           <GameControls
+              messages={isPostCharacterCreation ? storyMessages.map((m, i) => ({ id: `story-${i}`, role: 'assistant', content: m.content })) : messages}
+              onSendMessage={onSendMessage}
+              isLoading={isLoading}
+              gameData={gameData}
+              worldState={worldState}
+              characters={characters}
+              activeCharacter={activeCharacter}
+              setActiveCharacter={setActiveCharacter}
+              mechanicsVisibility={mechanicsVisibility}
+              setMechanicsVisibility={setMechanicsVisibility}
+              onOpenStory={() => setIsStoryOpen(true)}
+              onUndo={onUndo}
+              canUndo={canUndo}
+              onRegenerateStoryline={onRegenerateStoryline}
+              currentUser={currentUser}
+              // TTS Props
+              isSpeaking={isSpeaking}
+              isPaused={isPaused}
+              isAutoPlayEnabled={isAutoPlayEnabled}
+              isTTSSupported={isTTSSupported}
+              onPlay={onPlay}
+              onPause={onPause}
+              onStop={onStop}
+              onSetAutoPlay={onSetAutoPlay}
+            />
       </div>
     </div>
   );
