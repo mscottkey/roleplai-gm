@@ -205,7 +205,11 @@ export default function RoleplAIGMPage() {
         setMessages(currentMessages);
 
         setStoryMessages(game.storyMessages || []);
-        const finalCharacters = game.worldState?.characters || [];
+        
+        const finalCharacters: Character[] = (game.worldState?.characters || []).map((c: any) => ({
+          ...c,
+          playerId: c.playerId || '',
+        }));
         setCharacters(finalCharacters);
         
         if (finalCharacters.length > 0) {
@@ -413,14 +417,6 @@ export default function RoleplAIGMPage() {
 
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         
-        const initialScene = startingNode
-            ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}`
-            : "## The Adventure Begins...";
-
-        const newHooks = startingNode
-            ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`
-            : 'The stage is set. What do you do?';
-
         const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
@@ -432,15 +428,9 @@ ${cleanMarkdown(gameData.setting)}
 ## Tone
 ${cleanMarkdown(gameData.tone)}
 
-## Initial Hooks
-${newHooks}
-
-## Your Party
-${characterList}
-
 ---
 
-${initialScene}
+${startingNode.description}
 
 The stage is set. What do you do?
 `.trim();
@@ -728,14 +718,6 @@ The stage is set. What do you do?
         
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         
-        const initialScene = startingNode
-            ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}`
-            : "## The Adventure Begins...";
-
-        const newHooks = startingNode
-            ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.`
-            : 'The stage is set. What do you do?';
-
         const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
@@ -747,15 +729,9 @@ ${cleanMarkdown(gameData.setting)}
 ## Tone
 ${cleanMarkdown(gameData.tone)}
 
-## Initial Hooks
-${newHooks}
-
-## Your Party
-${characterList}
-
 ---
 
-${initialScene}
+${startingNode.description}
 
 The stage is set. What do you do?
 `.trim();
@@ -1042,6 +1018,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
 
 
 

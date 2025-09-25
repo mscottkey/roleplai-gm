@@ -56,6 +56,13 @@ export const generateCampaignNodesPromptText = `You are a master storyteller and
 - **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
 {{/each}}
 
+## For the **starting node** specifically:
+- Write a 2-3 paragraph description instead of one paragraph
+- Include sensory details (what players see, hear, smell)
+- Establish immediate geography and spatial relationships
+- Make clear how this connects to the broader campaign stakes
+- End with a clear moment of tension or decision point
+
 ## Your Task
 Create a web of 5 to 7 interconnected situation nodes (these can be people, places, or problems), using the Notable Locations from the setting as inspiration for some of the nodes. For each node:
 1.  **title:** A descriptive name for the situation or location.
