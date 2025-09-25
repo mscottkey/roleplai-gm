@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useId, useEffect } from 'react';
@@ -148,18 +147,16 @@ export function CharacterCreationForm({
     }
     
     const hostPlayerName = currentUser?.displayName || currentUser?.email?.split('@')[0] || '';
-    const hostDefaultPronouns = userPreferences?.defaultPronouns || 'Any';
     
     return [{ 
       id: `${formId}-slot-0`, 
       character: null,
       preferences: {
         playerName: hostPlayerName,
-        pronouns: hostDefaultPronouns,
+        // Pronouns will be set by the effect once userPreferences load
       }
     }];
   });
-
 
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -167,6 +164,22 @@ export function CharacterCreationForm({
   const isHost = currentUser?.uid === gameData.userId;
   const currentUserPlayerId = currentUser?.uid;
   const userHasCharacter = playerSlots.some(slot => slot.character?.playerId === currentUserPlayerId);
+
+  useEffect(() => {
+    // This effect runs when userPreferences are loaded.
+    // It ensures the default pronouns for the host are set correctly.
+    if (gameData.playMode === 'local' && userPreferences && playerSlots.length > 0 && !playerSlots[0].character) {
+      const hostSlot = playerSlots[0];
+      if (!hostSlot.preferences?.pronouns) {
+        updateSlots(playerSlots.map((slot, index) => 
+          index === 0 
+            ? { ...slot, preferences: { ...slot.preferences, pronouns: userPreferences.defaultPronouns || 'Any' } } 
+            : slot
+        ));
+      }
+    }
+  }, [userPreferences, gameData.playMode]);
+
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
     setPlayerSlots(newSlots);
