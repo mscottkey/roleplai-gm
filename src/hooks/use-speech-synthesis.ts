@@ -156,7 +156,7 @@ export function useSpeechSynthesis({
     }
   }, [preferredVoiceURI]);
 
-  const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice) => {
+  const speak = useCallback((text: string, voiceOverride?: SpeechSynthesisVoice | null) => {
     if (!supported) return;
     
     // Cancel any ongoing speech

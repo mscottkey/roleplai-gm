@@ -104,11 +104,11 @@ export default function RoleplAIGMPage() {
     ) {
       const cleanedText = cleanForSpeech(lastMessage.content);
       if (cleanedText.trim()) {
-        speak(cleanedText);
+        speak(cleanedText, selectedVoice);
       }
       lastSpokenMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
+  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress, selectedVoice]);
 
   const handlePlayAll = () => {
     // If we are paused, just resume.
@@ -126,7 +126,7 @@ export default function RoleplAIGMPage() {
     // Then, collect all story text and speak it from the beginning.
     const storyText = storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
     if (storyText.trim()) {
-      speak(storyText);
+      speak(storyText, selectedVoice);
     }
   }
 
