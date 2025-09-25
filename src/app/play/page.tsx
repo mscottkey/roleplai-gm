@@ -28,6 +28,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
+import { GenerationProgress } from '@/components/generation-progress';
 
 const normalizeOrderedList = (s: string) => {
   if (!s) return s;
@@ -94,6 +95,7 @@ export default function RoleplAIGMPage() {
 
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+  const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number; step: string } | null>(null);
 
 
   const { toast } = useToast();
@@ -125,22 +127,18 @@ export default function RoleplAIGMPage() {
     if (
       supported &&
       isAutoPlayEnabled &&
+      generationProgress === null && // Only play when generation is complete
       lastMessage &&
       lastMessage.role === 'assistant' &&
       lastMessage !== lastSpokenMessageRef.current
     ) {
-      // Don't auto-play system messages, especially the placeholder during generation
-      if (lastMessage.role === 'system' && lastMessage.id.startsWith('placeholder-')) {
-          return;
-      }
-
       const cleanedText = cleanForSpeech(lastMessage.content);
       if (cleanedText.trim()) {
         speak(cleanedText);
       }
       lastSpokenMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled, supported]);
+  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
 
   const handlePlayAll = () => {
     if (isPaused) {
@@ -209,8 +207,9 @@ export default function RoleplAIGMPage() {
       setActiveCharacter(null);
       setStep('create');
     }
+    
+    // Cleanup TTS when navigating away from any game
     return () => {
-        // Cleanup TTS when navigating away from any game
         if (supported) cancel();
     }
   }, [searchParams, activeGameId, cancel, supported]);
@@ -246,26 +245,34 @@ export default function RoleplAIGMPage() {
           const restoredChar = finalCharacters.find(c => c.id === savedActiveCharId) || finalCharacters[0];
           setActiveCharacter(restoredChar);
         }
-
-        if (game.step === 'play' && sessionLoadedRef.current !== activeGameId) {
-          sessionLoadedRef.current = activeGameId;
-          // Check if it's a returning session
-          if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
-            setIsLoading(true);
-            generateRecap({ recentEvents: game.worldState.recentEvents })
-              .then(recapResult => {
-                const recapMessage: Message = {
-                  id: `recap-${Date.now()}`,
-                  role: 'system',
-                  content: `### Previously On...\n\n${recapResult.recap}`
-                };
-                setMessages(prev => [recapMessage, ...prev]);
-              })
-              .catch(err => {
-                console.error("Failed to generate recap:", err);
-                toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
-              })
-              .finally(() => setIsLoading(false));
+        
+        if (game.step === 'play') {
+          // If a game is in play, but we are still showing progress, it means we are re-joining mid-generation.
+          // For now, we will just clear the progress. A more advanced implementation might try to recover the state.
+          if (generationProgress) {
+            setGenerationProgress(null);
+          }
+          
+          if (sessionLoadedRef.current !== activeGameId) {
+              sessionLoadedRef.current = activeGameId;
+              // Check if it's a returning session
+              if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
+                setIsLoading(true);
+                generateRecap({ recentEvents: game.worldState.recentEvents })
+                  .then(recapResult => {
+                    const recapMessage: Message = {
+                      id: `recap-${Date.now()}`,
+                      role: 'system',
+                      content: `### Previously On...\n\n${recapResult.recap}`
+                    };
+                    setMessages(prev => [recapMessage, ...prev]);
+                  })
+                  .catch(err => {
+                    console.error("Failed to generate recap:", err);
+                    toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
+                  })
+                  .finally(() => setIsLoading(false));
+              }
           }
         }
 
@@ -374,12 +381,14 @@ export default function RoleplAIGMPage() {
     }));
 
 
-    // First, save the current state of characters to Firestore.
+    // First, save the current state of characters and transition the step.
     try {
       const db = getFirestore();
       await updateDoc(doc(db, "games", activeGameId), {
         'gameData.characters': plainCharacters,
-        'worldState.characters': plainCharacters
+        'worldState.characters': plainCharacters,
+        'activeCharacterId': finalCharacters.length > 0 ? finalCharacters[0].id : null,
+        'step': 'play', // Move to play step immediately to show progress UI
       });
     } catch(error) {
         const err = error as Error;
@@ -403,54 +412,17 @@ export default function RoleplAIGMPage() {
             age: c.age,
             stats: c.stats,
         }));
-
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-                'activeCharacterId': finalCharacters.length > 0 ? finalCharacters[0].id : null,
-            }
-        });
-
-        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
         
-        const generatePlaceholderMessage = (status: string) => `
-# Welcome to your adventure!
-
-## Setting
-${normalizeInlineBulletsInSections(gameData.setting)}
-
-## Tone
-${normalizeInlineBulletsInSections(gameData.tone)}
-
-## Your Party
-${characterList}
-
----
-
-*The stage is being set. The AI is ${status}...*
-`.trim();
-
-        const placeholderMessage: Message = { id: `placeholder-${Date.now()}`, role: 'system', content: generatePlaceholderMessage("weaving a web of intrigue") };
-
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-                'messages': [placeholderMessage],
-                'storyMessages': [{ content: placeholderMessage.content }],
-                step: 'play'
-            }
-        });
-
         // Step 1: Generate Core Concepts
-        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("generating core campaign concepts") } });
+        setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
         const coreConcepts = await generateCore({ setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         // Step 2: Generate Factions
-        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("designing key factions and threats") } });
+        setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
         const factions = await generateFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         // Step 3: Generate Nodes
-        await updateWorldState({ gameId: activeGameId, updates: { 'messages[0].content': generatePlaceholderMessage("building the web of story nodes") } });
+        setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
         const nodes = await generateNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI });
 
         const campaignStructure = {
@@ -470,6 +442,7 @@ ${characterList}
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
         const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
+        const characterList = finalCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
 # Welcome to your adventure!
@@ -514,6 +487,7 @@ The stage is set. What do you do?
         console.error("Failed to finalize characters and generate campaign:", err);
         toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
     } finally {
+        setGenerationProgress(null);
         setIsLoading(false);
     }
   };
@@ -749,15 +723,14 @@ The stage is set. What do you do?
         }));
 
         const { setting, tone } = gameData;
-        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
-
-        toast({ title: 'Regenerating Storyline...', description: 'Generating core campaign concepts...' });
+        
+        setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
         const coreConcepts = await generateCore({ setting, tone, characters: charactersForAI });
 
-        toast({ title: 'Regenerating Storyline...', description: 'Designing key factions and threats...' });
+        setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
         const factions = await generateFactionsAction({ ...coreConcepts, setting, tone, characters: charactersForAI });
 
-        toast({ title: 'Regenerating Storyline...', description: 'Building the web of story nodes...' });
+        setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
         const nodes = await generateNodesAction({ ...coreConcepts, factions, setting, tone, characters: charactersForAI });
 
         const campaignStructure = {
@@ -771,7 +744,7 @@ The stage is set. What do you do?
         const initialScene = startingNode ? `## The Adventure Begins...\n\n### ${startingNode.title}\n\n${startingNode.description}` : "## The Adventure Begins...";
 
         const newHooks = startingNode ? `1. **Stakes:** ${startingNode.stakes}\n2. **Leads:** Explore leads to ${startingNode.leads.join(', ')}.` : gameData.initialHooks;
-
+        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
         const finalInitialMessageContent = `
 # Welcome to your (newly regenerated) adventure!
@@ -820,6 +793,7 @@ The stage is set. What do you do?
         console.error("Failed to regenerate storyline:", err);
         toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
     } finally {
+        setGenerationProgress(null);
         setIsLoading(false);
     }
   };
@@ -919,6 +893,17 @@ The stage is set. What do you do?
           />
         );
       case 'play':
+         if (generationProgress) {
+            return (
+                <div className="flex h-full w-full items-center justify-center p-4">
+                    <GenerationProgress
+                        current={generationProgress.current}
+                        total={generationProgress.total}
+                        step={generationProgress.step}
+                    />
+                </div>
+            );
+        }
          return (
           <GameView
             messages={messages}
