@@ -72,7 +72,6 @@ export default function RoleplAIGMPage() {
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
   
   const { speak, pause, resume, cancel, isSpeaking, isPaused, supported, voices, selectVoice, selectedVoice } = useSpeechSynthesis({
-    onEnd: () => {},
     preferredVoiceURI: userPreferences?.defaultVoiceURI
   });
 
