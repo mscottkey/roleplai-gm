@@ -418,13 +418,20 @@ export default function RoleplAIGMPage() {
 
         const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
         
-        const finalInitialMessageContent = `
-# The Adventure Begins...
-        
-## ${startingNode.title}
-${startingNode.description}
+        const characterList = plainCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
 
-The stage is set. What do you do?
+        const finalInitialMessageContent = `
+# ${gameData.name}
+
+*${cleanMarkdown(gameData.setting).split('.')[0]}.*
+
+## Your Story Begins
+
+${startingNode ? startingNode.description : "The stage is set for adventure."}
+
+${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
+
+The world holds its breath. What do you do?
 `.trim();
 
         const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
