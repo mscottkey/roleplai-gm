@@ -106,12 +106,13 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
     };
 
     applyVoices();
-    const handler = () => applyVoices();
-    synth.addEventListener?.('voiceschanged', handler as any);
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = applyVoices;
+    }
 
     return () => {
       cancelled = true;
-      synth.removeEventListener?.('voiceschanged', handler as any);
+      synth.onvoiceschanged = null;
     };
   }, []);
 
