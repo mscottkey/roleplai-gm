@@ -166,14 +166,12 @@ export function useSpeechSynthesis({
 
     const synth = window.speechSynthesis;
 
-    // FIX: Explicitly cancel any ongoing speech before starting a new one.
-    // This prevents the "interrupted" error.
     if (synth.speaking) {
       synth.cancel();
     }
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utteranceRef.current = utterance; // Keep a reference to prevent garbage collection
+    utteranceRef.current = utterance; 
     console.log(`[TTS Hook] Created new utterance for text: "${text.substring(0, 50)}..."`);
     
     utterance.onstart = () => {
@@ -186,14 +184,14 @@ export function useSpeechSynthesis({
         console.log('[TTS Hook] Event: onend');
         setIsSpeaking(false);
         setIsPaused(false);
-        utteranceRef.current = null; // Clear reference
+        utteranceRef.current = null;
         onEnd();
     };
 
     utterance.onpause = () => {
         console.log('[TTS Hook] Event: onpause');
         setIsPaused(true);
-        setIsSpeaking(true); // Still "speaking" but paused
+        setIsSpeaking(true);
     };
 
     utterance.onresume = () => {
@@ -204,13 +202,6 @@ export function useSpeechSynthesis({
 
     utterance.onerror = (e) => {
         console.error('[TTS Hook] Event: onerror', e);
-        // Don't reset state on 'interrupted' as we are likely starting a new speech.
-        if (e.error === 'interrupted') {
-          return;
-        }
-        setIsSpeaking(false);
-        setIsPaused(false);
-        utteranceRef.current = null; // Clear reference
     };
 
     const voiceToUse = voiceOverride || selectedVoice;
