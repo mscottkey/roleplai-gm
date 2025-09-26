@@ -472,14 +472,14 @@ export default function RoleplAIGMPage() {
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
       const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
+      
+      const welcomeMessageForChat: Message = { 
+        id: `start-chat-${Date.now()}`, 
+        role: 'system', 
+        content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?`
+      };
 
-      const characterList = plainCharacters
-        .map((c) => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`)
-        .join('\n');
-        
-      const hooksList = (gameData.initialHooks || []).map(hook => `- ${hook}`).join('\n');
-
-      const finalInitialMessageContent = `
+      const storyboardContent = `
 # Welcome to ${gameData.name}
 
 ### Setting
@@ -491,20 +491,13 @@ ${gameData.tone}
 ### Difficulty
 ${gameData.difficulty}
 
-${hooksList ? `### Initial Hooks\n${hooksList}` : ''}
-
 ---
 
 ## And So It Begins...
 
 ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
-
-${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
-
-*The story awaits your choices.*
 `.trim();
 
-      const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
 
       const knownPlaces = campaignStructure.nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
       const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
@@ -512,8 +505,8 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
       await updateWorldState({
         gameId: activeGameId,
         updates: {
-          messages: [finalInitialMessage],
-          storyMessages: [{ content: finalInitialMessageContent }],
+          messages: [welcomeMessageForChat],
+          storyMessages: [{ content: storyboardContent }],
           'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
           'worldState.storyOutline': campaignStructure.nodes.map((n) => n.title),
           'worldState.recentEvents': ['The adventure has just begun.'],
@@ -757,6 +750,12 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
       };
 
       const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
+      
+      const welcomeMessageForChat: Message = { 
+        id: `start-chat-regen-${Date.now()}`, 
+        role: 'system', 
+        content: `**The world has been reshaped!**\n\nThe story has been regenerated. The new opening scene is on the storyboard. What do you do?`
+      };
 
       const finalInitialMessageContent = `
 # Welcome to your (newly regenerated) adventure!
@@ -774,8 +773,6 @@ ${startingNode.description}
 The stage is set. What do you do?
 `.trim();
 
-      const finalInitialMessage: Message = { id: `regen-start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
-
       await updateWorldState({
         gameId: activeGameId,
         updates: {
@@ -786,7 +783,7 @@ The stage is set. What do you do?
           'worldState.knownPlaces': [],
           'worldState.knownFactions': [],
           'worldState.places': [],
-          messages: [finalInitialMessage],
+          messages: [welcomeMessageForChat],
           storyMessages: [{ content: finalInitialMessageContent }],
           previousWorldState: null,
         },

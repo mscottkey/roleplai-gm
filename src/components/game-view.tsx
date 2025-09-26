@@ -135,8 +135,6 @@ export function GameView({
     }
   }, [storyMessages]); // Re-check when content changes
 
-  const isPostCharacterCreation = messages.length === 1 && messages[0].role === 'system' && storyMessages.length > 0;
-  
   const StoryContent = () => {
     let charOffset = 0;
 
@@ -257,7 +255,7 @@ export function GameView({
       <div className="h-full flex flex-col overflow-hidden">
           {gameData.playMode === 'local' && <LocalPlayerGrid />}
            <GameControls
-              messages={isPostCharacterCreation ? storyMessages.map((m, i) => ({ id: `story-${i}`, role: 'assistant', content: m.content })) : messages}
+              messages={messages}
               onSendMessage={onSendMessage}
               isLoading={isLoading}
               gameData={gameData}
