@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { signInAnonymously, signInWithEmailAndPassword, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getAuthWithPersistence } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,7 @@ export function LoginForm() {
     setIsLoading(true);
     try {
       // NOTE: This will fail unless you enable Email/Password auth in Firebase.
+      const auth = getAuthWithPersistence();
       await signInWithEmailAndPassword(auth, email, password);
       // The auth state listener in useAuth will handle the redirect
     } catch (error) {
@@ -54,6 +55,7 @@ export function LoginForm() {
   const handleGuestLogin = async () => {
     setIsGuestLoading(true);
     try {
+      const auth = getAuthWithPersistence();
       await signInAnonymously(auth);
       // The auth state listener in useAuth will handle the redirect
     } catch (error) {
@@ -71,6 +73,7 @@ export function LoginForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
+        const auth = getAuthWithPersistence();
         await signInWithRedirect(auth, provider);
         // The redirect result will be handled by the useAuth hook on page load
     } catch (error) {
