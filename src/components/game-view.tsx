@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { Voice } from '@/hooks/use-speech-synthesis';
+import { extractProseForTTS } from '@/lib/tts';
 
 
 type GameViewProps = {
@@ -221,8 +222,9 @@ export function GameView({
   };
 
   const handlePlayStory = () => {
-    const storyText = storyMessages.map(m => m.content).join('\n\n');
-    ttsProps.onPlay(storyText, handleBoundary);
+    const rawStoryText = storyMessages.map(m => m.content).join('\n\n');
+    const storyTextForTTS = extractProseForTTS(rawStoryText);
+    ttsProps.onPlay(storyTextForTTS, handleBoundary);
   };
 
 
