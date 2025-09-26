@@ -13,8 +13,8 @@ import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } 
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { ArrowDown, Volume2 } from 'lucide-react';
-import { cn, formatDialogue } from '@/lib/utils';
+import { ArrowDown, Volume2, Pause } from 'lucide-react';
+import { cn, formatDialogue, cleanMarkdownForSpeech } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Sheet,
@@ -95,6 +95,7 @@ export function GameView({
   const isInitialStoryLoad = useRef(true);
   
   const [showSmartScroll, setShowSmartScroll] = useState(false);
+  const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
 
   useEffect(() => {
     const viewport = storyRef.current?.querySelector('div');
@@ -150,25 +151,48 @@ export function GameView({
     }
   }, [storyMessages]); // Re-check when content changes
 
+  const handleSectionPlay = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const button = target.closest('button[data-play-id]');
+
+    if (!button) return;
+    
+    const playId = button.getAttribute('data-play-id');
+    if (!playId) return;
+
+    const contentElement = document.getElementById(playId);
+    if (!contentElement) return;
+
+    if (isSpeaking && currentlyPlayingId === playId) {
+      if (isPaused) {
+        onPlay(); // Resume
+      } else {
+        onPause();
+      }
+    } else {
+      const textToPlay = cleanMarkdownForSpeech(contentElement.innerText);
+      onPlay(textToPlay);
+      setCurrentlyPlayingId(playId);
+    }
+  };
+  
+  useEffect(() => {
+    if (!isSpeaking) {
+      setCurrentlyPlayingId(null);
+    }
+  }, [isSpeaking]);
+
   const isPostCharacterCreation = messages.length === 1 && messages[0].role === 'system' && storyMessages.length > 0;
   
   const StoryContent = () => (
-    <div className="p-12 text-foreground" ref={storyContentRef}>
+    <div className="p-12 text-foreground" ref={storyContentRef} onClick={handleSectionPlay}>
         <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
             {storyMessages.map((message, index) => {
-              const contentWithDialogue = formatDialogue(message.content);
+              const contentWithDialogueAndButtons = formatDialogue(message.content, `msg-${index}`);
               return (
-                <div key={index} className="relative group">
-                   <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute -left-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => onPlay(message.content)}
-                    >
-                        <Volume2 className="h-5 w-5 text-muted-foreground" />
-                    </Button>
+                <div key={index} className="relative group/message">
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                    {contentWithDialogue}
+                    {contentWithDialogueAndButtons}
                   </ReactMarkdown>
                   {index < storyMessages.length - 1 && <Separator className="mt-8" />}
                 </div>
