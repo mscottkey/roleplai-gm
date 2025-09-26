@@ -28,6 +28,7 @@ import {
   regenerateGameConcept,
   regenerateGameField,
   narratePlayerActions,
+  classifyIntent,
   getAnswerToQuestion,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
@@ -67,14 +68,76 @@ import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
-import { classifyGameInput } from '@/ai/flows/unified-classify';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
+
+const SummaryReview = ({
+    gameData,
+    isLoading,
+    onContinue,
+    onRegenerateConcept,
+    onRegenerateField,
+  }: {
+    gameData: GameData;
+    isLoading: boolean;
+    onContinue: () => void;
+    onRegenerateConcept: (newRequest: string) => Promise<void>;
+    onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
+  }) => {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
+        <Card className="w-full max-w-4xl mx-auto shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
+              <ScrollText /> Story Concept
+            </CardTitle>
+            <CardDescription className="pt-2">
+              Review the generated story concept. You can regenerate parts of it or continue to character creation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+             <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
+                <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="mt-0">Setting</h2>
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('setting')} disabled={isLoading}>
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", !isLoading && "hidden")} /> Regenerate
+                    </Button>
+                  </div>
+                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {gameData.setting}
+                  </ReactMarkdown>
+                </section>
+                <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
+                   <div className="flex items-center justify-between mb-2">
+                    <h2 className="mt-0">Tone</h2>
+                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('tone')} disabled={isLoading}>
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", !isLoading && "hidden")} /> Regenerate
+                    </Button>
+                  </div>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                   {gameData.tone}
+                  </ReactMarkdown>
+                </section>
+             </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-4 justify-center pt-6">
+            <Button size="lg" onClick={onContinue} disabled={isLoading} className="font-headline text-xl">
+              Continue to Character Creation <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button variant="outline" onClick={() => onRegenerateConcept(gameData.originalRequest || '')} disabled={isLoading}>
+                <LoadingSpinner className={cn("mr-2 h-4 w-4", !isLoading && "hidden")} /> Regenerate Entire Concept
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+}
 
 export default function RoleplAIGMPage() {
   const { user } = useAuth();
@@ -93,7 +156,7 @@ export default function RoleplAIGMPage() {
   const [storyMessages, setStoryMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
-  const [step, setStep] = useState<'create' | 'characters' | 'play' | 'loading'>('loading');
+  const [step, setStep] = useState<'create' | 'summary' | 'characters' | 'play' | 'loading'>('loading');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
@@ -282,7 +345,7 @@ export default function RoleplAIGMPage() {
           }
         }
 
-        setStep(game.step === 'characters' ? 'characters' : 'play');
+        setStep(game.step || 'summary');
       } else {
         if (deletingGameId.current !== activeGameId) {
           console.error('No such game!');
@@ -553,14 +616,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
     setIsLoading(true);
   
     try {
-      const { settingCategory, intent } = await classifyGameInput(
-        playerInput,
-        gameData?.setting,
-        gameData?.tone,
-        worldState.settingCategory
-      );
-  
-      console.log(`Input classified as: ${intent} in ${settingCategory} setting`);
+      const { intent } = await classifyIntent({ playerInput });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
@@ -626,7 +682,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
             worldState,
             ruleAdapter: "FateCore",
             mechanicsVisibility: mechanicsVisibility,
-            settingCategory,
+            settingCategory: worldState.settingCategory || 'generic',
         });
 
         const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
@@ -646,7 +702,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
             updates: {
                 messages: finalChatMessages,
                 storyMessages: newStoryMessages,
-                'worldState.settingCategory': settingCategory,
                 activeCharacterId: gameData?.playMode === 'remote' ? foundNextCharacter.id : activeCharacter.id,
             },
         };
@@ -665,7 +720,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           question: playerInput,
           worldState,
           character: actingCharacter,
-          settingCategory,
+          settingCategory: worldState.settingCategory || 'generic',
         });
   
         const assistantMessage: Message = {
@@ -678,7 +733,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           gameId: activeGameId,
           updates: {
             messages: [...newMessages, assistantMessage],
-            'worldState.settingCategory': settingCategory,
           },
         });
       }
@@ -874,7 +928,7 @@ The stage is set. What do you do?
   const handleRegenerateField = async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
-    const result = await regenerateGameField(activeGameId, {
+    const result = await regenerateField(activeGameId, {
       request: gameData.originalRequest || gameData.name,
       fieldName,
       currentValue: gameData[fieldName],
@@ -900,6 +954,20 @@ The stage is set. What do you do?
     switch (step) {
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
+      case 'summary':
+        return (
+          <SummaryReview
+            gameData={gameData!}
+            isLoading={isLoading}
+            onContinue={() => {
+              if (activeGameId) {
+                updateWorldState({ gameId: activeGameId, updates: { step: 'characters' } });
+              }
+            }}
+            onRegenerateConcept={handleRegenerateConcept}
+            onRegenerateField={handleRegenerateField}
+          />
+        );
       case 'characters':
         return (
           <MemoizedCharacterCreationForm
@@ -911,8 +979,6 @@ The stage is set. What do you do?
             currentUser={user}
             activeGameId={activeGameId}
             userPreferences={userPreferences}
-            onRegenerateConcept={handleRegenerateConcept}
-            onRegenerateField={handleRegenerateField}
           />
         );
       case 'play':

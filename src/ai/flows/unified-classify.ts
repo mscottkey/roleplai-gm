@@ -5,7 +5,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { MODEL_CLASSIFICATION } from '../models';
-import { SettingCategory, SETTING_KEYWORDS, SETTING_EXAMPLES } from '@/lib/setting-examples';
+import { SettingCategory, SETTING_KEYWORDS, SETTING_EXAMPLES } from '../../lib/setting-examples';
 
 // Helper function to generate enum values dynamically from the lib
 function getSettingCategoryEnum() {
@@ -218,44 +218,3 @@ export const unifiedClassify = ai.defineFlow(
     }
   }
 );
-
-// Convenience functions for backward compatibility
-export async function classifySettingQuick(setting: string, tone?: string): Promise<SettingCategory> {
-  const result = await unifiedClassify({ setting, tone });
-  return result.settingClassification?.category || 'generic';
-}
-
-export async function classifyIntent(playerInput: string): Promise<'Action' | 'Question'> {
-  const result = await unifiedClassify({ playerInput });
-  return result.intentClassification?.intent || 'Action';
-}
-
-// Main function for game runtime - classifies both setting (if needed) and intent
-export async function classifyGameInput(
-  playerInput: string,
-  setting?: string,
-  tone?: string,
-  currentSettingCategory?: string
-): Promise<{
-  settingCategory: SettingCategory;
-  intent: 'Action' | 'Question';
-  classifications: UnifiedClassifyOutput;
-}> {
-  const needsSettingClassification = !currentSettingCategory && setting;
-  
-  const result = await unifiedClassify({
-    playerInput,
-    setting: needsSettingClassification ? setting : undefined,
-    tone: needsSettingClassification ? tone : undefined,
-    gameContext: {
-      currentSettingCategory,
-      isFirstClassification: needsSettingClassification
-    }
-  });
-
-  return {
-    settingCategory: result.settingClassification?.category || (currentSettingCategory as SettingCategory) || 'generic',
-    intent: result.intentClassification?.intent || 'Action',
-    classifications: result
-  };
-}

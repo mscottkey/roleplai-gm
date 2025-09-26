@@ -5,6 +5,7 @@ import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } fr
 import { resolveAction as resolveActionFlow, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
+import { classifyIntent as classifyIntentFlow, type ClassifyIntentInput, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
@@ -126,14 +127,12 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       settingCategory: undefined,
     };
     
-    const welcomeMessageText = input.playMode === 'remote'
-      ? `Once the party is assembled, the story will begin.`
-      : `First, let's create your character(s). The story will begin once the party is ready.`;
+    const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
     
     const welcomeChatMessage: Message = {
         id: `welcome-chat-${Date.now()}`,
         role: 'system',
-        content: `**Welcome to ${newGame.name}!**\n\n${welcomeMessageText}`
+        content: welcomeMessageText
     };
 
     const newGameDocument = {
@@ -149,7 +148,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       previousWorldState: null,
       messages: [welcomeChatMessage],
       storyMessages: [],
-      step: 'characters',
+      step: 'summary', // NEW: Start at the summary step
       activeCharacterId: null,
     };
     
@@ -271,6 +270,18 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
     }
     throw new Error("Failed to update the world state. Please try again.");
   }
+}
+
+export async function classifyIntent(input: ClassifyIntentInput): Promise<ClassifyIntentOutput> {
+    try {
+        return await classifyIntentFlow(input);
+    } catch (error) {
+        console.error("Error in classifyIntent action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to classify intent: ${error.message}`);
+        }
+        throw new Error("Failed to classify intent. Please try again.");
+    }
 }
 
 export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {

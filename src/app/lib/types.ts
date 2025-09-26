@@ -31,8 +31,9 @@ export type GameData = GenerateNewGameOutput & {
   userId?: string; // The user who created the game
   characters?: Character[];
   campaignStructure?: CampaignStructure; // This is now optional, as it will be loaded from a subcollection
-  difficulty?: string;
   playMode?: 'local' | 'remote';
+  originalRequest?: string; // The sanitized prompt used to generate the game
+  promptHistory?: string[]; // A history of all prompts used for generation
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
@@ -50,7 +51,7 @@ export type GameSession = {
   previousWorldState: WorldState | null;
   messages: Message[];
   storyMessages: StoryMessage[];
-  step: 'characters' | 'play';
+  step: 'summary' | 'characters' | 'play';
   activeCharacterId: string | null;
 };
 

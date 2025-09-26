@@ -23,7 +23,6 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { getFirestore, doc, runTransaction } from 'firebase/firestore';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 type CharacterCreationFormProps = {
   gameData: GameData;
@@ -34,64 +33,7 @@ type CharacterCreationFormProps = {
   currentUser: FirebaseUser | null;
   activeGameId: string | null;
   userPreferences: UserPreferences | null;
-  onRegenerateConcept: (newRequest: string) => Promise<void>;
-  onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
 };
-
-const RegenerateStoryDialog = ({ onRegenerate, isLoading, currentRequest }: { onRegenerate: (newRequest: string) => Promise<void>; isLoading: boolean, currentRequest: string }) => {
-    const [open, setOpen] = useState(false);
-    const [newRequest, setNewRequest] = useState(currentRequest);
-
-    const handleSubmit = async () => {
-        if (!newRequest.trim()) return;
-        await onRegenerate(newRequest);
-        setOpen(false);
-    }
-    
-    const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const textarea = e.currentTarget;
-      textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
-      setNewRequest(textarea.value);
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Story
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Regenerate Story Concept</DialogTitle>
-                    <DialogDescription>
-                        Enter a new prompt to regenerate the entire story concept, including the name, setting, tone, and hooks.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                    <Label htmlFor="new-request">New Prompt</Label>
-                    <Textarea
-                        id="new-request"
-                        value={newRequest}
-                        onChange={handleInput}
-                        placeholder="e.g., 'A classic high fantasy adventure'"
-                        disabled={isLoading}
-                        className="mt-2 h-auto resize-none overflow-hidden min-h-[4rem]"
-                        rows={2}
-                    />
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={isLoading || !newRequest.trim()}>
-                        {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                        Regenerate
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -164,8 +106,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   currentUser,
   activeGameId,
   userPreferences,
-  onRegenerateConcept,
-  onRegenerateField
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>(() => {
@@ -597,67 +537,21 @@ const handleGenerateAll = async () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="party" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="summary"><ScrollText className="mr-2 h-4 w-4"/>Story Summary</TabsTrigger>
-                <TabsTrigger value="party"><Users className="mr-2 h-4 w-4"/>Party Builder</TabsTrigger>
-              </TabsList>
-               <TabsContent value="summary">
-                 <Card className="bg-muted/50">
-                   <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Campaign Briefing</CardTitle>
-                        <RegenerateStoryDialog
-                            onRegenerate={onRegenerateConcept}
-                            isLoading={isLoading}
-                            currentRequest={(gameData as any).originalRequest || ''}
-                        />
-                   </CardHeader>
-                   <CardContent className="p-6 max-h-[60vh] overflow-y-auto">
-                     <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
-                        <section className="prose prose-sm dark:prose-invert max-w-none relative group">
-                          <div className="flex items-center justify-between mb-2">
-                            <h2 className="mt-0">Setting</h2>
-                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('setting')} disabled={isLoading}>
-                                <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} /> Regenerate
-                            </Button>
-                          </div>
-                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                            {gameData.setting}
-                          </ReactMarkdown>
-                        </section>
-                        <section className="prose prose-sm dark:prose-invert max-w-none relative group">
-                           <div className="flex items-center justify-between mb-2">
-                            <h2 className="mt-0">Tone</h2>
-                             <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('tone')} disabled={isLoading}>
-                                <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} /> Regenerate
-                            </Button>
-                          </div>
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                           {gameData.tone}
-                          </ReactMarkdown>
-                        </section>
-                     </div>
-                   </CardContent>
-                 </Card>
-               </TabsContent>
-              <TabsContent value="party">
-                 <form>
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {playerSlots.map((slot) => (
-                          <LocalPlayerSlot 
-                              key={slot.id} 
-                              slot={slot} 
-                              onUpdate={updateSlotPreferences}
-                              onRemove={() => setPlayerSlots(slots => slots.filter(s => s.id !== slot.id))}
-                          />
-                      ))}
-                      <Button variant="outline" type="button" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
-                          <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
-                      </Button>
-                  </div>
-                 </form>
-              </TabsContent>
-            </Tabs>
+             <form>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {playerSlots.map((slot) => (
+                      <LocalPlayerSlot 
+                          key={slot.id} 
+                          slot={slot} 
+                          onUpdate={updateSlotPreferences}
+                          onRemove={() => setPlayerSlots(slots => slots.filter(s => s.id !== slot.id))}
+                      />
+                  ))}
+                  <Button variant="outline" type="button" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
+                      <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
+                  </Button>
+              </div>
+             </form>
         </CardContent>
         <CardFooter className="flex-col gap-4 justify-center pt-6">
           <Button
