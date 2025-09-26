@@ -31,6 +31,9 @@ export const generateCampaignCore = ai.defineFlow(
     outputSchema: CampaignCoreSchema,
   },
   async (input) => {
+    console.log('DEBUG: Input to generateCampaignCore flow:');
+    console.log('Setting:', input.setting);
+    console.log('Tone:', input.tone);
     const { output } = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignCorePromptText,
