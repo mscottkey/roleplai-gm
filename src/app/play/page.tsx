@@ -473,6 +473,8 @@ export default function RoleplAIGMPage() {
       const characterList = plainCharacters
         .map((c) => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`)
         .join('\n');
+        
+      const hooksList = (gameData.initialHooks || []).map(hook => `- ${hook}`).join('\n');
 
       const finalInitialMessageContent = `
 # Welcome to ${gameData.name}
@@ -486,7 +488,7 @@ ${gameData.tone}
 ### Difficulty
 ${gameData.difficulty}
 
-${gameData.initialHooks ? `### Initial Hooks\n${gameData.initialHooks}` : ''}
+${hooksList ? `### Initial Hooks\n${hooksList}` : ''}
 
 ---
 

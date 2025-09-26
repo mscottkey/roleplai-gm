@@ -20,6 +20,7 @@ const GenerateNewGameOutputSchema = z.object({
   setting: z.string().describe('A description of the game setting, including 2-3 notable locations.'),
   tone: z.string().describe('A description of the game tone.'),
   difficulty: z.string().describe("A difficulty rating (e.g., 'Easy', 'Medium', 'Hard') and a short description of what it implies for characters."),
+  initialHooks: z.array(z.string()).length(3).describe('An array of three, one-sentence plot hooks to give players immediate ideas.'),
 });
 export type GenerateNewGameOutput = z.infer<typeof GenerateNewGameOutputSchema>;
 
