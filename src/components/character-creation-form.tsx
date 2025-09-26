@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useId, useEffect } from 'react';
+import { useState, useId, useEffect, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -117,7 +117,7 @@ const CharacterDisplay = ({ char }: { char: Character }) => (
 );
 
 
-export function CharacterCreationForm({
+export const CharacterCreationForm = memo(function CharacterCreationForm({
   gameData,
   initialCharacters = [],
   onCharactersFinalized,
@@ -628,4 +628,4 @@ const handleGenerateAll = async () => {
       </Card>
     </div>
   );
-}
+});
