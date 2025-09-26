@@ -60,7 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,6 +75,7 @@ import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Textarea } from '@/components/ui/textarea';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -1203,3 +1204,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
