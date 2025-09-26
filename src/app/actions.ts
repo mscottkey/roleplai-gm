@@ -1,10 +1,11 @@
 
 
 
+
 'use server';
 
-import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
-import { resolveAction, ResolveActionInput, ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
+import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
+import { resolveAction, type ResolveActionInput, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
 import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
@@ -29,10 +30,10 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
-import type { Character } from "@/app/lib/types";
+import type { Character, Message } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
@@ -92,12 +93,6 @@ const GenerateNewGameInputSchema = z.object({
 type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
 
 
-const ClassifyIntentInputSchema = z.object({
-  playerInput: z.string().describe('The text input from the player.'),
-});
-export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
-
-
 export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
   try {
     console.log("Starting new game for user:", input.userId);
@@ -151,6 +146,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         ...newGame,
         playMode: input.playMode,
         originalRequest: ipCheck.sanitizedRequest,
+        promptHistory: [ipCheck.sanitizedRequest],
       },
       worldState: initialWorldState,
       previousWorldState: null,
@@ -276,7 +272,7 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   }
 }
 
-export async function routePlayerInput(input: ClassifyIntentInput): Promise<ClassifyIntentOutput> {
+export async function routePlayerInput(input: { playerInput: string }): Promise<ClassifyIntentOutput> {
   try {
     return await classifyIntent(input);
   } catch (error) {
@@ -564,6 +560,7 @@ export async function regenerateGameConcept(gameId: string, request: string): Pr
             'gameData.difficulty': newGame.difficulty,
             'gameData.initialHooks': newGame.initialHooks,
             'gameData.originalRequest': ipCheck.sanitizedRequest,
+            'gameData.promptHistory': arrayUnion(ipCheck.sanitizedRequest)
         });
 
         return { success: true, warningMessage: ipCheck.warningMessage };

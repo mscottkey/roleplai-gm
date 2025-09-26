@@ -33,6 +33,7 @@ export type GameData = GenerateNewGameOutput & {
   campaignStructure?: CampaignStructure; // This is now optional, as it will be loaded from a subcollection
   playMode?: 'local' | 'remote';
   originalRequest?: string; // The sanitized prompt used to generate the game
+  promptHistory?: string[]; // A history of all prompts used for generation
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
