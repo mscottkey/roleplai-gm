@@ -167,7 +167,7 @@ export default function RoleplAIGMPage() {
   }, [messages, isAutoPlayEnabled, supported, generationProgress]);
 
   // Manual Play: resume, or read from cursor → end
-  const handlePlayAll = (text?: string) => {
+  const handlePlayAll = (text?: string, onBoundary?: (e: SpeechSynthesisEvent) => void) => {
     if (isPaused) { resume(); return; }
     if (isSpeaking) { cancel(); }
     if (!userInteractedRef.current) {
@@ -178,7 +178,7 @@ export default function RoleplAIGMPage() {
     const textToPlay = text || storyAsText;
 
     if (textToPlay) {
-      speak({ text: textToPlay });
+      speak({ text: textToPlay, onBoundary });
     }
   };
 

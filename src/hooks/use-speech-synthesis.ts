@@ -26,6 +26,8 @@ export interface SpeakOptions {
   pitch?: number;
   /** Called after the *final* chunk ends */
   onEnd?: () => void;
+  /** Called for word boundaries */
+  onBoundary?: (event: SpeechSynthesisEvent) => void;
 }
 
 // Keep utterances alive to avoid GC
@@ -234,7 +236,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     primeEngine();
 
-    const { text, rate = 1.0, pitch = 1.0, onEnd } =
+    const { text, rate = 1.0, pitch = 1.0, onEnd, onBoundary } =
       typeof opts === 'string' ? ({ text: opts } as SpeakOptions) : opts;
 
     const content = (text ?? '').trim();
@@ -255,6 +257,10 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
             utterance.rate = rate;
             utterance.pitch = pitch;
             utterance.volume = volume;
+
+            if (onBoundary) {
+              utterance.onboundary = onBoundary;
+            }
 
             utterance.onstart = () => { setIsSpeaking(true); setIsPaused(false); };
             utterance.onpause = () => setIsPaused(true);

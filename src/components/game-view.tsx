@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
@@ -13,8 +13,8 @@ import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } 
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { ArrowDown, Volume2, Pause } from 'lucide-react';
-import { cn, formatDialogue, cleanMarkdownForSpeech } from '@/lib/utils';
+import { ArrowDown } from 'lucide-react';
+import { formatDialogue } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Sheet,
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/sheet";
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { Voice } from '@/hooks/use-speech-synthesis';
-import { ChatInterface } from './chat-interface';
 
 
 type GameViewProps = {
@@ -48,7 +47,7 @@ type GameViewProps = {
   isPaused: boolean;
   isAutoPlayEnabled: boolean;
   isTTSSupported: boolean;
-  onPlay: (text?: string) => void;
+  onPlay: (text?: string, onBoundary?: (e: SpeechSynthesisEvent) => void) => void;
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
@@ -142,24 +141,45 @@ export function GameView({
 
   const isPostCharacterCreation = messages.length === 1 && messages[0].role === 'system' && storyMessages.length > 0;
   
-  const StoryContent = () => (
-    <div className="p-12 text-foreground" ref={storyContentRef}>
-        <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
-            {storyMessages.map((message, index) => {
-              const contentWithDialogue = formatDialogue(message.content);
-              
-              return (
-                <div key={index} className="relative group/message">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                      {contentWithDialogue}
-                    </ReactMarkdown>
-                  {index < storyMessages.length - 1 && <Separator className="mt-8" />}
-                </div>
-              )
-            })}
-        </div>
-    </div>
-  );
+  const StoryContent = () => {
+    let charOffset = 0;
+
+    const CustomParagraph: React.FC<React.PropsWithChildren<any>> = ({ children, node }) => {
+      const currentOffset = charOffset;
+      // Crude but effective way to estimate text length for offset
+      const textContent = node.children.map((child: any) => child.value || '').join('');
+      charOffset += textContent.length + 2; // +2 for newline
+
+      return <div data-char-offset={currentOffset}>{children}</div>;
+    };
+    
+    const components: Components = {
+      p: CustomParagraph,
+    };
+    
+    return (
+      <div className="p-12 text-foreground" ref={storyContentRef}>
+          <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
+              {storyMessages.map((message, index) => {
+                const contentWithDialogue = formatDialogue(message.content);
+                
+                return (
+                  <div key={index} className="relative group/message">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm, remarkBreaks]} 
+                      rehypePlugins={[rehypeRaw]}
+                      components={components}
+                    >
+                        {contentWithDialogue}
+                      </ReactMarkdown>
+                    {index < storyMessages.length - 1 && <Separator className="mt-8" />}
+                  </div>
+                )
+              })}
+          </div>
+      </div>
+    );
+  };
   
   const LocalPlayerGrid = () => (
     <div className="p-4 border-b bg-card">
@@ -178,6 +198,32 @@ export function GameView({
       </div>
     </div>
   );
+
+  const handleBoundary = (e: SpeechSynthesisEvent) => {
+    if (!storyContentRef.current) return;
+    const charIndex = e.charIndex;
+
+    const allParagraphs = Array.from(storyContentRef.current.querySelectorAll('[data-char-offset]')) as HTMLElement[];
+    let currentParagraph: HTMLElement | null = null;
+    
+    for (const p of allParagraphs) {
+      const offset = parseInt(p.dataset.charOffset || '0', 10);
+      if (offset <= charIndex) {
+        currentParagraph = p;
+      } else {
+        break;
+      }
+    }
+
+    if (currentParagraph) {
+      currentParagraph.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handlePlayStory = () => {
+    const storyText = storyMessages.map(m => m.content).join('\n\n');
+    ttsProps.onPlay(storyText, handleBoundary);
+  };
 
 
   return (
@@ -230,6 +276,7 @@ export function GameView({
               onRegenerateStoryline={onRegenerateStoryline}
               currentUser={currentUser}
               {...ttsProps}
+              onPlay={handlePlayStory} // Override onPlay for this component
             />
       </div>
     </div>
