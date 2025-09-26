@@ -50,7 +50,6 @@ type CharacterCreationFormProps = {
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
   isLoading: boolean;
   currentUser: FirebaseUser | null;
-  onUpdatePlayerSlots: (slots: PlayerSlot[]) => void;
   activeGameId: string | null;
   userPreferences: UserPreferences | null;
 };
@@ -125,7 +124,6 @@ export function CharacterCreationForm({
   generateCharacterSuggestions,
   isLoading,
   currentUser,
-  onUpdatePlayerSlots,
   activeGameId,
   userPreferences,
 }: CharacterCreationFormProps) {
@@ -162,12 +160,10 @@ export function CharacterCreationForm({
   const userHasCharacter = playerSlots.some(slot => slot.character?.playerId === currentUserPlayerId);
 
   useEffect(() => {
-    // This effect runs when userPreferences are loaded.
-    // It ensures the default pronouns for the host are set correctly.
     if (gameData.playMode === 'local' && userPreferences && playerSlots.length > 0 && !playerSlots[0].character) {
       const hostSlot = playerSlots[0];
       if (!hostSlot.preferences?.pronouns) {
-        updateSlots(playerSlots.map((slot, index) => 
+        setPlayerSlots(playerSlots.map((slot, index) => 
           index === 0 
             ? { ...slot, preferences: { ...slot.preferences, pronouns: userPreferences.defaultPronouns || 'Any' } } 
             : slot
@@ -176,11 +172,42 @@ export function CharacterCreationForm({
     }
   }, [userPreferences, gameData.playMode, playerSlots]);
 
+  const updateCharacterInFirestore = async (slots: PlayerSlot[]) => {
+    if (!activeGameId) return;
+    const db = getFirestore();
+    const gameRef = doc(db, 'games', activeGameId);
 
-  const updateSlots = (newSlots: PlayerSlot[]) => {
-    setPlayerSlots(newSlots);
-    onUpdatePlayerSlots(newSlots);
-  }
+    try {
+        await runTransaction(db, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) {
+                throw "Game document does not exist!";
+            }
+            
+            const currentCharacters = (gameDoc.data().worldState?.characters || []) as Character[];
+            
+            const updatedCharacters = slots.map(slot => {
+                if (slot.character) return slot.character;
+                // Find existing character to preserve their data if they are just regenerating
+                const existing = currentCharacters.find(c => c.id === slot.id);
+                return existing || null;
+            }).filter(Boolean) as Character[];
+
+            transaction.update(gameRef, {
+                'worldState.characters': updatedCharacters,
+                'gameData.characters': updatedCharacters,
+            });
+        });
+    } catch (e) {
+        console.error("Failed to update characters in transaction:", e);
+        toast({
+            variant: "destructive",
+            title: "Sync Error",
+            description: "Could not save character updates to the server."
+        });
+    }
+  };
+
 
   const addPlayerSlot = () => {
     const newSlot: PlayerSlot = {
@@ -190,12 +217,15 @@ export function CharacterCreationForm({
         playerName: '',
       }
     };
-    updateSlots([...playerSlots, newSlot]);
+    const newSlots = [...playerSlots, newSlot];
+    setPlayerSlots(newSlots);
+    if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
   };
 
   const removePlayerSlot = (slotId: string) => {
     const newSlots = playerSlots.filter(slot => slot.id !== slotId);
-    updateSlots(newSlots);
+    setPlayerSlots(newSlots);
+    if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
   };
   
   const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; pronouns?: string; playerName?: string }) => {
@@ -227,7 +257,8 @@ export function CharacterCreationForm({
                 playerId: currentUserPlayerId!,
             };
             const newSlots = playerSlots.map(s => s.id === slotId ? { ...s, character: newCharacter, preferences: {} } : s);
-            updateSlots(newSlots);
+            setPlayerSlots(newSlots);
+            if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
         }
         
     } catch (error) {
@@ -387,16 +418,10 @@ if (gameData.playMode === 'remote') {
 
 // Local Play Mode
   const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
-    
     const { preferences } = slot;
-    const playerName = preferences?.playerName || '';
-    const charName = preferences?.name || '';
-    const vision = preferences?.vision || '';
-    const pronouns = preferences?.pronouns || 'Any';
 
     const handleUpdate = (field: string, value: string) => {
-        const currentPrefs = slot.preferences || {};
-        onUpdate(slot.id, { ...currentPrefs, [field]: value });
+        onUpdate(slot.id, { ...preferences, [field]: value });
     };
 
     if (slot.character && !slot.character.isCustom) {
@@ -424,15 +449,15 @@ if (gameData.playMode === 'remote') {
                 <Label>Player Name</Label>
                 <Input 
                     placeholder="Enter player name" 
-                    value={playerName} 
+                    value={preferences?.playerName || ''} 
                     onChange={e => handleUpdate('playerName', e.target.value)}
                 />
                 <Label>Character Vision</Label>
-                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => handleUpdate('vision', e.target.value)} />
+                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={preferences?.vision || ''} onChange={e => handleUpdate('vision', e.target.value)} />
                 <Label>Character Name (Optional)</Label>
-                <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => handleUpdate('name', e.target.value)} />
+                <Input placeholder="e.g. Kaito Tanaka" value={preferences?.name || ''} onChange={e => handleUpdate('name', e.target.value)} />
                 <Label>Pronouns</Label>
-                <Select value={pronouns} onValueChange={val => handleUpdate('pronouns', val)}>
+                <Select value={preferences?.pronouns || 'Any'} onValueChange={val => handleUpdate('pronouns', val)}>
                     <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="Any">Any</SelectItem>
@@ -497,7 +522,7 @@ const handleGenerateAll = async () => {
             }
             return slot;
         });
-        updateSlots(newSlots);
+        setPlayerSlots(newSlots);
 
     } catch (error) {
         const err = error as Error;
@@ -508,17 +533,15 @@ const handleGenerateAll = async () => {
 };
 
   const updateSlotPreferences = (id: string, updates: any) => {
-    const newSlots = playerSlots.map(slot => {
+    setPlayerSlots(playerSlots.map(slot => {
         if (slot.id === id) {
              if (updates.character === null) {
                 return { ...slot, character: null };
             }
-            const oldPrefs = slot.preferences || {};
-            return { ...slot, preferences: { ...oldPrefs, ...updates } };
+            return { ...slot, preferences: updates };
         }
         return slot;
-    });
-    updateSlots(newSlots);
+    }));
 };
 
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
@@ -568,7 +591,7 @@ const handleGenerateAll = async () => {
                               key={slot.id} 
                               slot={slot} 
                               onUpdate={updateSlotPreferences}
-                              onRemove={removePlayerSlot}
+                              onRemove={() => setPlayerSlots(slots => slots.filter(s => s.id !== slot.id))}
                           />
                       ))}
                       <Button variant="outline" type="button" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
@@ -597,7 +620,7 @@ const handleGenerateAll = async () => {
               )}
           </Button>
           {!hasGeneratedAll && playerSlots.length > 0 && (
-             <Button variant="link" size="sm" onClick={() => updateSlots(playerSlots.map(s => ({...s, character: null})))}>
+             <Button variant="link" size="sm" onClick={() => setPlayerSlots(slots => slots.map(s => ({...s, character: null})))}>
                 <RefreshCw className="mr-2 h-3 w-3" /> Start Over
             </Button>
           )}

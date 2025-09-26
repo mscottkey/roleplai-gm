@@ -418,7 +418,6 @@ export default function RoleplAIGMPage() {
         'gameData.characters': plainCharacters,
         'worldState.characters': plainCharacters,
         activeCharacterId: finalCharacters.length > 0 ? finalCharacters[0].id : null,
-        step: 'play',
       });
     } catch (error) {
       const err = error as Error;
@@ -525,6 +524,7 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
             connections: startingNode.leads,
           },
           previousWorldState: null,
+          step: 'play',
         },
       });
     } catch (error) {
@@ -818,23 +818,6 @@ The stage is set. What do you do?
     setNewGameName('');
   };
 
-  const handleUpdatePlayerSlots = async (slots: PlayerSlot[]) => {
-    if (!activeGameId) return;
-
-    const updatedCharacters = slots.map((s) => s.character).filter(Boolean) as Character[];
-    const db = getFirestore();
-
-    try {
-      await updateDoc(doc(db, 'games', activeGameId), {
-        'worldState.characters': updatedCharacters,
-        'gameData.characters': updatedCharacters,
-      });
-    } catch (e) {
-      const err = e as Error;
-      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
-    }
-  };
-
   const handleLocalCharacterSwitch = (char: Character) => {
     if (activeGameId) {
       setActiveCharacter(char);
@@ -867,7 +850,6 @@ The stage is set. What do you do?
             generateCharacterSuggestions={createCharacter}
             isLoading={isLoading}
             currentUser={user}
-            onUpdatePlayerSlots={handleUpdatePlayerSlots}
             activeGameId={activeGameId}
             userPreferences={userPreferences}
           />
