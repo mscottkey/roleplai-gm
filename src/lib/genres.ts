@@ -2,8 +2,8 @@
 export const genres = [
   'Sci-Fi',
   'Medieval Fantasy',
-  'Modern Horror',
-  'High Seas Adventure',
+  'Cyberpunk',
+  'Gothic Horror',
   'Post-Apocalyptic',
 ] as const;
 
