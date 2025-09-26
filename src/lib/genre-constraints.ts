@@ -132,6 +132,16 @@ export const GENRE_CONSTRAINTS: Record<SettingCategory, GenreConstraints> = {
     commonItems: ['cars', 'telephones', 'newspapers', 'whiskey', 'money'],
     atmosphere: 'gritty urban crime with moral ambiguity'
   },
+  
+  high_seas_adventure: {
+    allowedItems: ['cutlass', 'flintlock pistol', 'blunderbuss', 'cannon', 'ship', 'treasure map', 'compass', 'spyglass', 'rum', 'rope'],
+    forbiddenItems: ['modern technology', 'lasers', 'cybernetics', 'automatic weapons', 'cars', 'spaceships'],
+    technologyLevel: '17th-18th century naval technology - black powder weapons, sailing ships',
+    magicLevel: 'low - superstition, sea monsters, cursed treasure, voodoo, but rarely overt spellcasting',
+    commonWeapons: ['cutlass', 'flintlock pistol', 'blunderbuss', 'dagger', 'cannon'],
+    commonItems: ['compass', 'spyglass', 'treasure map', 'gold doubloons', 'rope', 'rum'],
+    atmosphere: 'swashbuckling adventure with exploration, naval combat, and the lure of treasure'
+  },
 
   generic: {
     allowedItems: ['basic tools', 'common items', 'appropriate technology'],

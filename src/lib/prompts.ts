@@ -37,4 +37,18 @@ export const promptsByGenre: Record<Genre, string[]> = {
     'An expedition into a highly radioactive "dead zone" to find a rumored seed bank.',
     'The last scientists in a bunker must venture out to find a component to fix their failing life support.',
   ],
+  'Steampunk': [
+    'Inventors in a city of brass and steam must stop a rogue clockwork leviathan from destroying the metropolis.',
+    'An airship crew is hired to chart a newly discovered continent full of strange flora and fauna.',
+    'A consulting detective with a mechanical arm investigates a series of impossible thefts.',
+    'The party must race against a rival government to retrieve a powerful energy source from a fallen star.',
+    'A secret society of automata rights activists needs help smuggling a self-aware machine to freedom.'
+  ],
+  'High Seas Adventure': [
+    'A crew of privateers is given a royal pardon if they can hunt down a notorious pirate king.',
+    'A cursed treasure map leads to an island that only appears on the full moon.',
+    'The party must defend their ship against a kraken summoned by a rival crew.',
+    'A quest to find the Fountain of Youth takes the party through naval blockades and ancient sea monster territory.',
+    'Smugglers are hired for one last job: deliver a mysterious passenger to a forbidden port.'
+  ]
 };

@@ -189,6 +189,21 @@ export const SETTING_EXAMPLES: Record<SettingCategory, SettingExamples> = {
       "Justice is Relative"
     ]
   },
+  
+  high_seas_adventure: {
+    description: "Swashbuckling action on the high seas with pirates, naval powers, mysterious islands, and buried treasure.",
+    campaignIssues: [
+      "A supernatural plague is spreading through the port cities, carried by ghost ships from a cursed treasure fleet.",
+      "The tyrannical Imperial Navy has declared war on all free sailors, using a powerful new weapon to enforce its blockade."
+    ],
+    campaignAspects: [
+      "The Sea is a Harsh Mistress",
+      "Fortune Favors the Bold",
+      "Every Port has its Secrets",
+      "X Marks the Spot",
+      "Dead Men Tell No Tales... Usually"
+    ]
+  },
 
   generic: {
     description: "Fallback for settings that don't fit other categories",
@@ -247,7 +262,7 @@ export const SETTING_KEYWORDS: Record<SettingCategory, string[]> = {
   ],
   steampunk: [
     'steampunk', 'victorian', 'steam', 'clockwork', 'gear', 'airship', 
-    'mechanical', 'invention', 'brass', 'copper', 'automation'
+    'mechanical', 'invention', 'brass', 'copper', 'automation', 'automaton', 'cog'
   ],
   weird_west: [
     'western', 'frontier', 'cowboy', 'railroad', 'native', 'spirit', 'gunslinger', 
@@ -256,6 +271,10 @@ export const SETTING_KEYWORDS: Record<SettingCategory, string[]> = {
   mystery_noir: [
     'detective', 'noir', 'crime', 'investigation', 'murder', 'police', 
     'corruption', 'gangster', 'city', 'urban', 'mystery', 'case'
+  ],
+  high_seas_adventure: [
+    'pirate', 'sea', 'ocean', 'ship', 'navy', 'island', 'treasure', 'swashbuckling', 
+    'sailing', 'port', 'buccaneer', 'privateer', 'kraken', 'jolly roger', 'schooner', 'frigate'
   ],
   generic: [] // Fallback
 };
