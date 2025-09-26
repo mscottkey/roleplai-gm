@@ -29,7 +29,8 @@ const normalizeInlineBulletsInSections = (md: string) => {
     if (!md) return md;
 
     const fixLine = (title: string, text: string) => {
-        return text.replace(new RegExp(`(${title}:)(.*)`, 'ims'), (_m, a, b) => {
+        // Use a regex that specifically looks for the bold markdown followed by a colon
+        return text.replace(new RegExp(`(\\*\\*${title}\\*\\*:)(.*)`, 'ims'), (_m, a, b) => {
             if (!b) return a;
             const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
             return `${a.trim()}\n\n${listItems}`;
@@ -37,7 +38,9 @@ const normalizeInlineBulletsInSections = (md: string) => {
     };
 
     let processedMd = md;
-    processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
+    
+    // This initial replacement is too broad and can cause issues. It's better to be specific in fixLine.
+    // processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
     
     processedMd = fixLine('Key Factions', processedMd);
     processedMd = fixLine('Notable Locations', processedMd);
@@ -178,7 +181,7 @@ export function CharacterCreationForm({
         ));
       }
     }
-  }, [userPreferences, gameData.playMode]);
+  }, [userPreferences, gameData.playMode, playerSlots]);
 
 
   const updateSlots = (newSlots: PlayerSlot[]) => {
@@ -403,7 +406,7 @@ if (gameData.playMode === 'remote') {
         if (newPrefs.name !== charName) setCharName(newPrefs.name || '');
         if (newPrefs.vision !== vision) setVision(newPrefs.vision || '');
         if (newPrefs.pronouns !== pronouns) setPronouns(newPrefs.pronouns || 'Any');
-    }, [slot.preferences]);
+    }, [slot.preferences, playerName, charName, vision, pronouns]);
 
 
     const handleUpdate = (field: string, value: string) => {
