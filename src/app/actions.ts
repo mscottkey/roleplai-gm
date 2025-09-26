@@ -109,7 +109,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     const gameRef = doc(collection(db, 'games'));
     console.log("Game document ID will be:", gameRef.id);
 
-    const initialWorldState: z.infer<typeof WorldStateSchema> = {
+    const initialWorldState: Omit<z.infer<typeof WorldStateSchema>, 'settingCategory'> & { settingCategory?: string } = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
       storyOutline: [],
       recentEvents: ["The adventure has just begun."],
@@ -601,3 +601,5 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
         return { success: false, message };
     }
 }
+
+    
