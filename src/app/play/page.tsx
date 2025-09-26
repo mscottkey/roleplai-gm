@@ -456,7 +456,7 @@ export default function RoleplAIGMPage() {
       const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
 
       setGenerationProgress({ current: 3, total: 3, step: 'Building the web of story nodes...' });
-      const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
+      const nodes = await generateCampaignNodes({ ...generationInputBase, ...coreConcepts, factions });
 
       const campaignStructure = {
         campaignIssues: coreConcepts.campaignIssues,
