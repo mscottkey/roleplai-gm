@@ -94,7 +94,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
           {messages.map((message, index) => {
             const isUser = message.role === 'user';
             const isSystem = message.role === 'system';
-            const contentWithDialogue = formatDialogue(message.content);
+            const contentWithDialogue = formatDialogue(message.content, `chat-msg-${index}`);
             const author = message.authorName || (isUser ? 'Player' : 'GM');
             return (
               <div

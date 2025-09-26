@@ -189,11 +189,26 @@ export function GameView({
         <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
             {storyMessages.map((message, index) => {
               const contentWithDialogueAndButtons = formatDialogue(message.content, `msg-${index}`);
+              
+              const PlayIcon = isSpeaking && !isPaused && currentlyPlayingId === `msg-${index}-full` ? Pause : Volume2;
+              
               return (
                 <div key={index} className="relative group/message">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                    {contentWithDialogueAndButtons}
-                  </ReactMarkdown>
+                   {isTTSSupported && (
+                    <button 
+                      className="tts-play-button" 
+                      data-play-id={`msg-${index}-full`}
+                      data-state={isSpeaking && currentlyPlayingId === `msg-${index}-full` ? 'playing' : 'idle'}
+                      aria-label="Play section"
+                    >
+                      <PlayIcon />
+                    </button>
+                  )}
+                  <div id={`msg-${index}-full`}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                      {contentWithDialogueAndButtons}
+                    </ReactMarkdown>
+                  </div>
                   {index < storyMessages.length - 1 && <Separator className="mt-8" />}
                 </div>
               )
