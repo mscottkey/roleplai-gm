@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -61,7 +62,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
-import { cleanMarkdown, cleanMarkdownForSpeech } from '@/lib/utils';
+import { cleanMarkdown } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
@@ -69,8 +70,6 @@ import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
 import { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
-
-// NEW: prose extractor for TTS (you said you added this file already)
 import { extractProseForTTS } from '@/lib/tts';
 
 export default function RoleplAIGMPage() {
@@ -140,7 +139,7 @@ export default function RoleplAIGMPage() {
   }, []);
 
   const storyAsText = useMemo(
-    () => (storyMessages || []).map((m: any) => cleanMarkdownForSpeech(m?.content || '')).join('\n\n'),
+    () => (storyMessages || []).map((m: any) => extractProseForTTS(m?.content || '')).join('\n\n'),
     [storyMessages]
   );
   
@@ -157,7 +156,7 @@ export default function RoleplAIGMPage() {
       lastMessage?.role === 'assistant' &&
       lastMessage !== lastSpokenMessageRef.current
     ) {
-      const prose = cleanMarkdownForSpeech(lastMessage.content);
+      const prose = extractProseForTTS(lastMessage.content);
       if (prose) {
         speak({ text: prose, volume: volumeMap[ttsVolume] });
         lastSpokenMessageRef.current = lastMessage;
@@ -167,16 +166,18 @@ export default function RoleplAIGMPage() {
   }, [messages, isAutoPlayEnabled, supported, generationProgress, ttsVolume]);
 
   // Manual Play: resume, or read from cursor → end
-  const handlePlayAll = () => {
+  const handlePlayAll = (text?: string) => {
     if (isPaused) { resume(); return; }
     if (isSpeaking) { cancel(); }
     if (!userInteractedRef.current) {
       toast({ title: 'Click to enable audio', description: 'Tap anywhere once, then press Play again.' });
       return;
     }
+    
+    const textToPlay = text || storyAsText;
 
-    if (storyAsText) {
-      speak({ text: storyAsText, volume: volumeMap[ttsVolume] });
+    if (textToPlay) {
+      speak({ text: textToPlay, volume: volumeMap[ttsVolume] });
     }
   };
 
@@ -350,7 +351,7 @@ export default function RoleplAIGMPage() {
 
     setIsLoading(true);
     try {
-      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
 
       if (warningMessage) {
         toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
