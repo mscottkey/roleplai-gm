@@ -9,8 +9,6 @@ export type Voice = {
   lang: string;
   localService: boolean;
   default: boolean;
-  provider: 'Google' | 'Microsoft' | 'Apple' | 'local';
-  quality: 'premium' | 'high' | 'standard';
 };
 
 export interface UseSpeechSynthesisOptions {
@@ -29,6 +27,9 @@ export interface SpeakOptions {
   onEnd?: () => void;
 }
 
+// Keep utterances alive to avoid GC
+const utteranceQueue: SpeechSynthesisUtterance[] = [];
+
 function hasSpeech(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -38,32 +39,17 @@ function hasSpeech(): boolean {
 }
 
 function describeVoice(v: SpeechSynthesisVoice): Voice {
-  const name = v.name || '';
-  const uri = v.voiceURI || '';
-  const ln = name.toLowerCase();
-  const lu = uri.toLowerCase();
-
-  let quality: Voice['quality'] = 'standard';
-  if (ln.includes('neural') || lu.includes('neural') || ln.includes('siri')) quality = 'premium';
-  else if (ln.includes('google') || ln.includes('microsoft') || ln.includes('enhanced')) quality = 'high';
-
-  let provider: Voice['provider'] = 'local';
-  if (lu.includes('google')) provider = 'Google';
-  else if (lu.includes('microsoft')) provider = 'Microsoft';
-  else if (lu.includes('apple') || ln.includes('siri')) provider = 'Apple';
-
   return {
     voiceURI: v.voiceURI,
     name: v.name,
     lang: v.lang,
     localService: v.localService,
     default: v.default,
-    quality,
-    provider,
   };
 }
 
 async function waitForVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (!hasSpeech()) return [];
   const synth = window.speechSynthesis;
   let voices = synth.getVoices();
   if (voices && voices.length) return voices;
@@ -113,13 +99,12 @@ function chunkText(text: string, maxLen = 200): string[] {
   return chunks.filter(Boolean);
 }
 
-// Keep utterances alive to avoid GC
-const utteranceQueue: SpeechSynthesisUtterance[] = [];
 
 export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   const { preferredVoiceURI = null, maxChunkLen = 200 } = opts;
 
   const [supported, setSupported] = useState(false);
+  const [voices, setVoices] = useState<Voice[]>([]);
   const [rawVoices, setRawVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
 
@@ -139,9 +124,8 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     };
 
     const synth = window.speechSynthesis;
-    // Use onvoiceschanged to robustly load voices
     synth.onvoiceschanged = () => loadVoices();
-    loadVoices(); // Initial attempt
+    loadVoices();
 
     return () => {
       cancelled = true;
@@ -149,30 +133,34 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     };
   }, []);
 
-  const voices: Voice[] = useMemo(() => {
-    // Simple check for Edge browser.
+  useEffect(() => {
+    if (!rawVoices.length) return;
+
     const isEdge = typeof navigator !== 'undefined' && navigator.userAgent.includes("Edg/");
 
-    return rawVoices
+    const filtered = rawVoices
       .filter(v => {
-        // Must be local and English
-        if (!v.localService || !v.lang.startsWith('en')) {
-          return false;
+        const isEnglish = v.lang.startsWith('en');
+        if (!isEnglish) return false;
+        
+        const isMicrosoftVoice = v.name.includes('Microsoft');
+        if (isMicrosoftVoice && !isEdge) {
+            return false;
         }
-        // If not in Edge, filter out Microsoft voices
-        if (!isEdge && v.name.includes('Microsoft')) {
-          return false;
-        }
+        
         return true;
       })
       .map(describeVoice)
       .sort((a, b) => {
-        const ord: Record<Voice['quality'], number> = { premium: 0, high: 1, standard: 2 };
-        const d = ord[a.quality] - ord[b.quality];
-        if (d !== 0) return d;
+        if (a.default && !b.default) return -1;
+        if (!a.default && b.default) return 1;
         return a.name.localeCompare(b.name);
       });
+    
+    setVoices(filtered);
+
   }, [rawVoices]);
+
 
   useEffect(() => {
     if (!supported || !voices.length) return;
@@ -180,22 +168,25 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     const currentVoiceIsValid = selectedVoice && voices.some(v => v.voiceURI === selectedVoice.voiceURI);
     if (currentVoiceIsValid) return;
 
+    let voiceToSet: SpeechSynthesisVoice | undefined;
+
     if (preferredVoiceURI) {
-      const pref = voices.find(v => v.voiceURI === preferredVoiceURI);
-      if (pref) {
-          const rawPref = rawVoices.find(rv => rv.voiceURI === pref.voiceURI);
-          if (rawPref) {
-            setSelectedVoice(rawPref);
-            return;
-          }
+      voiceToSet = rawVoices.find(rv => rv.voiceURI === preferredVoiceURI);
+    }
+    
+    if (!voiceToSet) {
+      const defaultVoice = voices.find(v => v.default);
+      if (defaultVoice) {
+        voiceToSet = rawVoices.find(rv => rv.voiceURI === defaultVoice.voiceURI);
       }
     }
     
-    // Fallback to the first voice in the filtered & sorted list
-    const bestFallback = voices[0];
-    if (bestFallback) {
-        const rawFallback = rawVoices.find(rv => rv.voiceURI === bestFallback.voiceURI);
-        setSelectedVoice(rawFallback || null);
+    if (!voiceToSet && voices.length > 0) {
+        voiceToSet = rawVoices.find(rv => rv.voiceURI === voices[0].voiceURI);
+    }
+
+    if (voiceToSet) {
+      setSelectedVoice(voiceToSet);
     }
 
   }, [supported, voices, rawVoices, preferredVoiceURI, selectedVoice]);
@@ -288,7 +279,6 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
 
     if (synth.speaking || synth.pending) {
         synth.cancel();
-        // Add a small delay to prevent race conditions where speak() is called before cancel() has fully finished.
         setTimeout(startSpeaking, 100);
     } else {
         startSpeaking();
