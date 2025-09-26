@@ -9,12 +9,13 @@
 
 import {ai} from 'genkit';
 import {
-  CampaignStructureSchema,
   GenerateCampaignStructureInputSchema,
+  GenerateCampaignStructureOutputSchema,
   type GenerateCampaignStructureInput,
   type GenerateCampaignStructureOutput,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from './generate-campaign-pieces';
+import { unifiedClassify } from './unified-classify';
 
 export async function generateCampaignStructure(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
   return generateCampaignStructureFlow(input);
@@ -24,24 +25,33 @@ const generateCampaignStructureFlow = ai.defineFlow(
   {
     name: 'generateCampaignStructureFlow',
     inputSchema: GenerateCampaignStructureInputSchema,
-    outputSchema: CampaignStructureSchema,
+    outputSchema: GenerateCampaignStructureOutputSchema,
   },
   async (input) => {
-    // Step 1: Generate the core concepts (issues and aspects)
-    const coreConcepts = await generateCampaignCore(input);
+    // Step 1: Classify the setting to get the genre category.
+    const classification = await unifiedClassify({
+        setting: input.setting,
+        tone: input.tone,
+        gameContext: { isFirstClassification: true }
+    });
+    const settingCategory = classification.settingClassification?.category || 'generic';
 
-    // Step 2: Generate the factions based on the core concepts
-    const factions = await generateCampaignFactions({ ...input, ...coreConcepts });
+    // Step 2: Generate the core concepts (issues and aspects)
+    const coreConcepts = await generateCampaignCore({ ...input, settingCategory });
 
-    // Step 3: Generate the nodes based on the core concepts and factions
-    const nodes = await generateCampaignNodes({ ...input, ...coreConcepts, factions });
+    // Step 3: Generate the factions based on the core concepts
+    const factions = await generateCampaignFactions({ ...input, ...coreConcepts, settingCategory });
 
-    // Step 4: Assemble the final campaign structure
+    // Step 4: Generate the nodes based on the core concepts and factions
+    const nodes = await generateCampaignNodes({ ...input, ...coreConcepts, factions, settingCategory });
+
+    // Step 5: Assemble the final campaign structure, including the setting category
     const finalStructure: GenerateCampaignStructureOutput = {
       campaignIssues: coreConcepts.campaignIssues,
       campaignAspects: coreConcepts.campaignAspects,
       factions,
       nodes,
+      settingCategory,
     };
 
     return finalStructure;

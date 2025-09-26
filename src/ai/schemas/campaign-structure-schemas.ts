@@ -44,7 +44,6 @@ export const CampaignStructureSchema = z.object({
 });
 export type CampaignStructure = z.infer<typeof CampaignStructureSchema>;
 
-
 export const GenerateCampaignStructureInputSchema = z.object({
     setting: z.string().describe("The high-level description of the game's setting."),
     tone: z.string().describe("The high-level description of the game's tone."),
@@ -52,7 +51,10 @@ export const GenerateCampaignStructureInputSchema = z.object({
 });
 export type GenerateCampaignStructureInput = z.infer<typeof GenerateCampaignStructureInputSchema>;
 
-export type GenerateCampaignStructureOutput = CampaignStructure;
+export const GenerateCampaignStructureOutputSchema = CampaignStructureSchema.extend({
+    settingCategory: z.string().describe("The classified genre category of the campaign setting."),
+});
+export type GenerateCampaignStructureOutput = z.infer<typeof GenerateCampaignStructureOutputSchema>;
 
 // Schemas for decomposed flows
 export const CampaignCoreSchema = z.object({
@@ -61,7 +63,12 @@ export const CampaignCoreSchema = z.object({
 });
 export type CampaignCore = z.infer<typeof CampaignCoreSchema>;
 
-export const GenerateFactionsInputSchema = GenerateCampaignStructureInputSchema.merge(CampaignCoreSchema);
+// Base input for all sub-flows now includes the settingCategory
+const SubFlowInputBaseSchema = GenerateCampaignStructureInputSchema.extend({
+    settingCategory: z.string(),
+});
+
+export const GenerateFactionsInputSchema = SubFlowInputBaseSchema.merge(CampaignCoreSchema);
 export type GenerateFactionsInput = z.infer<typeof GenerateFactionsInputSchema>;
 
 export const GenerateNodesInputSchema = GenerateFactionsInputSchema.extend({

@@ -8,7 +8,6 @@ import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-worl
 import { classifyIntent as classifyIntentFlow, type ClassifyIntentInput, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
-import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
@@ -16,7 +15,7 @@ import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
-import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node, CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
+import type { GenerateCampaignStructureInput, GenerateCampaignStructureOutput } from "@/ai/schemas/campaign-structure-schemas";
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
 import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
@@ -311,49 +310,21 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput): Pr
     }
 }
 
-export async function generateCore(input: GenerateCampaignStructureInput): Promise<CampaignCore> {
+export async function generateCampaignStructureAction(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
     try {
-        return await generateCampaignCore(input);
+        return await generateCampaignStructureFlow(input);
     } catch (error) {
-        console.error("Error in generateCore action:", error);
+        console.error("Error in generateCampaignStructureAction action:", error);
         if (error instanceof Error) {
             console.error("Error message:", error.message);
             console.error("Error stack:", error.stack);
-            throw new Error(`Failed to generate campaign core concepts: ${error.message}`);
+            throw new Error(`Failed to generate campaign structure: ${error.message}`);
         }
-        throw new Error("Failed to generate campaign core concepts. Please try again.");
+        throw new Error("Failed to generate campaign structure. Please try again.");
     }
 }
 
-export async function generateFactionsAction(input: GenerateFactionsInput): Promise<Faction[]> {
-    try {
-        return await generateCampaignFactions(input);
-    } catch (error) {
-        console.error("Error in generateFactionsAction:", error);
-        if (error instanceof Error) {
-            console.error("Error message:", error.message);
-            console.error("Error stack:", error.stack);
-            throw new Error(`Failed to generate factions: ${error.message}`);
-        }
-        throw new Error("Failed to generate factions. Please try again.");
-    }
-}
-
-export async function generateNodesAction(input: GenerateNodesInput): Promise<Node[]> {
-    try {
-        return await generateCampaignNodes(input);
-    } catch (error) {
-        console.error("Error in generateNodesAction:", error);
-        if (error instanceof Error) {
-            console.error("Error message:", error.message);
-            console.error("Error stack:", error.stack);
-            throw new Error(`Failed to generate situation nodes: ${error.message}`);
-        }
-        throw new Error("Failed to generate situation nodes. Please try again.");
-    }
-}
-
-export async function saveCampaignStructure(gameId: string, campaign: CampaignStructure): Promise<{ success: boolean; message?: string }> {
+export async function saveCampaignStructure(gameId: string, campaign: Omit<GenerateCampaignStructureOutput, 'settingCategory'>): Promise<{ success: boolean; message?: string }> {
   try {
     const app = await getServerApp();
     const db = getFirestore(app);
@@ -601,5 +572,3 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
         return { success: false, message };
     }
 }
-
-    

@@ -17,16 +17,14 @@ import {
   updateWorldState,
   checkConsequences,
   undoLastAction,
-  generateCore,
-  generateFactionsAction,
-  generateNodesAction,
+  generateCampaignStructureAction,
   generateRecap,
   deleteGame,
   renameGame,
   updateUserProfile,
   saveCampaignStructure,
   regenerateGameConcept,
-  regenerateGameField,
+  regenerateField,
   narratePlayerActions,
   classifyIntent,
   getAnswerToQuestion,
@@ -535,23 +533,12 @@ export default function RoleplAIGMPage() {
         characters: charactersForAI,
       };
 
-      setGenerationProgress({ current: 1, total: 3, step: 'Generating core campaign concepts...' });
-      const coreConcepts = await generateCore(generationInputBase);
+      setGenerationProgress({ current: 1, total: 1, step: 'Generating campaign structure...' });
+      const campaignStructure = await generateCampaignStructureAction(generationInputBase);
 
-      setGenerationProgress({ current: 2, total: 3, step: 'Designing key factions and threats...' });
-      const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
+      const { settingCategory, ...campaignDataToSave } = campaignStructure;
 
-      setGenerationProgress({ current: 3, total: 3, step: 'Building the web of story nodes...' });
-      const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
-
-      const campaignStructure = {
-        campaignIssues: coreConcepts.campaignIssues,
-        campaignAspects: coreConcepts.campaignAspects,
-        factions,
-        nodes,
-      };
-
-      const saveResult = await saveCampaignStructure(activeGameId, campaignStructure);
+      const saveResult = await saveCampaignStructure(activeGameId, campaignDataToSave);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
       const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
@@ -603,6 +590,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             environmentalConditions: [],
             connections: startingNode.leads,
           },
+          'worldState.settingCategory': settingCategory,
           previousWorldState: null,
           step: 'play',
         },
@@ -833,21 +821,12 @@ ${startingNode ? startingNode.description : gameData.setting}
         characters: charactersForAI,
       };
 
-      setGenerationProgress({ current: 1, total: 3, step: 'Generating core campaign concepts...' });
-      const coreConcepts = await generateCore(generationInputBase);
+      setGenerationProgress({ current: 1, total: 1, step: 'Generating new campaign structure...' });
+      const campaignStructure = await generateCampaignStructureAction(generationInputBase);
+      const { settingCategory, ...campaignDataToSave } = campaignStructure;
 
-      setGenerationProgress({ current: 2, total: 3, step: 'Designing key factions and threats...' });
-      const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
-
-      setGenerationProgress({ current: 3, total: 3, step: 'Building the web of story nodes...' });
-      const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
-
-      const campaignStructure = {
-        campaignIssues: coreConcepts.campaignIssues,
-        campaignAspects: coreConcepts.campaignAspects,
-        factions,
-        nodes,
-      };
+      const saveResult = await saveCampaignStructure(activeGameId, campaignDataToSave);
+      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
       const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
       
@@ -883,6 +862,7 @@ The stage is set. What do you do?
           'worldState.knownPlaces': [],
           'worldState.knownFactions': [],
           'worldState.places': [],
+          'worldState.settingCategory': settingCategory,
           messages: [welcomeMessageForChat],
           storyMessages: [{ content: storyboardContent }],
           previousWorldState: null,
@@ -1204,5 +1184,3 @@ The stage is set. What do you do?
     </>
   );
 }
-
-    
