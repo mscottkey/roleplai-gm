@@ -97,6 +97,64 @@ const CharacterDisplay = ({ char }: { char: Character }) => (
   </div>
 );
 
+// Moved outside the main component to prevent re-creation on render
+const LocalPlayerSlot = memo(({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
+    const { preferences } = slot;
+
+    const handleUpdate = (field: string, value: string) => {
+        onUpdate(slot.id, { ...preferences, [field]: value });
+    };
+
+    if (slot.character && !slot.character.isCustom) {
+        return (
+            <Card className="flex flex-col relative group transition-all">
+                <CardHeader>
+                    <p className="text-center font-bold text-lg">Played by {slot.character.playerName}</p>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4">
+                    <CharacterDisplay char={slot.character} />
+                </CardContent>
+                <CardFooter>
+                     <Button variant="outline" size="sm" className="w-full" onClick={() => onUpdate(slot.id, { character: null })}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
+                    </Button>
+                </CardFooter>
+                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+            </Card>
+        );
+    }
+    
+    return (
+        <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
+            <div className="w-full space-y-4 text-left p-4">
+                <Label>Player Name</Label>
+                <Input 
+                    placeholder="Enter player name" 
+                    value={preferences?.playerName || ''} 
+                    onChange={e => handleUpdate('playerName', e.target.value)}
+                />
+                <Label>Character Vision</Label>
+                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={preferences?.vision || ''} onChange={e => handleUpdate('vision', e.target.value)} />
+                <Label>Character Name (Optional)</Label>
+                <Input placeholder="e.g. Kaito Tanaka" value={preferences?.name || ''} onChange={e => handleUpdate('name', e.target.value)} />
+                <Label>Pronouns</Label>
+                <Select value={preferences?.pronouns || 'Any'} onValueChange={val => handleUpdate('pronouns', val)}>
+                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Any">Any</SelectItem>
+                        <SelectItem value="She/Her">She/Her</SelectItem>
+                        <SelectItem value="He/Him">He/Him</SelectItem>
+                        <SelectItem value="They/Them">They/Them</SelectItem>
+                        <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
+                        <SelectItem value="It/Its">It/Its</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+        </Card>
+    );
+});
+LocalPlayerSlot.displayName = 'LocalPlayerSlot';
 
 export const CharacterCreationForm = memo(function CharacterCreationForm({
   gameData,
@@ -189,24 +247,26 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
 
 
   const addPlayerSlot = useCallback(() => {
-    const newSlot: PlayerSlot = {
-      id: `${formId}-slot-${playerSlots.length}`,
-      character: null,
-      preferences: {
-        playerName: '',
-      }
-    };
-    const newSlots = [...playerSlots, newSlot];
-    setPlayerSlots(newSlots);
-    if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
+    setPlayerSlots(slots => {
+      const newSlot: PlayerSlot = {
+        id: `${formId}-slot-${slots.length}`,
+        character: null,
+        preferences: { playerName: '' }
+      };
+      const newSlots = [...slots, newSlot];
+      if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
+      return newSlots;
+    });
   }, [playerSlots, formId, gameData.playMode]);
 
 
   const removePlayerSlot = useCallback((slotId: string) => {
-    const newSlots = playerSlots.filter(slot => slot.id !== slotId);
-    setPlayerSlots(newSlots);
-    if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-  }, [playerSlots, gameData.playMode]);
+    setPlayerSlots(slots => {
+      const newSlots = slots.filter(slot => slot.id !== slotId);
+      if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
+      return newSlots;
+    });
+  }, [gameData.playMode]);
 
   
   const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; pronouns?: string; playerName?: string }) => {
@@ -398,63 +458,6 @@ if (gameData.playMode === 'remote') {
 }
 
 // Local Play Mode
-const LocalPlayerSlot = memo(({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
-    const { preferences } = slot;
-
-    const handleUpdate = (field: string, value: string) => {
-        onUpdate(slot.id, { ...preferences, [field]: value });
-    };
-
-    if (slot.character && !slot.character.isCustom) {
-        return (
-            <Card className="flex flex-col relative group transition-all">
-                <CardHeader>
-                    <p className="text-center font-bold text-lg">Played by {slot.character.playerName}</p>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-4">
-                    <CharacterDisplay char={slot.character} />
-                </CardContent>
-                <CardFooter>
-                     <Button variant="outline" size="sm" className="w-full" onClick={() => onUpdate(slot.id, { character: null })}>
-                        <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
-                    </Button>
-                </CardFooter>
-                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
-            </Card>
-        );
-    }
-    
-    return (
-        <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
-            <div className="w-full space-y-4 text-left p-4">
-                <Label>Player Name</Label>
-                <Input 
-                    placeholder="Enter player name" 
-                    value={preferences?.playerName || ''} 
-                    onChange={e => handleUpdate('playerName', e.target.value)}
-                />
-                <Label>Character Vision</Label>
-                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={preferences?.vision || ''} onChange={e => handleUpdate('vision', e.target.value)} />
-                <Label>Character Name (Optional)</Label>
-                <Input placeholder="e.g. Kaito Tanaka" value={preferences?.name || ''} onChange={e => handleUpdate('name', e.target.value)} />
-                <Label>Pronouns</Label>
-                <Select value={preferences?.pronouns || 'Any'} onValueChange={val => handleUpdate('pronouns', val)}>
-                    <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Any">Any</SelectItem>
-                        <SelectItem value="She/Her">She/Her</SelectItem>
-                        <SelectItem value="He/Him">He/Him</SelectItem>
-                        <SelectItem value="They/Them">They/Them</SelectItem>
-                        <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
-                        <SelectItem value="It/Its">It/Its</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
-        </Card>
-    );
-});
-LocalPlayerSlot.displayName = 'LocalPlayerSlot';
 
 const handleGenerateAll = async () => {
     const slotsToGenerate = playerSlots.filter(s => !s.character);
