@@ -7,18 +7,18 @@ import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
 import { classifyIntent as classifyIntentFlow, type ClassifyIntentInput, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
-import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
+import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
-import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
-import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
+import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
+import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
-import type { GenerateCampaignStructureInput, GenerateCampaignStructureOutput } from "@/ai/schemas/campaign-structure-schemas";
+
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
-import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
+
 import { updateUserPreferences } from './actions/user-preferences';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 
@@ -28,10 +28,10 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, Timestamp, getDoc, runTransaction, query, where, getDocs, deleteDoc, writeBatch, arrayUnion } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
-import type { Character, Message } from "@/app/lib/types";
+import type { Character, Message, GameSession } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
@@ -146,8 +146,9 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       previousWorldState: null,
       messages: [welcomeChatMessage],
       storyMessages: [],
-      step: 'summary', // NEW: Start at the summary step
+      step: 'summary',
       activeCharacterId: null,
+      sessionStatus: 'active',
     };
     
     console.log("Attempting to save game document...");
@@ -187,10 +188,14 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
     throw new Error("Game not found for validation.");
   }
   const gameDoc = gameSnapshot.docs[0];
-  const gameData = gameDoc.data();
+  const gameData = gameDoc.data() as GameSession;
 
   if (gameData.gameData.playMode === 'remote' && gameData.activeCharacterId !== character.id) {
       throw new Error("It is not this character's turn to act.");
+  }
+
+  if (gameData.sessionStatus !== 'active') {
+    throw new Error("The game session is not active. Please resume the session to continue.");
   }
   
   try {
@@ -362,7 +367,8 @@ export async function getCostEstimation(input: EstimateCostInput): Promise<Estim
 export async function checkConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {
     try {
         return await assessConsequencesFlow(input);
-    } catch (error) {
+    } catch (error)
+    {
         console.error("Error in checkConsequences action:", error);
         if (error instanceof Error) {
             console.error("Error message:", error.message);
@@ -568,6 +574,25 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
         return { success: true };
     } catch (error) {
         console.error(`Error in regenerateGameField action for field ${input.fieldName}:`, error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
+
+export async function updateSessionStatus(gameId: string, status: 'active' | 'paused' | 'finished' | 'archived'): Promise<{ success: boolean; message?: string }> {
+    if (!gameId || !status) {
+        return { success: false, message: "Game ID and status are required." };
+    }
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, {
+            sessionStatus: status
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error in updateSessionStatus action:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message };
     }

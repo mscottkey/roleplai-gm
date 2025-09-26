@@ -12,7 +12,7 @@ import { RotateCcw } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 
-import type { GameData, Message, MechanicsVisibility, Character } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, SessionStatus } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import type { Voice } from '@/hooks/use-speech-synthesis';
 
@@ -32,6 +32,10 @@ type GameControlsProps = {
   canUndo: boolean;
   onRegenerateStoryline: () => void;
   currentUser: FirebaseUser | null;
+  // Session Status
+  sessionStatus: SessionStatus;
+  onUpdateStatus: (status: SessionStatus) => void;
+  onConfirmEndCampaign: () => void;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -65,6 +69,9 @@ export function GameControls({
   canUndo,
   onRegenerateStoryline,
   currentUser,
+  sessionStatus,
+  onUpdateStatus,
+  onConfirmEndCampaign,
   ...ttsProps
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -117,6 +124,9 @@ export function GameControls({
         voices={ttsProps.voices}
         selectedVoice={ttsProps.selectedVoice}
         onSelectVoice={ttsProps.onSelectVoice}
+        sessionStatus={sessionStatus}
+        onUpdateStatus={onUpdateStatus}
+        onConfirmEndCampaign={onConfirmEndCampaign}
       />
     </div>
   );

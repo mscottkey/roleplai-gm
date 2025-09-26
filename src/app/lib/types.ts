@@ -42,6 +42,8 @@ export type StoryMessage = {
   content: string;
 };
 
+export type SessionStatus = 'active' | 'paused' | 'finished' | 'archived';
+
 export type GameSession = {
   id:string;
   userId: string;
@@ -53,6 +55,7 @@ export type GameSession = {
   storyMessages: StoryMessage[];
   step: 'summary' | 'characters' | 'play';
   activeCharacterId: string | null;
+  sessionStatus: SessionStatus;
 };
 
 export type PlayerSlot = {

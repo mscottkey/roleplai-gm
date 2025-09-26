@@ -40,6 +40,10 @@ import {
     History,
     RefreshCcw,
     Mic,
+    PlayCircle,
+    PauseCircle,
+    Power,
+    PowerOff,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
@@ -49,12 +53,13 @@ import { ShareGameInvite } from './share-game-invite';
 import { VoiceSelector } from './ui/voice-selector';
 
 
-import type { GameData, MechanicsVisibility } from "@/app/lib/types";
+import type { GameData, MechanicsVisibility, SessionStatus } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useSearchParams } from 'next/navigation';
 import type { Voice } from '@/hooks/use-speech-synthesis';
+import { cn } from '@/lib/utils';
 
 type StoryDrawerProps = {
     isOpen: boolean;
@@ -68,6 +73,9 @@ type StoryDrawerProps = {
     voices: Voice[];
     selectedVoice: SpeechSynthesisVoice | null;
     onSelectVoice: (voiceURI: string) => boolean;
+    sessionStatus: SessionStatus;
+    onUpdateStatus: (status: SessionStatus) => void;
+    onConfirmEndCampaign: () => void;
 };
 
 const getSkillDisplay = (rank: number) => {
@@ -90,7 +98,10 @@ export function StoryDrawer({
     isLoading,
     voices,
     selectedVoice,
-    onSelectVoice
+    onSelectVoice,
+    sessionStatus,
+    onUpdateStatus,
+    onConfirmEndCampaign,
 }: StoryDrawerProps) {
     const { characters, campaignStructure, setting, tone, playMode } = gameData;
     const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
@@ -103,6 +114,11 @@ export function StoryDrawer({
         setIsAlertOpen(false);
     }
     
+    const StatusBadge = ({ status }: { status: SessionStatus }) => {
+        const variant = status === 'active' ? 'default' : status === 'paused' ? 'secondary' : 'destructive';
+        return <Badge variant={variant} className="capitalize">{status}</Badge>
+    }
+
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
           <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
@@ -242,6 +258,24 @@ export function StoryDrawer({
                         <Separator />
                       </>
                     )}
+                     <div className="space-y-4">
+                        <h4 className="font-medium text-foreground">Session Status</h4>
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">Current Status:</span>
+                                <StatusBadge status={sessionStatus} />
+                            </div>
+                            <div className={cn("flex gap-2", { "hidden": sessionStatus === 'finished' || sessionStatus === 'archived' })}>
+                                {sessionStatus === 'active' && (
+                                    <Button size="sm" variant="outline" onClick={() => onUpdateStatus('paused')} disabled={isLoading}><PauseCircle className="mr-2 h-4 w-4" />Pause</Button>
+                                )}
+                                {sessionStatus === 'paused' && (
+                                    <Button size="sm" variant="outline" onClick={() => onUpdateStatus('active')} disabled={isLoading}><PlayCircle className="mr-2 h-4 w-4" />Resume</Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <Separator />
                     <div className="space-y-4">
                         <h4 className="font-medium text-foreground">Mechanics Visibility</h4>
                         <RadioGroup
@@ -282,15 +316,21 @@ export function StoryDrawer({
                      <Separator />
                       <div className="space-y-4">
                           <h4 className="font-medium text-foreground">Danger Zone</h4>
-                          <Button variant="destructive" className="w-full" onClick={() => setIsAlertOpen(true)} disabled={isLoading}>
-                              {isLoading ? (
-                                  <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />
-                              ) : (
-                                  <RefreshCcw className="mr-2 h-4 w-4" />
-                              )}
-                              Regenerate Storyline
-                          </Button>
-                          <p className="text-xs text-muted-foreground">If the story gets stuck or you want a fresh plot, you can regenerate the campaign structure. This will keep your characters but create new issues, factions, and story nodes.</p>
+                          <div className="flex flex-col gap-2">
+                            <Button variant="outline" className="w-full" onClick={() => setIsAlertOpen(true)} disabled={isLoading || sessionStatus === 'finished'}>
+                                {isLoading ? (
+                                    <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCcw className="mr-2 h-4 w-4" />
+                                )}
+                                Regenerate Storyline
+                            </Button>
+                            <Button variant="destructive" className="w-full" onClick={onConfirmEndCampaign} disabled={isLoading || sessionStatus === 'finished'}>
+                                <PowerOff className="mr-2 h-4 w-4" />
+                                End Campaign
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Regenerate the storyline if you get stuck. End the campaign when your story is complete.</p>
                       </div>
                   </AccordionContent>
                 </AccordionItem>

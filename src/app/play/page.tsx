@@ -10,6 +10,7 @@ import type {
   Character,
   GameSession,
   PlayerSlot,
+  SessionStatus,
 } from '@/app/lib/types';
 import {
   startNewGame,
@@ -28,6 +29,7 @@ import {
   narratePlayerActions,
   classifyIntent,
   getAnswerToQuestion,
+  updateSessionStatus,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -58,15 +60,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
-import { cn, formatDialogue } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ScrollText, Users as UsersIcon } from 'lucide-react';
+import { ArrowRight, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
@@ -152,9 +154,9 @@ const SummaryReview = ({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Regenerate Story Concept</DialogTitle>
-              <DialogDescription>
+              <AlertDialogDescription>
                 Edit the prompt below to generate a new story concept. This will replace the current setting, tone, and plot hooks.
-              </DialogDescription>
+              </AlertDialogDescription>
             </DialogHeader>
             <div className="py-4">
               <Label htmlFor="regen-prompt">New Prompt</Label>
@@ -213,6 +215,9 @@ export default function RoleplAIGMPage() {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number; step: string } | null>(null);
+  
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
+  const [endCampaignConfirmation, setEndCampaignConfirmation] = useState(false);
 
   const { toast } = useToast();
 
@@ -316,6 +321,7 @@ export default function RoleplAIGMPage() {
       setStoryMessages([]);
       setCharacters([]);
       setActiveCharacter(null);
+      setSessionStatus('active');
       setStep('create');
     }
 
@@ -340,6 +346,7 @@ export default function RoleplAIGMPage() {
 
         setWorldState(game.worldState);
         setPreviousWorldState(game.previousWorldState || null);
+        setSessionStatus(game.sessionStatus || 'active');
 
         const currentMessages = game.messages || [];
         setMessages(currentMessages);
@@ -416,6 +423,17 @@ export default function RoleplAIGMPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleUpdateStatus = async (status: SessionStatus) => {
+    if (!activeGameId) return;
+    const result = await updateSessionStatus(activeGameId, status);
+    if (result.success) {
+      toast({ title: `Session ${status}`, description: `The game session has been marked as ${status}.`});
+    } else {
+      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+    if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
 
   if (step === 'loading') {
@@ -662,6 +680,13 @@ ${startingNode ? startingNode.description : gameData.setting}
             setIsLoading(false);
             setMessages(messagesWithoutRecap);
             return;
+        }
+
+        if (sessionStatus !== 'active') {
+          toast({ variant: 'destructive', title: 'Session Paused', description: 'Please resume the session to perform actions.' });
+          setMessages(messagesWithoutRecap);
+          setIsLoading(false);
+          return;
         }
 
         if (!confirmed) {
@@ -1033,6 +1058,10 @@ The stage is set. What do you do?
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
+            // Session Status
+            sessionStatus={sessionStatus}
+            onUpdateStatus={handleUpdateStatus}
+            onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             // TTS props
             isSpeaking={isSpeaking}
             isPaused={isPaused}
@@ -1166,6 +1195,29 @@ The stage is set. What do you do?
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* End Campaign Confirmation */}
+      {endCampaignConfirmation && (
+        <AlertDialog open onOpenChange={setEndCampaignConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>End this Campaign?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will mark the campaign as 'finished', and it will eventually be archived. You won't be able to play it anymore. Are you sure?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => handleUpdateStatus('finished')}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                Yes, End Campaign
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Account Settings Dialog */}

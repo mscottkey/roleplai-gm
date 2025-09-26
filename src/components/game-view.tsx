@@ -9,7 +9,7 @@ import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
-import type { GameData, Message, MechanicsVisibility, Character, StoryMessage } from '@/app/lib/types';
+import type { GameData, Message, MechanicsVisibility, Character, StoryMessage, SessionStatus } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
@@ -43,6 +43,10 @@ type GameViewProps = {
   canUndo: boolean;
   onRegenerateStoryline: () => void;
   currentUser: FirebaseUser | null;
+  // Session Status
+  sessionStatus: SessionStatus;
+  onUpdateStatus: (status: SessionStatus) => void;
+  onConfirmEndCampaign: () => void;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -76,6 +80,9 @@ export function GameView({
   canUndo,
   onRegenerateStoryline,
   currentUser,
+  sessionStatus,
+  onUpdateStatus,
+  onConfirmEndCampaign,
   ...ttsProps
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
@@ -270,6 +277,9 @@ export function GameView({
               canUndo={canUndo}
               onRegenerateStoryline={onRegenerateStoryline}
               currentUser={currentUser}
+              sessionStatus={sessionStatus}
+              onUpdateStatus={onUpdateStatus}
+              onConfirmEndCampaign={onConfirmEndCampaign}
               {...ttsProps}
               onPlay={handlePlayStory} // Override onPlay for this component
             />
