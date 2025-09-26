@@ -116,17 +116,6 @@ function chunkText(text: string, maxLen = 200): string[] {
 // Keep utterances alive to avoid GC
 const utteranceQueue: SpeechSynthesisUtterance[] = [];
 
-// Browser detection helper
-const getBrowser = (): 'chrome' | 'safari' | 'edge' | 'firefox' | 'other' => {
-  if (typeof navigator === 'undefined') return 'other';
-  const ua = navigator.userAgent.toLowerCase();
-  if (ua.includes('edg/')) return 'edge';
-  if (ua.includes('chrome') && !ua.includes('chromium')) return 'chrome';
-  if (ua.includes('safari') && !ua.includes('chrome')) return 'safari';
-  if (ua.includes('firefox')) return 'firefox';
-  return 'other';
-};
-
 export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   const { preferredVoiceURI = null, maxChunkLen = 200 } = opts;
 
@@ -161,29 +150,21 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   }, []);
 
   const voices: Voice[] = useMemo(() => {
-    const browser = getBrowser();
-    
-    // Create a filter function based on the detected browser
-    const browserFilter = (v: SpeechSynthesisVoice): boolean => {
-        const name = v.name.toLowerCase();
-        switch (browser) {
-            case 'chrome':
-                // In Chrome, prefer Google voices and exclude Microsoft voices
-                return name.includes('google') || !name.includes('microsoft');
-            case 'edge':
-                // In Edge, prefer Microsoft voices
-                return name.includes('microsoft');
-            case 'safari':
-                // In Safari, prefer Apple voices
-                return name.includes('apple') || v.voiceURI.includes('apple');
-            default:
-                // For other browsers, use a generic filter
-                return true;
-        }
-    };
+    // Simple check for Edge browser.
+    const isEdge = typeof navigator !== 'undefined' && navigator.userAgent.includes("Edg/");
 
     return rawVoices
-      .filter(v => v.localService && v.lang.startsWith('en') && browserFilter(v))
+      .filter(v => {
+        // Must be local and English
+        if (!v.localService || !v.lang.startsWith('en')) {
+          return false;
+        }
+        // If not in Edge, filter out Microsoft voices
+        if (!isEdge && v.name.includes('Microsoft')) {
+          return false;
+        }
+        return true;
+      })
       .map(describeVoice)
       .sort((a, b) => {
         const ord: Record<Voice['quality'], number> = { premium: 0, high: 1, standard: 2 };
@@ -307,6 +288,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
 
     if (synth.speaking || synth.pending) {
         synth.cancel();
+        // Add a small delay to prevent race conditions where speak() is called before cancel() has fully finished.
         setTimeout(startSpeaking, 100);
     } else {
         startSpeaking();
