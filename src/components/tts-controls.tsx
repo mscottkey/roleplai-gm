@@ -16,6 +16,8 @@ type TTSControlsProps = {
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
+  ttsVolume: 'low' | 'med' | 'high';
+  onCycleTtsVolume: () => void;
 };
 
 export function TTSControls({
@@ -27,6 +29,8 @@ export function TTSControls({
   onPause,
   onStop,
   onSetAutoPlay,
+  ttsVolume,
+  onCycleTtsVolume
 }: TTSControlsProps) {
 
   if (!isTTSSupported) {
@@ -76,6 +80,12 @@ export function TTSControls({
             <p>Stop Narration</p>
           </TooltipContent>
         </Tooltip>
+        
+        <Button variant="ghost" onClick={onCycleTtsVolume} className="w-20">
+          {ttsVolume === 'low' && '🔈 Low'}
+          {ttsVolume === 'med' && '🔉 Med'}
+          {ttsVolume === 'high' && '🔊 High'}
+        </Button>
       </div>
 
       <div className="flex items-center space-x-2">

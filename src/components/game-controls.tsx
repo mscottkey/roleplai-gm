@@ -45,6 +45,8 @@ type GameControlsProps = {
   voices: Voice[];
   selectedVoice: SpeechSynthesisVoice | null;
   onSelectVoice: (voiceURI: string) => boolean;
+  ttsVolume: 'low' | 'med' | 'high';
+  onCycleTtsVolume: () => void;
 };
 
 export function GameControls({
@@ -63,19 +65,7 @@ export function GameControls({
   canUndo,
   onRegenerateStoryline,
   currentUser,
-  // TTS Props
-  isSpeaking,
-  isPaused,
-  isAutoPlayEnabled,
-  isTTSSupported,
-  onPlay,
-  onPause,
-  onStop,
-  onSetAutoPlay,
-  // Voice Selection
-  voices,
-  selectedVoice,
-  onSelectVoice
+  ...ttsProps
 }: GameControlsProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { playMode } = gameData;
@@ -87,14 +77,7 @@ export function GameControls({
       <Header 
         onOpenDrawer={() => setIsDrawerOpen(true)} 
         onOpenStory={onOpenStory} 
-        isSpeaking={isSpeaking}
-        isPaused={isPaused}
-        isAutoPlayEnabled={isAutoPlayEnabled}
-        isTTSSupported={isTTSSupported}
-        onPlay={onPlay}
-        onPause={onPause}
-        onStop={onStop}
-        onSetAutoPlay={onSetAutoPlay}
+        {...ttsProps}
       />
       <TurnManager 
         characters={characters}
@@ -131,9 +114,9 @@ export function GameControls({
         setMechanicsVisibility={setMechanicsVisibility}
         onRegenerateStoryline={onRegenerateStoryline}
         isLoading={isLoading}
-        voices={voices}
-        selectedVoice={selectedVoice}
-        onSelectVoice={onSelectVoice}
+        voices={ttsProps.voices}
+        selectedVoice={ttsProps.selectedVoice}
+        onSelectVoice={ttsProps.onSelectVoice}
       />
     </div>
   );

@@ -17,6 +17,8 @@ type HeaderProps = {
   onPause: () => void;
   onStop: () => void;
   onSetAutoPlay: (enabled: boolean) => void;
+  ttsVolume: 'low' | 'med' | 'high';
+  onCycleTtsVolume: () => void;
 };
 
 export function Header({

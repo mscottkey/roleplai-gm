@@ -61,7 +61,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
-import { cleanMarkdown } from '@/lib/utils';
+import { cleanMarkdown, cleanMarkdownForSpeech } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight } from 'lucide-react';
@@ -114,15 +114,6 @@ export default function RoleplAIGMPage() {
   const [ttsVolume, setTtsVolume] = useState<TtsVol>('med');
   const volumeMap: Record<TtsVol, number> = { low: 0.4, med: 0.75, high: 1.0 };
   const cycleTtsVolume = () => setTtsVolume(v => (v === 'low' ? 'med' : v === 'med' ? 'high' : 'low'));
-
-  // cursor: next story index to read
-  const [ttsCursor, setTtsCursor] = useState(0);
-  const ttsCursorRef = useRef(0);
-  useEffect(() => { ttsCursorRef.current = ttsCursor; }, [ttsCursor]);
-
-  // small floating panel for read-from-here (no GameView changes needed)
-  const [ttsPanelOpen, setTtsPanelOpen] = useState(false);
-  // ===========================================================================
   
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
 
@@ -148,17 +139,15 @@ export default function RoleplAIGMPage() {
     };
   }, []);
 
-  // Build a clean prose list from storyMessages for TTS
-  const proseItems = useMemo(
-    () => (storyMessages || []).map((m: any) => extractProseForTTS(m?.content || '').trim()),
+  const storyAsText = useMemo(
+    () => (storyMessages || []).map((m: any) => cleanMarkdownForSpeech(m?.content || '')).join('\n\n'),
     [storyMessages]
   );
-
+  
   // Autoplay ONLY the newest assistant story, move cursor
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    const lastStoryIdx = storyMessages.length - 1;
-
+    
     if (
       supported &&
       userInteractedRef.current &&
@@ -166,55 +155,31 @@ export default function RoleplAIGMPage() {
       isAutoPlayEnabled &&
       generationProgress === null &&
       lastMessage?.role === 'assistant' &&
-      lastStoryIdx >= 0 &&
-      lastStoryIdx >= ttsCursorRef.current
+      lastMessage !== lastSpokenMessageRef.current
     ) {
-      const prose = proseItems[lastStoryIdx] || '';
+      const prose = cleanMarkdownForSpeech(lastMessage.content);
       if (prose) {
-        const vol = volumeMap[ttsVolume];
-        speak({
-          text: prose,
-          volume: vol,
-          onEnd: () => setTtsCursor(lastStoryIdx + 1),
-        });
+        speak({ text: prose, volume: volumeMap[ttsVolume] });
         lastSpokenMessageRef.current = lastMessage;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, storyMessages, isAutoPlayEnabled, supported, generationProgress, ttsVolume, proseItems]);
+  }, [messages, isAutoPlayEnabled, supported, generationProgress, ttsVolume]);
 
   // Manual Play: resume, or read from cursor → end
   const handlePlayAll = () => {
-    if (isPaused) { resume(); setTimeout(() => resume(), 50); return; }
+    if (isPaused) { resume(); return; }
     if (isSpeaking) { cancel(); }
     if (!userInteractedRef.current) {
       toast({ title: 'Click to enable audio', description: 'Tap anywhere once, then press Play again.' });
       return;
     }
-    const start = ttsCursorRef.current;
-    const chunk = proseItems.slice(start).filter(Boolean).join('\n\n');
-    if (chunk) {
-      speak({
-        text: chunk,
-        volume: volumeMap[ttsVolume],
-        onEnd: () => setTtsCursor(proseItems.length),
-      });
+
+    if (storyAsText) {
+      speak({ text: storyAsText, volume: volumeMap[ttsVolume] });
     }
   };
 
-  // Read from a specific story index
-  const handleReadFromIndex = (i: number) => {
-    if (isSpeaking) cancel();
-    const chunk = proseItems.slice(i).filter(Boolean).join('\n\n');
-    if (chunk) {
-      setTtsCursor(i);
-      speak({
-        text: chunk,
-        volume: volumeMap[ttsVolume],
-        onEnd: () => setTtsCursor(proseItems.length),
-      });
-    }
-  };
 
   // ===== Firestore listeners & existing flows (unchanged) =====================
 
@@ -265,8 +230,6 @@ export default function RoleplAIGMPage() {
       setCharacters([]);
       setActiveCharacter(null);
       setStep('create');
-      // reset TTS cursor when leaving a game
-      setTtsCursor(0);
     }
 
     return () => { if (supported) cancel(); };
@@ -345,6 +308,28 @@ export default function RoleplAIGMPage() {
     });
     return () => unsub();
   }, [activeGameId, router, toast, generationProgress]);
+
+  const handleUndo = async () => {
+    if (!activeGameId || !previousWorldState) {
+      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await undoLastAction(activeGameId);
+      if (result.success) {
+        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
+      } else {
+        throw new Error(result.message || 'Failed to undo the last action.');
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to undo:', err);
+      toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (step === 'loading') {
     return (
@@ -531,8 +516,6 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
       setGenerationProgress(null);
       setIsLoading(false);
       setStep('play');
-      // reset cursor to start of new story
-      setTtsCursor(0);
     }
   };
 
@@ -693,28 +676,6 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
     setNextCharacter(null);
   };
 
-  const handleUndo = async () => {
-    if (!activeGameId || !previousWorldState) {
-      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const result = await undoLastAction(activeGameId);
-      if (result.success) {
-        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
-      } else {
-        throw new Error(result.message || 'Failed to undo the last action.');
-      }
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to undo:', err);
-      toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const onRegenerateStoryline = async () => {
     if (!activeGameId || !gameData) return;
 
@@ -796,7 +757,6 @@ The stage is set. What do you do?
       });
 
       toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
-      setTtsCursor(0);
     } catch (error) {
       const err = error as Error;
       console.error('Failed to regenerate storyline:', err);
@@ -918,7 +878,7 @@ The stage is set. What do you do?
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
-            // TTS props (unchanged API for GameView)
+            // TTS props
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
@@ -931,6 +891,8 @@ The stage is set. What do you do?
             voices={voices}
             selectedVoice={selectedVoice}
             onSelectVoice={selectVoice}
+            ttsVolume={ttsVolume}
+            onCycleTtsVolume={cycleTtsVolume}
           />
         );
       default:
@@ -958,60 +920,6 @@ The stage is set. What do you do?
       >
         {renderContent()}
       </AppShell>
-
-      {/* Floating TTS Panel (no GameView change needed) */}
-      <div className="fixed bottom-4 right-4 flex flex-col items-end gap-2 z-40">
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setTtsPanelOpen(o => !o)}>
-            🎙️ Narrator
-          </Button>
-          <Button variant="ghost" onClick={cycleTtsVolume} title="Narrator volume">
-            {ttsVolume === 'low' && '🔈 Low'}
-            {ttsVolume === 'med' && '🔉 Med'}
-            {ttsVolume === 'high' && '🔊 High'}
-          </Button>
-        </div>
-
-        {ttsPanelOpen && (
-          <Card className="w-[360px] max-h-[50vh] overflow-auto shadow-xl">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium">Read from here</div>
-                <div className="text-xs text-muted-foreground">Cursor: {ttsCursor}/{proseItems.length}</div>
-              </div>
-              <div className="space-y-2">
-                {proseItems.length === 0 && (
-                  <div className="text-xs text-muted-foreground">No narration yet.</div>
-                )}
-                {proseItems.map((p, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <Button
-                      size="sm"
-                      variant={i === ttsCursor ? 'default' : 'outline'}
-                      onClick={() => handleReadFromIndex(i)}
-                    >
-                      ▶
-                    </Button>
-                    <div className="text-xs leading-snug mt-1">
-                      <span className="font-mono text-muted-foreground">[{i}] </span>
-                      {p ? (p.length > 120 ? p.slice(0, 120) + '…' : p) : <em className="text-muted-foreground">—</em>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button size="sm" onClick={handlePlayAll}>Play from cursor</Button>
-                {isPaused ? (
-                  <Button size="sm" variant="secondary" onClick={() => { resume(); setTimeout(() => resume(), 50); }}>Resume</Button>
-                ) : (
-                  <Button size="sm" variant="secondary" onClick={pause}>Pause</Button>
-                )}
-                <Button size="sm" variant="destructive" onClick={() => { cancel(); }}>Stop</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
 
       {/* Turn Handoff Dialog */}
       {showHandoff && nextCharacter && (

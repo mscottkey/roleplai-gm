@@ -56,6 +56,8 @@ type GameViewProps = {
   voices: Voice[];
   selectedVoice: SpeechSynthesisVoice | null;
   onSelectVoice: (voiceURI: string) => boolean;
+  ttsVolume: 'low' | 'med' | 'high';
+  onCycleTtsVolume: () => void;
 };
 
 export function GameView({
@@ -74,19 +76,7 @@ export function GameView({
   canUndo,
   onRegenerateStoryline,
   currentUser,
-  // TTS props
-  isSpeaking,
-  isPaused,
-  isAutoPlayEnabled,
-  isTTSSupported,
-  onPlay,
-  onPause,
-  onStop,
-  onSetAutoPlay,
-  // Voice Selection
-  voices,
-  selectedVoice,
-  onSelectVoice
+  ...ttsProps
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
   const storyContentRef = useRef<HTMLDivElement>(null);
@@ -95,7 +85,6 @@ export function GameView({
   const isInitialStoryLoad = useRef(true);
   
   const [showSmartScroll, setShowSmartScroll] = useState(false);
-  const [currentlyPlayingId, setCurrentlyPlayingId] = useState<string | null>(null);
 
   useEffect(() => {
     const viewport = storyRef.current?.querySelector('div');
@@ -151,64 +140,19 @@ export function GameView({
     }
   }, [storyMessages]); // Re-check when content changes
 
-  const handleSectionPlay = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    const button = target.closest('button[data-play-id]');
-
-    if (!button) return;
-    
-    const playId = button.getAttribute('data-play-id');
-    if (!playId) return;
-
-    const contentElement = document.getElementById(playId);
-    if (!contentElement) return;
-
-    if (isSpeaking && currentlyPlayingId === playId) {
-      if (isPaused) {
-        onPlay(); // Resume
-      } else {
-        onPause();
-      }
-    } else {
-      const textToPlay = cleanMarkdownForSpeech(contentElement.innerText);
-      onPlay(textToPlay);
-      setCurrentlyPlayingId(playId);
-    }
-  };
-  
-  useEffect(() => {
-    if (!isSpeaking) {
-      setCurrentlyPlayingId(null);
-    }
-  }, [isSpeaking]);
-
   const isPostCharacterCreation = messages.length === 1 && messages[0].role === 'system' && storyMessages.length > 0;
   
   const StoryContent = () => (
-    <div className="p-12 text-foreground" ref={storyContentRef} onClick={handleSectionPlay}>
+    <div className="p-12 text-foreground" ref={storyContentRef}>
         <div className="prose prose-lg dark:prose-invert prose-headings:text-primary prose-headings:font-headline space-y-8">
             {storyMessages.map((message, index) => {
-              const contentWithDialogueAndButtons = formatDialogue(message.content, `msg-${index}`);
-              
-              const PlayIcon = isSpeaking && !isPaused && currentlyPlayingId === `msg-${index}-full` ? Pause : Volume2;
+              const contentWithDialogue = formatDialogue(message.content);
               
               return (
                 <div key={index} className="relative group/message">
-                   {isTTSSupported && (
-                    <button 
-                      className="tts-play-button" 
-                      data-play-id={`msg-${index}-full`}
-                      data-state={isSpeaking && currentlyPlayingId === `msg-${index}-full` ? 'playing' : 'idle'}
-                      aria-label="Play section"
-                    >
-                      <PlayIcon />
-                    </button>
-                  )}
-                  <div id={`msg-${index}-full`}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                      {contentWithDialogueAndButtons}
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                      {contentWithDialogue}
                     </ReactMarkdown>
-                  </div>
                   {index < storyMessages.length - 1 && <Separator className="mt-8" />}
                 </div>
               )
@@ -285,19 +229,7 @@ export function GameView({
               canUndo={canUndo}
               onRegenerateStoryline={onRegenerateStoryline}
               currentUser={currentUser}
-              // TTS Props
-              isSpeaking={isSpeaking}
-              isPaused={isPaused}
-              isAutoPlayEnabled={isAutoPlayEnabled}
-              isTTSSupported={isTTSSupported}
-              onPlay={onPlay}
-              onPause={onPause}
-              onStop={onStop}
-              onSetAutoPlay={onSetAutoPlay}
-              // Voice Selection
-              voices={voices}
-              selectedVoice={selectedVoice}
-              onSelectVoice={onSelectVoice}
+              {...ttsProps}
             />
       </div>
     </div>
