@@ -10,8 +10,6 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import type { Voice } from '@/hooks/use-speech-synthesis';
-import { Badge } from './ui/badge';
-import { Globe, HardDrive, Sparkles } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 
 type AccountDialogProps = {
@@ -63,24 +61,6 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
 
   const hasChanges = displayName !== (user.displayName || '') || defaultPronouns !== (preferences?.defaultPronouns || 'Any') || defaultVoiceURI !== (preferences?.defaultVoiceURI || '');
   
-  const getQualityBadge = (quality: Voice['quality']) => {
-    switch (quality) {
-      case 'premium':
-        return <Badge className="ml-2" variant="default"><Sparkles className="w-3 h-3 mr-1" />Premium</Badge>;
-      case 'high':
-        return <Badge className="ml-2" variant="secondary">High</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getProviderIcon = (provider: string) => {
-    if (provider.includes('Cloud') || provider.includes('Google') || provider.includes('Amazon') || provider.includes('Microsoft')) {
-      return <Globe className="w-4 h-4 text-muted-foreground" />;
-    }
-    return <HardDrive className="w-4 h-4 text-muted-foreground" />;
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -148,9 +128,7 @@ export function AccountDialog({ isOpen, onOpenChange, user, preferences, onProfi
                       {voices.map((voice) => (
                         <SelectItem key={voice.voiceURI} value={voice.voiceURI}>
                           <div className="flex items-center gap-2">
-                            {getProviderIcon(voice.provider)}
                             <span className="truncate">{voice.name} ({voice.lang})</span>
-                            {getQualityBadge(voice.quality)}
                           </div>
                         </SelectItem>
                       ))}

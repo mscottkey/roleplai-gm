@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Volume2, Sparkles, Globe, HardDrive } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import type { Voice } from '@/hooks/use-speech-synthesis';
@@ -59,24 +58,6 @@ export function VoiceSelector({ voices, selectedVoice, onSelectVoice }: VoiceSel
     }
   }, [])
 
-  const getQualityBadge = (quality: Voice['quality']) => {
-    switch (quality) {
-      case 'premium':
-        return <Badge className="ml-2" variant="default"><Sparkles className="w-3 h-3 mr-1" />Premium</Badge>;
-      case 'high':
-        return <Badge className="ml-2" variant="secondary">High</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getProviderIcon = (provider: string) => {
-    if (provider.includes('Cloud') || provider.includes('Google') || provider.includes('Amazon') || provider.includes('Microsoft')) {
-      return <Globe className="w-4 h-4 text-muted-foreground" />;
-    }
-    return <HardDrive className="w-4 h-4 text-muted-foreground" />;
-  };
-
   if (voices.length === 0) {
     return <p className="text-sm text-muted-foreground">No text-to-speech voices available in your browser.</p>
   }
@@ -97,9 +78,7 @@ export function VoiceSelector({ voices, selectedVoice, onSelectVoice }: VoiceSel
                 {voices.map(voiceInfo => (
                   <SelectItem key={voiceInfo.voiceURI} value={voiceInfo.voiceURI}>
                     <div className="flex items-center gap-2">
-                        {getProviderIcon(voiceInfo.provider)}
                         <span className="truncate">{voiceInfo.name} ({voiceInfo.lang})</span>
-                        {getQualityBadge(voiceInfo.quality)}
                     </div>
                   </SelectItem>
                 ))}
