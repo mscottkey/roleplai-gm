@@ -15,7 +15,7 @@ const GenerateNewGameInputSchema = z.object({
 });
 export type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
 
-export const GenerateNewGameOutputSchema = z.object({
+const GenerateNewGameOutputSchema = z.object({
   name: z.string().describe('A short, evocative name for the campaign (4-6 words max).'),
   setting: z.string().describe('A description of the game setting, including 2-3 notable locations.'),
   tone: z.string().describe('A description of the game tone.'),

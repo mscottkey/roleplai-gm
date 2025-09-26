@@ -1,10 +1,10 @@
+
 'use server';
 
 /**
  * @fileOverview Flow for classifying player input as an action or a question.
  *
  * - classifyIntent - A function that classifies the player's input.
- * - ClassifyIntentInput - The input type for the classifyIntent function.
  * - ClassifyIntentOutput - The return type for the classifyIntent function.
  */
 
@@ -16,7 +16,7 @@ import { classifyIntentPromptText } from '../prompts/classify-intent-prompt';
 const ClassifyIntentInputSchema = z.object({
   playerInput: z.string().describe('The text input from the player.'),
 });
-type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
+export type ClassifyIntentInput = z.infer<typeof ClassifyIntentInputSchema>;
 
 const ClassifyIntentOutputSchema = z.object({
   intent: z.enum(['Action', 'Question']).describe('The classified intent of the player input.'),

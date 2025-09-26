@@ -10,14 +10,14 @@ import {z} from 'genkit';
 import { MODEL_GENERATION } from '../models';
 import { regenerateFieldPromptText } from '../prompts/regenerate-field-prompt';
 
-export const RegenerateFieldInputSchema = z.object({
+const RegenerateFieldInputSchema = z.object({
   request: z.string().describe("The original user request for the game concept."),
   fieldName: z.enum(['setting', 'tone']).describe("The specific field to regenerate."),
   currentValue: z.string().describe("The current value of the field to be replaced."),
 });
 export type RegenerateFieldInput = z.infer<typeof RegenerateFieldInputSchema>;
 
-export const RegenerateFieldOutputSchema = z.object({
+const RegenerateFieldOutputSchema = z.object({
     newValue: z.string().describe('The new, regenerated value for the specified field.'),
 });
 export type RegenerateFieldOutput = z.infer<typeof RegenerateFieldOutputSchema>;
