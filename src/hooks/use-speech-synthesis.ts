@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-export type VoiceInfo = {
+export type Voice = {
   voiceURI: string;
   name: string;
   lang: string;
@@ -36,17 +37,17 @@ function hasSpeech(): boolean {
   );
 }
 
-function describeVoice(v: SpeechSynthesisVoice): VoiceInfo {
+function describeVoice(v: SpeechSynthesisVoice): Voice {
   const name = v.name || '';
   const uri = v.voiceURI || '';
   const ln = name.toLowerCase();
   const lu = uri.toLowerCase();
 
-  let quality: VoiceInfo['quality'] = 'standard';
+  let quality: Voice['quality'] = 'standard';
   if (ln.includes('neural') || lu.includes('neural') || ln.includes('siri')) quality = 'premium';
   else if (ln.includes('google') || ln.includes('microsoft') || ln.includes('enhanced')) quality = 'high';
 
-  let provider: VoiceInfo['provider'] = 'local';
+  let provider: Voice['provider'] = 'local';
   if (lu.includes('google')) provider = 'Google';
   else if (lu.includes('microsoft')) provider = 'Microsoft';
   else if (lu.includes('apple') || ln.includes('siri')) provider = 'Apple';
@@ -74,7 +75,7 @@ async function waitForVoices(): Promise<SpeechSynthesisVoice[]> {
   return await new Promise((resolve) => {
     const tick = () => {
       voices = synth.getVoices();
-      if (voices && voices.length) return resolve(voices);
+      if (voices && voices.length) return resolve(voices || []);
       if (Date.now() - start > 3000) return resolve(voices || []);
       setTimeout(tick, 100);
     };
@@ -113,7 +114,7 @@ function chunkText(text: string, maxLen = 200): string[] {
 }
 
 // Keep utterances alive to avoid GC
-const utteranceRefs: SpeechSynthesisUtterance[] = [];
+const utteranceQueue: SpeechSynthesisUtterance[] = [];
 
 export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   const { preferredVoiceURI = null, maxChunkLen = 200 } = opts;
@@ -135,54 +136,59 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     if (!ok) return;
 
     let cancelled = false;
-    (async () => {
-      const list = await waitForVoices();
-      if (!cancelled) setRawVoices(list);
-    })();
+    const loadVoices = async () => {
+        const list = await waitForVoices();
+        if (!cancelled) setRawVoices(list);
+    };
 
     const synth = window.speechSynthesis;
-    const handler = () => setRawVoices(synth.getVoices() || []);
-    if (synth.addEventListener) synth.addEventListener('voiceschanged', handler);
-    else (synth as any).onvoiceschanged = handler;
+    // Use onvoiceschanged to robustly load voices
+    synth.onvoiceschanged = () => loadVoices();
+    loadVoices(); // Initial attempt
 
     return () => {
       cancelled = true;
-      if (synth.removeEventListener) synth.removeEventListener('voiceschanged', handler);
-      else (synth as any).onvoiceschanged = null;
+      synth.onvoiceschanged = null;
     };
   }, []);
 
-  useEffect(() => {
-    if (!supported || !rawVoices.length) return;
+  const voices: Voice[] = useMemo(() => {
+    return rawVoices
+      .filter(v => v.localService && v.lang.startsWith('en'))
+      .map(describeVoice)
+      .sort((a, b) => {
+        const ord: Record<Voice['quality'], number> = { premium: 0, high: 1, standard: 2 };
+        const d = ord[a.quality] - ord[b.quality];
+        if (d !== 0) return d;
+        return a.name.localeCompare(b.name);
+      });
+  }, [rawVoices]);
 
-    if (selectedVoice && rawVoices.some(v => v.voiceURI === selectedVoice.voiceURI)) return;
+  useEffect(() => {
+    if (!supported || !voices.length) return;
+
+    const currentVoiceIsValid = selectedVoice && voices.some(v => v.voiceURI === selectedVoice.voiceURI);
+    if (currentVoiceIsValid) return;
 
     if (preferredVoiceURI) {
-      const pref = rawVoices.find(v => v.voiceURI === preferredVoiceURI);
-      if (pref) { setSelectedVoice(pref); return; }
+      const pref = voices.find(v => v.voiceURI === preferredVoiceURI);
+      if (pref) {
+          const rawPref = rawVoices.find(rv => rv.voiceURI === pref.voiceURI);
+          if (rawPref) {
+            setSelectedVoice(rawPref);
+            return;
+          }
+      }
+    }
+    
+    // Fallback to the first voice in the filtered & sorted list
+    const bestFallback = voices[0];
+    if (bestFallback) {
+        const rawFallback = rawVoices.find(rv => rv.voiceURI === bestFallback.voiceURI);
+        setSelectedVoice(rawFallback || null);
     }
 
-    const ranked = rawVoices
-      .map(v => ({ v, info: describeVoice(v) }))
-      .sort((a, b) => {
-        const ord: Record<VoiceInfo['quality'], number> = { premium: 0, high: 1, standard: 2 };
-        const d = ord[a.info.quality] - ord[b.info.quality];
-        if (d !== 0) return d;
-        return a.v.name.localeCompare(b.v.name);
-      });
-
-    const bestEn = ranked.find(x => x.v.lang?.toLowerCase().startsWith('en'))?.v;
-    setSelectedVoice(bestEn || ranked[0]?.v || rawVoices[0] || null);
-  }, [supported, rawVoices, preferredVoiceURI, selectedVoice]);
-
-  const voices: VoiceInfo[] = useMemo(() => {
-    return rawVoices.map(describeVoice).sort((a, b) => {
-      const ord: Record<VoiceInfo['quality'], number> = { premium: 0, high: 1, standard: 2 };
-      const d = ord[a.quality] - ord[b.quality];
-      if (d !== 0) return d;
-      return a.name.localeCompare(b.name);
-    });
-  }, [rawVoices]);
+  }, [supported, voices, rawVoices, preferredVoiceURI, selectedVoice]);
 
   const primeEngine = useCallback(() => {
     if (!supported || primedRef.current) return;
@@ -203,7 +209,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   const cancel = useCallback(() => {
     if (!supported) return;
     const synth = window.speechSynthesis;
-    utteranceRefs.length = 0;
+    utteranceQueue.length = 0;
     synth.cancel();
     setIsSpeaking(false);
     setIsPaused(false);
@@ -223,10 +229,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
 
   const speak = useCallback((opts: SpeakOptions | string) => {
     if (!supported) return;
-
-    // Avoid tab-hidden glitches (Safari/Edge)
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-
     primeEngine();
 
     const { text, rate = 1.0, pitch = 1.0, volume = 1.0, onEnd } =
@@ -237,46 +240,50 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
 
     const synth = window.speechSynthesis;
 
-    // replace any current speech
-    if (synth.speaking || synth.pending) synth.cancel();
+    const startSpeaking = () => {
+        const chunks = chunkText(content, maxChunkLen);
+        if (!chunks.length) return;
 
-    const chunks = chunkText(content, maxChunkLen);
-    if (!chunks.length) return;
+        let idx = 0;
+        const playNext = () => {
+            if (idx >= chunks.length) return;
 
-    let idx = 0;
-    const playNext = () => {
-      if (idx >= chunks.length) return;
+            const utterance = new SpeechSynthesisUtterance(chunks[idx++]);
+            utterance.voice = selectedVoiceRef.current ?? null;
+            utterance.rate = rate;
+            utterance.pitch = pitch;
+            utterance.volume = volume;
 
-      const u = new SpeechSynthesisUtterance(chunks[idx++]);
-      u.voice = selectedVoiceRef.current ?? null;
-      u.rate = rate;
-      u.pitch = pitch;
-      u.volume = volume;
+            utterance.onstart = () => { setIsSpeaking(true); setIsPaused(false); };
+            utterance.onpause = () => setIsPaused(true);
+            utterance.onresume = () => setIsPaused(false);
+            utterance.onerror = (e) => { console.warn('[TTS] error', e); };
+            utterance.onend = () => {
+                const k = utteranceQueue.indexOf(utterance);
+                if (k > -1) utteranceQueue.splice(k, 1);
+                if (idx < chunks.length) {
+                    playNext();
+                } else {
+                    setIsSpeaking(false);
+                    setIsPaused(false);
+                    try { onEnd?.(); } catch {}
+                }
+            };
 
-      u.onstart = () => { setIsSpeaking(true); setIsPaused(false); };
-      u.onpause = () => setIsPaused(true);
-      u.onresume = () => setIsPaused(false);
-      u.onerror = (e) => { console.warn('[TTS] error', e); };
-      u.onend = () => {
-        const k = utteranceRefs.indexOf(u);
-        if (k > -1) utteranceRefs.splice(k, 1);
-        if (idx < chunks.length) {
-          playNext();
-        } else {
-          setIsSpeaking(false);
-          setIsPaused(false);
-          try { onEnd?.(); } catch {}
-        }
-      };
-
-      utteranceRefs.push(u);
-      synth.speak(u);
+            utteranceQueue.push(utterance);
+            synth.speak(utterance);
+        };
+        playNext();
     };
 
-    playNext();
+    if (synth.speaking || synth.pending) {
+        synth.cancel();
+        setTimeout(startSpeaking, 100);
+    } else {
+        startSpeaking();
+    }
   }, [supported, primeEngine, maxChunkLen]);
 
-  // auto-resume when tab visible again
   useEffect(() => {
     const onVis = () => {
       if (!supported) return;
