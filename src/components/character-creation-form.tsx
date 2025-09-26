@@ -30,21 +30,14 @@ const normalizeInlineBulletsInSections = (md: string) => {
 
     const fixLine = (title: string, text: string) => {
         // Use a regex that specifically looks for the bold markdown followed by a colon
-        return text.replace(new RegExp(`(\\*\\*${title}\\*\\*:)(.*)`, 'ims'), (_m, a, b) => {
-            if (!b) return a;
-            const listItems = b.replace(/([*-])\s/g, '\n$1 ').trim();
-            return `${a.trim()}\n\n${listItems}`;
+        return text.replace(new RegExp(`(\\*\\*${title}\\*\\*:)`, 'ims'), (match) => {
+            return `\n## ${title}\n`;
         });
     };
 
     let processedMd = md;
     
-    // This initial replacement is too broad and can cause issues. It's better to be specific in fixLine.
-    // processedMd = processedMd.replace(/^\s*\*\s*(Key Factions:|Notable Locations:|Tone Levers:)/gm, '$1');
-    
-    processedMd = fixLine('Key Factions', processedMd);
-    processedMd = fixLine('Notable Locations', processedMd);
-    processedMd = fixLine('Tone Levers', processedMd);
+    processedMd = processedMd.replace(/\*\*(Vibe|Tone Levers|Notable Locations|Key Factions)\*\*/g, '## $1');
 
     return processedMd;
 };
@@ -395,19 +388,11 @@ if (gameData.playMode === 'remote') {
 // Local Play Mode
   const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
     
-    const [playerName, setPlayerName] = useState(slot.preferences?.playerName || '');
-    const [charName, setCharName] = useState(slot.preferences?.name || '');
-    const [vision, setVision] = useState(slot.preferences?.vision || '');
-    const [pronouns, setPronouns] = useState(slot.preferences?.pronouns || 'Any');
-    
-    useEffect(() => {
-        const newPrefs = slot.preferences || {};
-        if (newPrefs.playerName !== playerName) setPlayerName(newPrefs.playerName || '');
-        if (newPrefs.name !== charName) setCharName(newPrefs.name || '');
-        if (newPrefs.vision !== vision) setVision(newPrefs.vision || '');
-        if (newPrefs.pronouns !== pronouns) setPronouns(newPrefs.pronouns || 'Any');
-    }, [slot.preferences, playerName, charName, vision, pronouns]);
-
+    const { preferences } = slot;
+    const playerName = preferences?.playerName || '';
+    const charName = preferences?.name || '';
+    const vision = preferences?.vision || '';
+    const pronouns = preferences?.pronouns || 'Any';
 
     const handleUpdate = (field: string, value: string) => {
         const currentPrefs = slot.preferences || {};
@@ -440,15 +425,14 @@ if (gameData.playMode === 'remote') {
                 <Input 
                     placeholder="Enter player name" 
                     value={playerName} 
-                    onChange={e => setPlayerName(e.target.value)} 
-                    onBlur={e => handleUpdate('playerName', e.target.value)}
+                    onChange={e => handleUpdate('playerName', e.target.value)}
                 />
                 <Label>Character Vision</Label>
-                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => { setVision(e.target.value); handleUpdate('vision', e.target.value)}} />
+                <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => handleUpdate('vision', e.target.value)} />
                 <Label>Character Name (Optional)</Label>
-                <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => { setCharName(e.target.value); handleUpdate('name', e.target.value)}} />
+                <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => handleUpdate('name', e.target.value)} />
                 <Label>Pronouns</Label>
-                <Select value={pronouns} onValueChange={val => { setPronouns(val); handleUpdate('pronouns', val)}}>
+                <Select value={pronouns} onValueChange={val => handleUpdate('pronouns', val)}>
                     <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="Any">Any</SelectItem>
@@ -524,24 +508,17 @@ const handleGenerateAll = async () => {
 };
 
   const updateSlotPreferences = (id: string, updates: any) => {
-    setPlayerSlots(currentSlots => {
-        const newSlots = currentSlots.map(slot => {
-            if (slot.id === id) {
-                 if (updates.character === null) {
-                    return { ...slot, character: null };
-                }
-                const oldPrefs = (slot as any).preferences || {};
-                return { ...slot, preferences: { ...oldPrefs, ...updates } };
+    const newSlots = playerSlots.map(slot => {
+        if (slot.id === id) {
+             if (updates.character === null) {
+                return { ...slot, character: null };
             }
-            return slot;
-        });
-        // We only call the expensive onUpdatePlayerSlots when the blur happens for player name.
-        // For other changes, we can call it immediately.
-        if (updates.playerName === undefined) {
-             onUpdatePlayerSlots(newSlots);
+            const oldPrefs = slot.preferences || {};
+            return { ...slot, preferences: { ...oldPrefs, ...updates } };
         }
-        return newSlots;
+        return slot;
     });
+    updateSlots(newSlots);
 };
 
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
