@@ -120,6 +120,7 @@ export default function RoleplAIGMPage() {
     useSpeechSynthesis({
       preferredVoiceURI: userPreferences?.defaultVoiceURI,
       maxChunkLen: 220,
+      volume: volumeMap[ttsVolume],
     });
 
   const lastSpokenMessageRef = useRef<Message | null>(null);
@@ -158,12 +159,12 @@ export default function RoleplAIGMPage() {
     ) {
       const prose = extractProseForTTS(lastMessage.content);
       if (prose) {
-        speak({ text: prose, volume: volumeMap[ttsVolume] });
+        speak({ text: prose });
         lastSpokenMessageRef.current = lastMessage;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isAutoPlayEnabled, supported, generationProgress, ttsVolume]);
+  }, [messages, isAutoPlayEnabled, supported, generationProgress]);
 
   // Manual Play: resume, or read from cursor → end
   const handlePlayAll = (text?: string) => {
@@ -177,7 +178,7 @@ export default function RoleplAIGMPage() {
     const textToPlay = text || storyAsText;
 
     if (textToPlay) {
-      speak({ text: textToPlay, volume: volumeMap[ttsVolume] });
+      speak({ text: textToPlay });
     }
   };
 

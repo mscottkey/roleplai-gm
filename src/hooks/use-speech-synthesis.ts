@@ -16,13 +16,14 @@ export interface UseSpeechSynthesisOptions {
   preferredVoiceURI?: string | null;
   /** Max chunk size for sentence splitting */
   maxChunkLen?: number; // default 200
+  /** Current volume level */
+  volume?: number;
 }
 
 export interface SpeakOptions {
   text: string;
   rate?: number;
   pitch?: number;
-  volume?: number;
   /** Called after the *final* chunk ends */
   onEnd?: () => void;
 }
@@ -101,7 +102,7 @@ function chunkText(text: string, maxLen = 200): string[] {
 
 
 export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
-  const { preferredVoiceURI = null, maxChunkLen = 200 } = opts;
+  const { preferredVoiceURI = null, maxChunkLen = 200, volume = 1.0 } = opts;
 
   const [supported, setSupported] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -233,7 +234,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     primeEngine();
 
-    const { text, rate = 1.0, pitch = 1.0, volume = 1.0, onEnd } =
+    const { text, rate = 1.0, pitch = 1.0, onEnd } =
       typeof opts === 'string' ? ({ text: opts } as SpeakOptions) : opts;
 
     const content = (text ?? '').trim();
@@ -283,7 +284,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     } else {
         startSpeaking();
     }
-  }, [supported, primeEngine, maxChunkLen, selectedVoice]);
+  }, [supported, primeEngine, maxChunkLen, selectedVoice, volume]);
 
   useEffect(() => {
     const onVis = () => {
