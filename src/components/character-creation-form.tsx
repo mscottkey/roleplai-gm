@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useId, useEffect, memo } from 'react';
@@ -48,6 +47,13 @@ const RegenerateStoryDialog = ({ onRegenerate, isLoading, currentRequest }: { on
         await onRegenerate(newRequest);
         setOpen(false);
     }
+    
+    const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const textarea = e.currentTarget;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+      setNewRequest(textarea.value);
+    };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -65,12 +71,14 @@ const RegenerateStoryDialog = ({ onRegenerate, isLoading, currentRequest }: { on
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="new-request">New Prompt</Label>
-                    <Input
+                    <Textarea
                         id="new-request"
                         value={newRequest}
-                        onChange={(e) => setNewRequest(e.target.value)}
+                        onChange={handleInput}
                         placeholder="e.g., 'A classic high fantasy adventure'"
                         disabled={isLoading}
+                        className="mt-2 h-auto resize-none overflow-hidden min-h-[4rem]"
+                        rows={2}
                     />
                 </div>
                 <DialogFooter>
