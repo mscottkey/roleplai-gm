@@ -116,19 +116,27 @@ function chunkText(text: string, maxLen = 200): string[] {
 // Keep utterances alive to avoid GC
 const utteranceQueue: SpeechSynthesisUtterance[] = [];
 
+// Browser detection helper
+const getBrowser = (): 'chrome' | 'safari' | 'edge' | 'firefox' | 'other' => {
+  if (typeof navigator === 'undefined') return 'other';
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('edg/')) return 'edge';
+  if (ua.includes('chrome') && !ua.includes('chromium')) return 'chrome';
+  if (ua.includes('safari') && !ua.includes('chrome')) return 'safari';
+  if (ua.includes('firefox')) return 'firefox';
+  return 'other';
+};
+
 export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   const { preferredVoiceURI = null, maxChunkLen = 200 } = opts;
 
   const [supported, setSupported] = useState(false);
   const [rawVoices, setRawVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const primedRef = useRef(false);
-
-  useEffect(() => { selectedVoiceRef.current = selectedVoice; }, [selectedVoice]);
 
   useEffect(() => {
     const ok = hasSpeech();
@@ -153,8 +161,29 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
   }, []);
 
   const voices: Voice[] = useMemo(() => {
+    const browser = getBrowser();
+    
+    // Create a filter function based on the detected browser
+    const browserFilter = (v: SpeechSynthesisVoice): boolean => {
+        const name = v.name.toLowerCase();
+        switch (browser) {
+            case 'chrome':
+                // In Chrome, prefer Google voices and exclude Microsoft voices
+                return name.includes('google') || !name.includes('microsoft');
+            case 'edge':
+                // In Edge, prefer Microsoft voices
+                return name.includes('microsoft');
+            case 'safari':
+                // In Safari, prefer Apple voices
+                return name.includes('apple') || v.voiceURI.includes('apple');
+            default:
+                // For other browsers, use a generic filter
+                return true;
+        }
+    };
+
     return rawVoices
-      .filter(v => v.localService && v.lang.startsWith('en'))
+      .filter(v => v.localService && v.lang.startsWith('en') && browserFilter(v))
       .map(describeVoice)
       .sort((a, b) => {
         const ord: Record<Voice['quality'], number> = { premium: 0, high: 1, standard: 2 };
@@ -249,7 +278,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
             if (idx >= chunks.length) return;
 
             const utterance = new SpeechSynthesisUtterance(chunks[idx++]);
-            utterance.voice = selectedVoiceRef.current ?? null;
+            utterance.voice = selectedVoice;
             utterance.rate = rate;
             utterance.pitch = pitch;
             utterance.volume = volume;
@@ -282,7 +311,7 @@ export function useSpeechSynthesis(opts: UseSpeechSynthesisOptions = {}) {
     } else {
         startSpeaking();
     }
-  }, [supported, primeEngine, maxChunkLen]);
+  }, [supported, primeEngine, maxChunkLen, selectedVoice]);
 
   useEffect(() => {
     const onVis = () => {
