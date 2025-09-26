@@ -124,7 +124,6 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         environmentalConditions: [],
         connections: [],
       },
-      settingCategory: undefined,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
