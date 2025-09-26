@@ -1,11 +1,6 @@
-// src/ai/prompts/generate-campaign-pieces-prompts.ts (Updated)
+// src/ai/prompts/generate-campaign-pieces-prompts.ts
 
-import { SettingCategory, SETTING_EXAMPLES } from '../../lib/setting-examples';
-
-export function generateCampaignCorePromptText(settingCategory: SettingCategory): string {
-  const examples = SETTING_EXAMPLES[settingCategory];
-  
-  return `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign. Based on the provided setting, tone, and characters, generate the core narrative concepts.
+export const generateCampaignCorePromptText = `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign. Based on the provided setting, tone, and characters, generate the core narrative concepts.
 
 ## CRITICAL INSTRUCTIONS
 - You MUST create campaign issues and aspects that are directly relevant to and consistent with the specific setting provided below
@@ -24,15 +19,19 @@ export function generateCampaignCorePromptText(settingCategory: SettingCategory)
   - Description: {{this.description}}
 {{/each}}
 
-## Genre Context: ${examples.description}
+## Genre Context: {{{genreDescription}}}
 
 ## Examples for This Genre (DO NOT COPY - Use as inspiration only)
 
 ### Example Campaign Issues:
-${examples.campaignIssues.map(issue => `- ${issue}`).join('\n')}
+{{#each genreCampaignIssues}}
+- {{this}}
+{{/each}}
 
 ### Example Campaign Aspects:
-${examples.campaignAspects.map(aspect => `- "${aspect}"`).join('\n')}
+{{#each genreCampaignAspects}}
+- "{{this}}"
+{{/each}}
 
 ## Your Task
 Based SPECIFICALLY on the setting and tone above, create:
@@ -42,12 +41,9 @@ Based SPECIFICALLY on the setting and tone above, create:
 2. **Campaign Aspects (3-5):** Define 3 to 5 overarching Fate Aspects for the campaign world. These should be things you can compel to introduce complications. Make them evocative and relevant to the characters and setting. Follow the style of the examples but reflect the specific world described in the setting.
 
 Return the result as a single, valid JSON object that conforms to the schema. Do not include any extra text or explanations.`;
-}
 
-export function generateCampaignFactionsPromptText(settingCategory: SettingCategory): string {
-  const examples = SETTING_EXAMPLES[settingCategory];
-  
-  return `You are a master storyteller and game designer. You are designing the active threats and factions for a tabletop RPG campaign.
+
+export const generateCampaignFactionsPromptText = `You are a master storyteller and game designer. You are designing the active threats and factions for a tabletop RPG campaign.
 
 ## CRITICAL INSTRUCTIONS
 - Create factions that fit the specific setting and campaign issues provided
@@ -60,7 +56,7 @@ export function generateCampaignFactionsPromptText(settingCategory: SettingCateg
 - Campaign Issues: {{#each campaignIssues}}- {{{this}}}{{/each}}
 - Campaign Aspects: {{#each campaignAspects}}- {{{this}}}{{/each}}
 
-## Genre Context: ${examples.description}
+## Genre Context: {{{genreDescription}}}
 
 ## Player Characters
 {{#each characters}}
@@ -76,12 +72,9 @@ Design 2 or 3 key factions or looming threats that are directly related to the c
 The factions should feel like they belong in the specific world described in the setting, not generic threats.
 
 Return the result as a single, valid JSON array of faction objects that conforms to the schema. Do not include any extra text or explanations.`;
-}
 
-export function generateCampaignNodesPromptText(settingCategory: SettingCategory): string {
-  const examples = SETTING_EXAMPLES[settingCategory];
-  
-  return `You are a master storyteller and game designer creating a web of interconnected situations for a tabletop RPG.
+
+export const generateCampaignNodesPromptText = `You are a master storyteller and game designer creating a web of interconnected situations for a tabletop RPG.
 
 ## CRITICAL INSTRUCTIONS
 - Create nodes that directly reflect the specific setting, locations, and factions provided
@@ -94,7 +87,7 @@ export function generateCampaignNodesPromptText(settingCategory: SettingCategory
 - Campaign Issues: {{#each campaignIssues}}- {{{this}}}{{/each}}
 - Campaign Aspects: {{#each campaignAspects}}- {{{this}}}{{/each}}
 
-## Genre Context: ${examples.description}
+## Genre Context: {{{genreDescription}}}
 
 ## Factions
 {{#each factions}}
@@ -124,4 +117,3 @@ For each node:
 8. **aspects (2):** Provide two Fate Aspects specific to this node, reflecting its unique nature.
 
 Return the result as a single, valid JSON array of node objects that conforms to the schema. Do not include any extra text or explanations.`;
-}

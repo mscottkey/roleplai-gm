@@ -26,6 +26,7 @@ import {
   generateCampaignFactionsPromptText, 
   generateCampaignNodesPromptText 
 } from '../prompts/generate-campaign-pieces-prompts';
+import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 
 // Flow 1: Generate Core Concepts
 export const generateCampaignCore = ai.defineFlow(
@@ -39,7 +40,6 @@ export const generateCampaignCore = ai.defineFlow(
     console.log('Setting:', input.setting);
     console.log('Tone:', input.tone);
     
-    // Classify the setting using unified classifier
     const classification = await unifiedClassify({
       setting: input.setting,
       tone: input.tone,
@@ -48,11 +48,18 @@ export const generateCampaignCore = ai.defineFlow(
     
     const settingCategory = classification.settingClassification?.category || 'generic';
     console.log(`Setting classified as: ${settingCategory} (confidence: ${classification.settingClassification?.confidence})`);
+
+    const examples = SETTING_EXAMPLES[settingCategory];
     
     const { output } = await ai.generate({
       model: MODEL_GENERATION,
-      prompt: generateCampaignCorePromptText(settingCategory),
-      input: input,
+      prompt: generateCampaignCorePromptText,
+      input: {
+        ...input,
+        genreDescription: examples.description,
+        genreCampaignIssues: examples.campaignIssues,
+        genreCampaignAspects: examples.campaignAspects,
+      },
       output: {
         format: 'json',
         schema: CampaignCoreSchema,
@@ -71,7 +78,6 @@ export const generateCampaignFactions = ai.defineFlow(
     outputSchema: z.array(FactionSchema),
   },
   async (input) => {
-    // Re-classify setting for consistency (could be cached from previous step in future)
     const classification = await unifiedClassify({
       setting: input.setting,
       tone: input.tone
@@ -80,10 +86,15 @@ export const generateCampaignFactions = ai.defineFlow(
     const settingCategory = classification.settingClassification?.category || 'generic';
     console.log(`Factions generation using genre: ${settingCategory}`);
     
+    const examples = SETTING_EXAMPLES[settingCategory];
+
     const { output } = await ai.generate({
       model: MODEL_GENERATION,
-      prompt: generateCampaignFactionsPromptText(settingCategory),
-      input: input,
+      prompt: generateCampaignFactionsPromptText,
+      input: {
+        ...input,
+        genreDescription: examples.description,
+      },
       output: {
         format: 'json',
         schema: z.array(FactionSchema),
@@ -101,7 +112,6 @@ export const generateCampaignNodes = ai.defineFlow(
     outputSchema: z.array(NodeSchema),
   },
   async (input) => {
-    // Re-classify setting for consistency (could be cached from previous step in future)
     const classification = await unifiedClassify({
       setting: input.setting,
       tone: input.tone
@@ -109,11 +119,16 @@ export const generateCampaignNodes = ai.defineFlow(
     
     const settingCategory = classification.settingClassification?.category || 'generic';
     console.log(`Nodes generation using genre: ${settingCategory}`);
+
+    const examples = SETTING_EXAMPLES[settingCategory];
     
     const { output } = await ai.generate({
       model: MODEL_GENERATION,
-      prompt: generateCampaignNodesPromptText(settingCategory),
-      input: input,
+      prompt: generateCampaignNodesPromptText,
+      input: {
+        ...input,
+        genreDescription: examples.description,
+      },
       output: {
         format: 'json',
         schema: z.array(NodeSchema),
