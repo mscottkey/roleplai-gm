@@ -1,8 +1,4 @@
 
-
-
-
-
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -81,10 +77,10 @@ export async function getServerApp() {
   if (typeof window !== 'undefined') {
     throw new Error('getServerApp should not be called on the client');
   }
-  if (!getApps().length) {
-    return initializeApp(firebaseConfig);
-  }
-  return getApp();
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  // Ensure firestore is initialized
+  getFirestore(app);
+  return app;
 }
 
 const GenerateNewGameInputSchema = z.object({
@@ -604,3 +600,5 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
         return { success: false, message };
     }
 }
+
+    
