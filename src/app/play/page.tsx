@@ -475,7 +475,22 @@ export default function RoleplAIGMPage() {
         .join('\n');
 
       const finalInitialMessageContent = `
-# ${gameData.name}
+# Welcome to ${gameData.name}
+
+### Setting
+${gameData.setting}
+
+### Tone
+${gameData.tone}
+
+### Difficulty
+${gameData.difficulty}
+
+${gameData.initialHooks ? `### Initial Hooks\n${gameData.initialHooks}` : ''}
+
+---
+
+## And So It Begins...
 
 ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
