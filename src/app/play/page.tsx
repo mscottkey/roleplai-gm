@@ -24,7 +24,7 @@ import {
   updateUserProfile,
   saveCampaignStructure,
   regenerateGameConcept,
-  regenerateField,
+  regenerateGameField,
   narratePlayerActions,
   classifyIntent,
   getAnswerToQuestion,
@@ -949,7 +949,7 @@ The stage is set. What do you do?
   const handleRegenerateField = async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
-    const result = await regenerateField(activeGameId, {
+    const result = await regenerateGameField(activeGameId, {
       request: gameData.originalRequest || gameData.name,
       fieldName,
       currentValue: gameData[fieldName],
