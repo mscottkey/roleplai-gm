@@ -9,7 +9,7 @@ Player request: "{{{request}}}"
 
 ## Critical Formatting Rules
 - Use actual newlines (\\n) for line breaks, not escaped \\\\n.
-- Use proper markdown: **bold text**, * bullet points.
+- Use proper markdown: **bold text**, # headers, * bullet points.
 - Each bullet point should be on its own line.
 - Headers should have newlines before and after them.
 - **VERY IMPORTANT**: Do not use placeholders. Be specific. Do not use text like "20XX", "XXXX", "[insert name here]", or similar fillers.
@@ -18,7 +18,7 @@ Player request: "{{{request}}}"
 {
   "name": "Campaign Name (4-6 words)",
   "setting": "**Logline in bold**\\n\\nDetailed setting description 150-250 words.\\n\\n**Notable Locations:**\\n\\n* A descriptive name for a key location: Brief description of the location.\\n* Another descriptive name for a location: Brief description of the location.",
-  "tone": "**Vibe:** Description of the overall feel.\\n\\n**Tone Levers:**\\n\\n* Pace: Description\\n* Danger: Description\\n* Morality: Description\\n* Scale: Description",
+  "tone": "## Vibe\\n\\nDescription of the overall feel.\\n\\n## Tone Levers\\n\\n* Pace: Description\\n* Danger: Description\\n* Morality: Description\\n* Scale: Description",
   "difficulty": "Difficulty Level: Description of what this means for characters.",
   "initialHooks": [
       "A one-sentence plot hook.",
