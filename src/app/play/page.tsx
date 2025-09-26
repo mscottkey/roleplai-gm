@@ -636,25 +636,38 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
         setNextCharacter(foundNextCharacter);
 
         const serializableWorldState = JSON.parse(JSON.stringify(worldState));
+        
+        const finalMessages = [...newMessages, assistantMessage];
 
         if (gameData?.playMode === 'local') {
           setShowHandoff(true);
-          setMessages((prev) => [...prev, assistantMessage]);
-        } else {
+          // Also save state for local play
           updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
             gmResponse: response.narrativeResult,
             currentWorldState: serializableWorldState,
             updates: {
-              messages: [...newMessages, assistantMessage],
+              messages: finalMessages,
+              storyMessages: newStoryMessages,
+            },
+          }).catch((err) => console.error('Failed to update world state for local play:', err));
+          setMessages(finalMessages);
+        } else { // Remote play
+          updateWorldState({
+            gameId: activeGameId,
+            playerAction: { characterName: activeCharacter.name, action: playerInput },
+            gmResponse: response.narrativeResult,
+            currentWorldState: serializableWorldState,
+            updates: {
+              messages: finalMessages,
               storyMessages: newStoryMessages,
               activeCharacterId: foundNextCharacter.id,
             },
           })
             .then(() => setActiveCharacter(foundNextCharacter))
             .catch((err) => console.error('Failed to update world state:', err));
-          setMessages((prev) => [...prev, assistantMessage]);
+          setMessages(finalMessages);
         }
       } else {
         const response = await getAnswerToQuestion({
@@ -901,6 +914,13 @@ The stage is set. What do you do?
           />
         );
       case 'play':
+         if (generationProgress) {
+            return (
+              <div className="flex h-full w-full items-center justify-center p-4">
+                <GenerationProgress current={generationProgress.current} total={generationProgress.total} step={generationProgress.step} />
+              </div>
+            );
+        }
         return (
           <GameView
             messages={messages}
