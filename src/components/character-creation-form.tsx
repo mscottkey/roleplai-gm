@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useId, useEffect, memo } from 'react';
+import { useState, useId, useEffect, memo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -187,7 +188,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   };
 
 
-  const addPlayerSlot = () => {
+  const addPlayerSlot = useCallback(() => {
     const newSlot: PlayerSlot = {
       id: `${formId}-slot-${playerSlots.length}`,
       character: null,
@@ -198,13 +199,15 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     const newSlots = [...playerSlots, newSlot];
     setPlayerSlots(newSlots);
     if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-  };
+  }, [playerSlots, formId, gameData.playMode]);
 
-  const removePlayerSlot = (slotId: string) => {
+
+  const removePlayerSlot = useCallback((slotId: string) => {
     const newSlots = playerSlots.filter(slot => slot.id !== slotId);
     setPlayerSlots(newSlots);
     if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-  };
+  }, [playerSlots, gameData.playMode]);
+
   
   const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; pronouns?: string; playerName?: string }) => {
     setIsGenerating(true);
@@ -511,17 +514,30 @@ const handleGenerateAll = async () => {
     }
 };
 
-  const updateSlotPreferences = (id: string, updates: any) => {
-    setPlayerSlots(playerSlots.map(slot => {
+  const updateSlotPreferences = useCallback((id: string, updates: any) => {
+    setPlayerSlots(slots => slots.map(slot => {
         if (slot.id === id) {
-             if (updates.character === null) {
+            if (updates.character === null) {
                 return { ...slot, character: null };
             }
             return { ...slot, preferences: updates };
         }
         return slot;
     }));
-};
+  }, []);
+
+  const removeSlot = useCallback((id: string) => {
+    setPlayerSlots(slots => slots.filter(s => s.id !== id));
+  }, []);
+
+  const addNewSlot = useCallback(() => {
+    setPlayerSlots(slots => [...slots, {
+      id: `${formId}-slot-${slots.length}`,
+      character: null,
+      preferences: { playerName: '' }
+    }]);
+  }, [formId]);
+
 
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
   return (
@@ -544,10 +560,10 @@ const handleGenerateAll = async () => {
                           key={slot.id} 
                           slot={slot} 
                           onUpdate={updateSlotPreferences}
-                          onRemove={() => setPlayerSlots(slots => slots.filter(s => s.id !== slot.id))}
+                          onRemove={removeSlot}
                       />
                   ))}
-                  <Button variant="outline" type="button" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
+                  <Button variant="outline" type="button" onClick={addNewSlot} className="w-full border-dashed h-full min-h-64">
                       <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
                   </Button>
               </div>
