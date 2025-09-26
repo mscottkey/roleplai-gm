@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -21,6 +22,7 @@ const ResolveActionInputSchema = z.object({
   character: CharacterSchema.describe('The character performing the action.'),
   ruleAdapter: z.enum(['FateCore', 'SavageWorlds']).default('FateCore').describe('The rules adapter to use.'),
   mechanicsVisibility: z.enum(['Hidden', 'Minimal', 'Full']).default('Hidden').describe('The level of mechanics visibility.'),
+  settingCategory: z.string().default('generic').describe('Pre-classified setting category (e.g. "sci_fi_cyberpunk", "fantasy_medieval")'),
 });
 export type ResolveActionInput = z.infer<typeof ResolveActionInputSchema>;
 

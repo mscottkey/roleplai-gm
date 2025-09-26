@@ -2,16 +2,15 @@
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
-import { resolveAction, type ResolveActionInput, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
+import { resolveAction as resolveActionFlow, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
-import { classifyIntent, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
-import { askQuestion, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
+import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow } from "@/ai/flows/generate-campaign-structure";
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
-import { assessConsequences } from "@/ai/flows/assess-consequences";
+import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
@@ -21,6 +20,7 @@ import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
 import type { GenerateRecapInput, GenerateRecapOutput } from "@/ai/schemas/generate-recap-schemas";
 import { updateUserPreferences } from './actions/user-preferences';
+import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 
 
 import { z } from 'genkit';
@@ -83,12 +83,11 @@ export async function getServerApp() {
   return app;
 }
 
-const GenerateNewGameInputSchema = z.object({
-  request: z.string(),
-  userId: z.string(),
-  playMode: z.enum(['local', 'remote']),
-});
-type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
+type GenerateNewGameInput = {
+  request: string;
+  userId: string;
+  playMode: 'local' | 'remote';
+};
 
 
 export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
@@ -123,19 +122,19 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
         description: "The adventure is about to begin.",
         environmentalConditions: [],
         connections: [],
-      }
+      },
+      settingCategory: undefined,
     };
     
     const welcomeMessageText = input.playMode === 'remote'
       ? `Once the party is assembled, the story will begin.`
       : `First, let's create your character(s). The story will begin once the party is ready.`;
     
-    const initialWelcomeMessage: Message = {
-        id: `welcome-${Date.now()}`,
+    const welcomeChatMessage: Message = {
+        id: `welcome-chat-${Date.now()}`,
         role: 'system',
-        content: `# Welcome to ${newGame.name}!\n\nThis is a new adventure set in the world of **${newGame.setting.split('\n')[0].replace(/\*\*/g,'')}**.\n\n${welcomeMessageText}`
+        content: `**Welcome to ${newGame.name}!**\n\n${welcomeMessageText}`
     };
-
 
     const newGameDocument = {
       userId: input.userId,
@@ -148,7 +147,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       },
       worldState: initialWorldState,
       previousWorldState: null,
-      messages: [initialWelcomeMessage],
+      messages: [welcomeChatMessage],
       storyMessages: [],
       step: 'characters',
       activeCharacterId: null,
@@ -172,14 +171,18 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
   }
 }
 
-export async function continueStory(input: ResolveActionInput): Promise<ResolveActionOutput> {
-  const { character, worldState } = input;
-  
-  // Server-side validation
-  const app = await getServerApp();
-  const db = getFirestore(app);
+type ContinueStoryInput = Omit<ResolveActionInput, 'character'> & { characterId: string };
+export async function continueStory(input: ContinueStoryInput): Promise<ResolveActionOutput> {
+  const { characterId, worldState, ...rest } = input;
+
+  const character = worldState.characters.find(c => c.id === characterId);
+  if (!character) {
+      throw new Error("Character not found in world state.");
+  }
   
   // A bit of a hacky way to find the gameId from the worldState
+  const app = await getServerApp();
+  const db = getFirestore(app);
   const gameQuery = query(collection(db, 'games'), where('worldState.summary', '==', worldState.summary));
   const gameSnapshot = await getDocs(gameQuery);
   
@@ -194,7 +197,7 @@ export async function continueStory(input: ResolveActionInput): Promise<ResolveA
   }
   
   try {
-    return await resolveAction(input);
+    return await resolveActionFlow({ ...rest, worldState, character });
   } catch (error) {
     console.error("Error in continueStory action:", error);
     if (error instanceof Error) {
@@ -270,25 +273,13 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   }
 }
 
-export async function routePlayerInput(input: { playerInput: string }): Promise<ClassifyIntentOutput> {
-  try {
-    return await classifyIntent(input);
-  } catch (error) {
-    console.error("Error in routePlayerInput action:", error);
-    if (error instanceof Error) {
-        throw new Error(`Failed to classify player intent: ${error.message}`);
-    }
-    throw new Error("Failed to classify player intent. Please try again.");
-  }
-}
-
 export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
   try {
     const character = input.worldState.characters.find(c => c.id === input.character.id);
     if (!character) {
       throw new Error("Character asking question not found in world state.");
     }
-    return await askQuestion({ ...input, character });
+    return await askQuestionFlow({ ...input, character });
   } catch (error) {
     console.error("Error in getAnswerToQuestion action:", error);
     if (error instanceof Error) {
@@ -389,7 +380,7 @@ export async function getCostEstimation(input: EstimateCostInput): Promise<Estim
 
 export async function checkConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {
     try {
-        return await assessConsequences(input);
+        return await assessConsequencesFlow(input);
     } catch (error) {
         console.error("Error in checkConsequences action:", error);
         if (error instanceof Error) {
@@ -600,5 +591,3 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
         return { success: false, message };
     }
 }
-
-    

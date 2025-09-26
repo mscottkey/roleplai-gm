@@ -15,8 +15,6 @@ import {
   startNewGame,
   continueStory,
   updateWorldState,
-  routePlayerInput,
-  getAnswerToQuestion,
   checkConsequences,
   undoLastAction,
   generateCore,
@@ -30,6 +28,7 @@ import {
   regenerateGameConcept,
   regenerateGameField,
   narratePlayerActions,
+  getAnswerToQuestion,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -72,8 +71,8 @@ import { ArrowRight } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
-import { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import { extractProseForTTS } from '@/lib/tts';
+import { classifyGameInput } from '@/ai/flows/unified-classify';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -84,6 +83,8 @@ export default function RoleplAIGMPage() {
 
   const [games, setGames] = useState<GameSession[]>([]);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
+  
+  const [input, setInput] = useState('');
 
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
@@ -515,160 +516,183 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user) {
-      toast({ variant: 'destructive', title: 'Error', description: 'A character and game state are required to proceed.' });
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'A character and game state are required to proceed.',
+      });
       return;
     }
-
+  
     const messagesWithoutRecap = messages.filter((m) => m.id && !m.id.startsWith('recap-'));
-
-    const actingCharacter = gameData?.playMode === 'remote' ? characters.find((c) => c.playerId === user.uid) : activeCharacter;
+  
+    const actingCharacter = gameData?.playMode === 'remote'
+      ? characters.find(c => c.playerId === user.uid)
+      : activeCharacter;
 
     if (!actingCharacter) {
-      toast({ variant: 'destructive', title: 'No Character', description: "You don't have a character in this game to act with." });
+      toast({
+        variant: 'destructive',
+        title: 'No Character',
+        description: "You don't have a character in this game to act with.",
+      });
       return;
     }
+    
     const authorName = actingCharacter.playerName || (user.isAnonymous ? 'Guest' : user.email?.split('@')[0]) || 'Player';
 
-    const newMessage: Message = {
+    const newUserMessage: Message = {
       id: `${user.uid}-${Date.now()}`,
       role: 'user',
       content: playerInput,
       authorName,
     };
-
-    const newMessagesForChat: Message[] = [...messagesWithoutRecap, newMessage];
-    setMessages(newMessagesForChat);
+    
+    setMessages((prev) => [...prev, newUserMessage]);
+    setInput('');
     setIsLoading(true);
-
+  
     try {
-      const { intent } = await routePlayerInput({ playerInput });
-
+      const { settingCategory, intent } = await classifyGameInput(
+        playerInput,
+        gameData?.setting,
+        gameData?.tone,
+        worldState.settingCategory
+      );
+  
+      console.log(`Input classified as: ${intent} in ${settingCategory} setting`);
+      
+      const newMessages = [...messagesWithoutRecap, newUserMessage];
+  
       if (intent === 'Action') {
         if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
-          toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
-          setMessages(messagesWithoutRecap);
-          setIsLoading(false);
-          return;
-        }
-
-        if (!activeCharacter) {
-          toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
-          setIsLoading(false);
-          setMessages(messagesWithoutRecap);
-          return;
-        }
-
-        if (!confirmed) {
-          const consequenceResult = await checkConsequences({
-            actionDescription: playerInput,
-            worldState,
-            character: {
-              ...activeCharacter,
-              stats: activeCharacter.stats || { skills: [], stunts: [] },
-              id: activeCharacter.id || '',
-            },
-          });
-
-          if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
-            setConfirmation({
-              message: consequenceResult.confirmationMessage,
-              onConfirm: () => {
-                setConfirmation(null);
-                handleSendMessage(playerInput, true);
-              },
-            });
+            toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
             setMessages(messagesWithoutRecap);
             setIsLoading(false);
             return;
-          }
+        }
+
+        if (!activeCharacter) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
+            setIsLoading(false);
+            setMessages(messagesWithoutRecap);
+            return;
+        }
+
+        if (!confirmed) {
+            const consequenceResult = await checkConsequences({
+                actionDescription: playerInput,
+                worldState,
+                character: {
+                    ...activeCharacter,
+                    stats: activeCharacter.stats || { skills: [], stunts: [] },
+                    id: activeCharacter.id || '',
+                },
+            });
+
+            if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
+                setConfirmation({
+                    message: consequenceResult.confirmationMessage,
+                    onConfirm: () => {
+                        setConfirmation(null);
+                        handleSendMessage(playerInput, true);
+                    },
+                });
+                setMessages(messagesWithoutRecap);
+                setIsLoading(false);
+                return;
+            }
         }
         
         // 1. Get conversational acknowledgement for chat
         const acknowledgement = await narratePlayerActions({
-          playerAction: playerInput,
-          gameState: worldState.summary,
-          character: activeCharacter,
+            playerAction: playerInput,
+            gameState: worldState.summary,
+            character: activeCharacter,
         });
 
         const acknowledgementMessage: Message = {
-          id: `assistant-ack-${Date.now()}`,
-          role: 'assistant',
-          content: acknowledgement.narration,
+            id: `assistant-ack-${Date.now()}`,
+            role: 'assistant',
+            content: acknowledgement.narration,
         };
+        
+        const finalChatMessages = [...newMessages, acknowledgementMessage];
 
         // 2. Get narrative result for storyboard
         const storyResponse = await continueStory({
-          actionDescription: playerInput,
-          worldState,
-          character: activeCharacter,
-          ruleAdapter: 'FateCore',
-          mechanicsVisibility,
+            actionDescription: playerInput,
+            characterId: actingCharacter.id,
+            worldState,
+            ruleAdapter: "FateCore",
+            mechanicsVisibility: mechanicsVisibility,
+            settingCategory,
         });
 
         const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
-        const finalMessages = [...newMessagesForChat, acknowledgementMessage];
-        
+  
         const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
         const nextIndex = (currentIndex + 1) % characters.length;
         const foundNextCharacter = characters[nextIndex];
         setNextCharacter(foundNextCharacter);
-
+  
         const serializableWorldState = JSON.parse(JSON.stringify(worldState));
         
-        // 3. Update Firestore with both
+        const worldUpdatePayload = {
+            gameId: activeGameId,
+            playerAction: { characterName: activeCharacter.name, action: playerInput },
+            gmResponse: storyResponse.narrativeResult,
+            currentWorldState: serializableWorldState,
+            updates: {
+                messages: finalChatMessages,
+                storyMessages: newStoryMessages,
+                'worldState.settingCategory': settingCategory,
+                activeCharacterId: gameData?.playMode === 'remote' ? foundNextCharacter.id : activeCharacter.id,
+            },
+        };
+        
+        await updateWorldState(worldUpdatePayload);
+
         if (gameData?.playMode === 'local') {
           setShowHandoff(true);
-          await updateWorldState({
-            gameId: activeGameId,
-            playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: storyResponse.narrativeResult,
-            currentWorldState: serializableWorldState,
-            updates: {
-              messages: finalMessages,
-              storyMessages: newStoryMessages,
-            },
-          });
-        } else { // Remote play
-          await updateWorldState({
-            gameId: activeGameId,
-            playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: storyResponse.narrativeResult,
-            currentWorldState: serializableWorldState,
-            updates: {
-              messages: finalMessages,
-              storyMessages: newStoryMessages,
-              activeCharacterId: foundNextCharacter.id,
-            },
-          });
+        } else {
           setActiveCharacter(foundNextCharacter);
         }
-
-      } else { // This is for "Question" intent
+  
+      } else {
+        // QUESTION intent
         const response = await getAnswerToQuestion({
           question: playerInput,
           worldState,
           character: actingCharacter,
+          settingCategory,
         });
-
+  
         const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
+          id: `assistant-ans-${Date.now()}`,
           role: 'assistant',
           content: response.answer,
         };
-
+  
         await updateWorldState({
           gameId: activeGameId,
-          updates: { messages: [...newMessagesForChat, assistantMessage] },
+          updates: {
+            messages: [...newMessages, assistantMessage],
+            'worldState.settingCategory': settingCategory,
+          },
         });
-        // Listener will update local state
       }
     } catch (error) {
       const err = error as Error;
-      console.error('Failed to process input:', err);
-      toast({ variant: 'destructive', title: 'Error', description: err.message || 'An unknown error occurred.' });
+      console.error("Failed to process input:", err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.message || 'An unknown error occurred.',
+      });
       setMessages(messagesWithoutRecap);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 

@@ -1,3 +1,4 @@
+
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
 import { FactionSchema } from './campaign-structure-schemas';
@@ -9,7 +10,7 @@ export const PlaceSchema = z.object({
 export type Place = z.infer<typeof PlaceSchema>;
 
 const LocationDetailsSchema = z.object({
-    name: z.string().describe("The name of the party's current, specific location (e.g., 'The Dragon's Tooth Tavern', 'Blackwood Forest - Western Edge')."),
+    name: z.string().describe("The party's current, specific location (e.g., 'The Dragon's Tooth Tavern', 'Blackwood Forest - Western Edge')."),
     description: z.string().describe("A 2-3 sentence description of the immediate surroundings, focusing on sensory details."),
     environmentalConditions: z.array(z.string()).describe("A list of any active environmental effects or conditions (e.g., 'Heavy Rain', 'Magical Darkness', 'Unstable Ground')."),
     connections: z.array(z.string()).describe("A list of names of directly adjacent or reachable known places from the current location."),
@@ -25,6 +26,7 @@ export const WorldStateSchema = z.object({
   knownPlaces: z.array(PlaceSchema).describe("A list of significant places the players have discovered."),
   knownFactions: z.array(FactionSchema).describe("A list of factions the players have discovered."),
   currentLocation: LocationDetailsSchema.describe("Details about the party's immediate location."),
+  settingCategory: z.string().optional().describe('The pre-classified genre category of the setting (e.g., "sci_fi_cyberpunk").'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 

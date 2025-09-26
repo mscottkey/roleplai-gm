@@ -20,6 +20,7 @@ const AskQuestionInputSchema = z.object({
   question: z.string().describe('The question the player is asking the GM.'),
   worldState: WorldStateSchema.describe('The entire current state of the game world.'),
   character: CharacterSchema.describe('The character asking the question.'),
+  settingCategory: z.string().default('generic').describe('Pre-classified setting category to ensure genre-appropriate answers.'),
 });
 export type AskQuestionInput = z.infer<typeof AskQuestionInputSchema>;
 
