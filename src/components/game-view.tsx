@@ -82,27 +82,16 @@ export function GameView({
   const storyContentRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [isStoryOpen, setIsStoryOpen] = useState(false);
-  const isFirstRender = useRef(true);
   
   const [showSmartScroll, setShowSmartScroll] = useState(false);
 
   useEffect(() => {
     const viewport = storyRef.current?.querySelector('div');
     if (viewport) {
-      if (isFirstRender.current) {
-        viewport.scrollTo({ top: 0, behavior: 'instant' });
-        isFirstRender.current = false;
-      } else {
-        // Only scroll to bottom if there's new content
-        const isScrolledToBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 100;
-        if (!isScrolledToBottom) {
-             viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
-        }
-      }
+      // On the very first render, scroll to the top. This effect only runs once.
+      viewport.scrollTo({ top: 0, behavior: 'instant' });
     }
-  // This hook now only depends on storyMessages to trigger scrolls for new content.
-  // The isFirstRender ref correctly handles the initial load scroll-to-top.
-  }, [storyMessages]);
+  }, []); // Empty dependency array ensures this runs only once on mount
   
   const handleSmartScroll = () => {
     const viewport = storyRef.current?.querySelector('div');
