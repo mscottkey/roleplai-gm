@@ -65,14 +65,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
-import { cleanMarkdown } from '@/lib/utils';
+import { cn, formatDialogue } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
-import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, ScrollText } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, ScrollText, Users as UsersIcon } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -89,7 +91,17 @@ const SummaryReview = ({
     onRegenerateConcept: (newRequest: string) => Promise<void>;
     onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
   }) => {
+    
+    const [newRequest, setNewRequest] = useState(gameData.originalRequest || '');
+    const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
+    
+    const handleRegenSubmit = async () => {
+        await onRegenerateConcept(newRequest);
+        setIsRegenDialogOpen(false);
+    }
+    
     return (
+      <>
       <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
         <Card className="w-full max-w-4xl mx-auto shadow-2xl">
           <CardHeader className="text-center">
@@ -106,7 +118,7 @@ const SummaryReview = ({
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Setting</h2>
                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('setting')} disabled={isLoading}>
-                        <LoadingSpinner className={cn("mr-2 h-3 w-3", !isLoading && "hidden")} /> Regenerate
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
                     </Button>
                   </div>
                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -117,7 +129,7 @@ const SummaryReview = ({
                    <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Tone</h2>
                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('tone')} disabled={isLoading}>
-                        <LoadingSpinner className={cn("mr-2 h-3 w-3", !isLoading && "hidden")} /> Regenerate
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
                     </Button>
                   </div>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -130,12 +142,40 @@ const SummaryReview = ({
             <Button size="lg" onClick={onContinue} disabled={isLoading} className="font-headline text-xl">
               Continue to Character Creation <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button variant="outline" onClick={() => onRegenerateConcept(gameData.originalRequest || '')} disabled={isLoading}>
-                <LoadingSpinner className={cn("mr-2 h-4 w-4", !isLoading && "hidden")} /> Regenerate Entire Concept
+            <Button variant="outline" onClick={() => setIsRegenDialogOpen(true)} disabled={isLoading}>
+                <LoadingSpinner className={cn("mr-2 h-4 w-4", isLoading ? "inline-block" : "hidden")} /> Regenerate Entire Concept
             </Button>
           </CardFooter>
         </Card>
       </div>
+
+       <Dialog open={isRegenDialogOpen} onOpenChange={setIsRegenDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Regenerate Story Concept</DialogTitle>
+              <DialogDescription>
+                Edit the prompt below to generate a new story concept. This will replace the current setting, tone, and plot hooks.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="regen-prompt">New Prompt</Label>
+               <Textarea
+                id="regen-prompt"
+                value={newRequest}
+                onChange={(e) => setNewRequest(e.target.value)}
+                className="min-h-[100px] mt-2"
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsRegenDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleRegenSubmit} disabled={isLoading}>
+                 <LoadingSpinner className={cn("mr-2 h-4 w-4", isLoading ? "inline-block" : "hidden")} /> Regenerate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
 }
 
@@ -537,7 +577,7 @@ ${gameData.difficulty}
 
 ## And So It Begins...
 
-${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
+${startingNode ? startingNode.description : gameData.setting}
 `.trim();
 
 
@@ -820,10 +860,10 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
-${cleanMarkdown(gameData.setting)}
+${gameData.setting}
 
 ## Tone
-${cleanMarkdown(gameData.tone)}
+${gameData.tone}
 
 ---
 
@@ -955,13 +995,16 @@ The stage is set. What do you do?
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
       case 'summary':
+        if (!gameData) {
+            return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
+        }
         return (
           <SummaryReview
-            gameData={gameData!}
+            gameData={gameData}
             isLoading={isLoading}
-            onContinue={() => {
+            onContinue={async () => {
               if (activeGameId) {
-                updateWorldState({ gameId: activeGameId, updates: { step: 'characters' } });
+                await updateWorldState({ gameId: activeGameId, updates: { step: 'characters' } });
               }
             }}
             onRegenerateConcept={handleRegenerateConcept}
@@ -969,6 +1012,9 @@ The stage is set. What do you do?
           />
         );
       case 'characters':
+        if (!gameData) {
+            return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
+        }
         return (
           <MemoizedCharacterCreationForm
             gameData={gameData!}
