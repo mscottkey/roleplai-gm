@@ -28,7 +28,8 @@ import {
   updateUserProfile,
   saveCampaignStructure,
   regenerateGameConcept,
-  regenerateGameField
+  regenerateGameField,
+  narratePlayerActions, // Import the new action
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -535,8 +536,8 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
       authorName,
     };
 
-    const newMessages: Message[] = [...messagesWithoutRecap, newMessage];
-    setMessages(newMessages);
+    const newMessagesForChat: Message[] = [...messagesWithoutRecap, newMessage];
+    setMessages(newMessagesForChat);
     setIsLoading(true);
 
     try {
@@ -581,8 +582,26 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
             return;
           }
         }
+        
+        // **NEW LOGIC START**
+        // 1. Get conversational acknowledgement for chat
+        const acknowledgement = await narratePlayerActions({
+          playerAction: playerInput,
+          gameState: worldState.summary,
+          character: activeCharacter,
+        });
 
-        const response = await continueStory({
+        const acknowledgementMessage: Message = {
+          id: `assistant-ack-${Date.now()}`,
+          role: 'assistant',
+          content: acknowledgement.narration,
+        };
+
+        const finalMessages = [...newMessagesForChat, acknowledgementMessage];
+        setMessages(finalMessages); // Show acknowledgement immediately
+
+        // 2. Get narrative result for storyboard
+        const storyResponse = await continueStory({
           actionDescription: playerInput,
           worldState,
           character: activeCharacter,
@@ -590,14 +609,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           mechanicsVisibility,
         });
 
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response.narrativeResult,
-          mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
-        };
-
-        const newStoryMessages = [...storyMessages, { content: response.narrativeResult }];
+        const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
         setStoryMessages(newStoryMessages);
 
         const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
@@ -607,38 +619,36 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
         const serializableWorldState = JSON.parse(JSON.stringify(worldState));
         
-        const finalMessages = [...newMessages, assistantMessage];
-
+        // 3. Update Firestore with both
         if (gameData?.playMode === 'local') {
           setShowHandoff(true);
-          updateWorldState({
+          await updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: response.narrativeResult,
+            gmResponse: storyResponse.narrativeResult, // world state still needs the real result
             currentWorldState: serializableWorldState,
             updates: {
               messages: finalMessages,
               storyMessages: newStoryMessages,
             },
-          }).catch((err) => console.error('Failed to update world state for local play:', err));
-          setMessages(finalMessages);
+          });
         } else { // Remote play
-          updateWorldState({
+          await updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: response.narrativeResult,
+            gmResponse: storyResponse.narrativeResult, // world state still needs the real result
             currentWorldState: serializableWorldState,
             updates: {
               messages: finalMessages,
               storyMessages: newStoryMessages,
               activeCharacterId: foundNextCharacter.id,
             },
-          })
-            .then(() => setActiveCharacter(foundNextCharacter))
-            .catch((err) => console.error('Failed to update world state:', err));
-          setMessages(finalMessages);
+          });
+          setActiveCharacter(foundNextCharacter);
         }
-      } else {
+        // **NEW LOGIC END**
+
+      } else { // This is for "Question" intent
         const response = await getAnswerToQuestion({
           question: playerInput,
           worldState,
@@ -653,7 +663,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
         await updateWorldState({
           gameId: activeGameId,
-          updates: { messages: [...newMessages, assistantMessage] },
+          updates: { messages: [...newMessagesForChat, assistantMessage] },
         });
         setMessages((prev) => [...prev, assistantMessage]);
       }
@@ -733,7 +743,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
         content: `**The world has been reshaped!**\n\nThe story has been regenerated. The new opening scene is on the storyboard. What do you do?`
       };
 
-      const finalInitialMessageContent = `
+      const storyboardContent = `
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
@@ -760,7 +770,7 @@ The stage is set. What do you do?
           'worldState.knownFactions': [],
           'worldState.places': [],
           messages: [welcomeMessageForChat],
-          storyMessages: [{ content: finalInitialMessageContent }],
+          storyMessages: [{ content: storyboardContent }],
           previousWorldState: null,
         },
       });

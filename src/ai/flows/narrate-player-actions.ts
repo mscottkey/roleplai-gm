@@ -1,9 +1,10 @@
+
 'use server';
 
 /**
- * @fileOverview Narrates player actions and dynamically updates the game world.
+ * @fileOverview A conversational flow that acknowledges a player's action.
  *
- * - narratePlayerActions - A function that narrates player actions based on the game state.
+ * - narratePlayerActions - A function that provides a short, conversational acknowledgement of a player action.
  * - NarratePlayerActionsInput - The input type for the narratePlayerActions function.
  * - NarratePlayerActionsOutput - The return type for the narratePlayerActions function.
  */
@@ -22,7 +23,7 @@ const NarratePlayerActionsInputSchema = z.object({
 export type NarratePlayerActionsInput = z.infer<typeof NarratePlayerActionsInputSchema>;
 
 const NarratePlayerActionsOutputSchema = z.object({
-  narration: z.string().describe('The AI-generated narration of the player action outcome.'),
+  narration: z.string().describe("A short, conversational acknowledgement of the player's action (e.g., 'Okay, you attack the goblin. Here's what happens...')."),
 });
 export type NarratePlayerActionsOutput = z.infer<typeof NarratePlayerActionsOutputSchema>;
 

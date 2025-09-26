@@ -2,6 +2,7 @@
 
 
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -17,6 +18,7 @@ import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/
 import { assessConsequences } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
+import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node, CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
@@ -298,6 +300,18 @@ export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQ
     }
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
+}
+
+export async function narratePlayerActions(input: NarratePlayerActionsInput): Promise<NarratePlayerActionsOutput> {
+    try {
+        return await narratePlayerActionsFlow(input);
+    } catch (error) {
+        console.error("Error in narratePlayerActions action:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to get GM acknowledgement: ${error.message}`);
+        }
+        throw new Error("Failed to get GM acknowledgement. Please try again.");
+    }
 }
 
 export async function generateCore(input: GenerateCampaignStructureInput): Promise<CampaignCore> {
