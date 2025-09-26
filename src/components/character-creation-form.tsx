@@ -24,24 +24,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { getFirestore, doc, runTransaction } from 'firebase/firestore';
-
-const normalizeInlineBulletsInSections = (md: string) => {
-    if (!md) return md;
-
-    const fixLine = (title: string, text: string) => {
-        // Use a regex that specifically looks for the bold markdown followed by a colon
-        return text.replace(new RegExp(`(\\*\\*${title}\\*\\*:)`, 'ims'), (match) => {
-            return `\n## ${title}\n`;
-        });
-    };
-
-    let processedMd = md;
-    
-    processedMd = processedMd.replace(/\*\*(Vibe|Tone Levers|Notable Locations|Key Factions)\*\*/g, '## $1');
-
-    return processedMd;
-};
-
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 type CharacterCreationFormProps = {
   gameData: GameData;
@@ -52,8 +35,55 @@ type CharacterCreationFormProps = {
   currentUser: FirebaseUser | null;
   activeGameId: string | null;
   userPreferences: UserPreferences | null;
+  onRegenerateConcept: (newRequest: string) => Promise<void>;
+  onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
 };
 
+const RegenerateStoryDialog = ({ onRegenerate, isLoading, currentRequest }: { onRegenerate: (newRequest: string) => Promise<void>; isLoading: boolean, currentRequest: string }) => {
+    const [open, setOpen] = useState(false);
+    const [newRequest, setNewRequest] = useState(currentRequest);
+
+    const handleSubmit = async () => {
+        if (!newRequest.trim()) return;
+        await onRegenerate(newRequest);
+        setOpen(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Story
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Regenerate Story Concept</DialogTitle>
+                    <DialogDescription>
+                        Enter a new prompt to regenerate the entire story concept, including the name, setting, tone, and hooks.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="new-request">New Prompt</Label>
+                    <Input
+                        id="new-request"
+                        value={newRequest}
+                        onChange={(e) => setNewRequest(e.target.value)}
+                        placeholder="e.g., 'A classic high fantasy adventure'"
+                        disabled={isLoading}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isLoading || !newRequest.trim()}>
+                        {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                        Regenerate
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -126,6 +156,8 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   currentUser,
   activeGameId,
   userPreferences,
+  onRegenerateConcept,
+  onRegenerateField
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>(() => {
@@ -147,7 +179,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
       character: null,
       preferences: {
         playerName: hostPlayerName,
-        // Pronouns will be set by the effect once userPreferences load
       }
     }];
   });
@@ -188,7 +219,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             
             const updatedCharacters = slots.map(slot => {
                 if (slot.character) return slot.character;
-                // Find existing character to preserve their data if they are just regenerating
                 const existing = currentCharacters.find(c => c.id === slot.id);
                 return existing || null;
             }).filter(Boolean) as Character[];
@@ -417,7 +447,7 @@ if (gameData.playMode === 'remote') {
 }
 
 // Local Play Mode
-  const LocalPlayerSlot = ({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
+const LocalPlayerSlot = memo(({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
     const { preferences } = slot;
 
     const handleUpdate = (field: string, value: string) => {
@@ -472,7 +502,8 @@ if (gameData.playMode === 'remote') {
             <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemove(slot.id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
         </Card>
     );
-};
+});
+LocalPlayerSlot.displayName = 'LocalPlayerSlot';
 
 const handleGenerateAll = async () => {
     const slotsToGenerate = playerSlots.filter(s => !s.character);
@@ -565,18 +596,36 @@ const handleGenerateAll = async () => {
               </TabsList>
                <TabsContent value="summary">
                  <Card className="bg-muted/50">
+                   <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Campaign Briefing</CardTitle>
+                        <RegenerateStoryDialog
+                            onRegenerate={onRegenerateConcept}
+                            isLoading={isLoading}
+                            currentRequest={(gameData as any).originalRequest || ''}
+                        />
+                   </CardHeader>
                    <CardContent className="p-6 max-h-[60vh] overflow-y-auto">
                      <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
-                        <section className="prose prose-sm dark:prose-invert max-w-none">
-                          <h2 className="mt-0">Setting</h2>
+                        <section className="prose prose-sm dark:prose-invert max-w-none relative group">
+                          <div className="flex items-center justify-between mb-2">
+                            <h2 className="mt-0">Setting</h2>
+                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('setting')} disabled={isLoading}>
+                                <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} /> Regenerate
+                            </Button>
+                          </div>
                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                            {normalizeInlineBulletsInSections(gameData.setting)}
+                            {gameData.setting}
                           </ReactMarkdown>
                         </section>
-                        <section className="prose prose-sm dark:prose-invert max-w-none">
-                          <h2 className="mt-0">Tone</h2>
+                        <section className="prose prose-sm dark:prose-invert max-w-none relative group">
+                           <div className="flex items-center justify-between mb-2">
+                            <h2 className="mt-0">Tone</h2>
+                             <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('tone')} disabled={isLoading}>
+                                <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} /> Regenerate
+                            </Button>
+                          </div>
                           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                           {normalizeInlineBulletsInSections(gameData.tone)}
+                           {gameData.tone}
                           </ReactMarkdown>
                         </section>
                      </div>
@@ -619,10 +668,8 @@ const handleGenerateAll = async () => {
                 <><Wand2 className="mr-2 h-5 w-5" /> Generate All Characters</>
               )}
           </Button>
-          {!hasGeneratedAll && playerSlots.length > 0 && (
-             <Button variant="link" size="sm" onClick={() => setPlayerSlots(slots => slots.map(s => ({...s, character: null})))}>
-                <RefreshCw className="mr-2 h-3 w-3" /> Start Over
-            </Button>
+          {!hasGeneratedAll && playerSlots.length > 0 && playerSlots.some(s => !s.character) && (
+             <p className="text-xs text-muted-foreground">Fill out player names, then click "Generate All Characters".</p>
           )}
         </CardFooter>
       </Card>

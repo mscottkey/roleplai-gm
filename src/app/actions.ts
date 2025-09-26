@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -14,6 +15,7 @@ import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow } from "@/ai/flows/generate-recap";
+import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 import type { GenerateCampaignStructureInput, GenerateFactionsInput, GenerateNodesInput, CampaignCore, Faction, Node, CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 import type { UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
@@ -146,11 +148,9 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       userId: input.userId,
       createdAt: serverTimestamp(),
       gameData: {
-        name: newGame.name,
-        setting: newGame.setting,
-        tone: newGame.tone,
-        difficulty: newGame.difficulty,
+        ...newGame,
         playMode: input.playMode,
+        originalRequest: ipCheck.sanitizedRequest,
       },
       worldState: initialWorldState,
       previousWorldState: null,
@@ -546,4 +546,50 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
     return { success: false, message };
   }
+}
+
+export async function regenerateGameConcept(gameId: string, request: string): Promise<{ success: boolean; warningMessage?: string; message?: string }> {
+    try {
+        const ipCheck = await sanitizeIpFlow({ request });
+        const newGame = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+
+        await updateDoc(gameRef, {
+            'gameData.name': newGame.name,
+            'gameData.setting': newGame.setting,
+            'gameData.tone': newGame.tone,
+            'gameData.difficulty': newGame.difficulty,
+            'gameData.initialHooks': newGame.initialHooks,
+            'gameData.originalRequest': ipCheck.sanitizedRequest,
+        });
+
+        return { success: true, warningMessage: ipCheck.warningMessage };
+    } catch (error) {
+        console.error("Error in regenerateGameConcept action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
+
+export async function regenerateGameField(gameId: string, input: RegenerateFieldInput): Promise<{ success: boolean; message?: string }> {
+    try {
+        const { newValue } = await regenerateFieldFlow(input);
+
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+
+        await updateDoc(gameRef, {
+            [`gameData.${input.fieldName}`]: newValue,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error(`Error in regenerateGameField action for field ${input.fieldName}:`, error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
 }

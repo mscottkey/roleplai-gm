@@ -15,7 +15,7 @@ const GenerateNewGameInputSchema = z.object({
 });
 export type GenerateNewGameInput = z.infer<typeof GenerateNewGameInputSchema>;
 
-const GenerateNewGameOutputSchema = z.object({
+export const GenerateNewGameOutputSchema = z.object({
   name: z.string().describe('A short, evocative name for the campaign (4-6 words max).'),
   setting: z.string().describe('A description of the game setting, including 2-3 notable locations.'),
   tone: z.string().describe('A description of the game tone.'),
@@ -31,8 +31,8 @@ function cleanMarkdown(text: string): string {
     // Fix escaped newlines
     .replace(/\\n/g, '\n')
     // Convert old-style bold headers to proper markdown headers
-    .replace(/\*\*(Key Factions|Notable Locations|Tone Levers):\*\*/g, '## $1')
-    .replace(/\*\*(Key Factions|Notable Locations|Tone Levers):\s*/g, '## $1\n\n')
+    .replace(/\*\*(Vibe|Tone Levers|Notable Locations):\*\*/g, '## $1')
+    .replace(/\*\*(Vibe|Tone Levers|Notable Locations):\s*/g, '## $1\n\n')
     // Fix malformed bullet points patterns - be more conservative
     .replace(/\*\*\*\*\* /g, '* ')
     .replace(/\*\*\*\* /g, '* ')

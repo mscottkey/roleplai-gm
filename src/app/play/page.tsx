@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
   GameData,
@@ -27,6 +27,8 @@ import {
   renameGame,
   updateUserProfile,
   saveCampaignStructure,
+  regenerateGameConcept,
+  regenerateGameField
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -71,6 +73,8 @@ import { getUserPreferences, type UserPreferences } from '../actions/user-prefer
 import { GenerationProgress } from '@/components/generation-progress';
 import { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import { extractProseForTTS } from '@/lib/tts';
+
+const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
 export default function RoleplAIGMPage() {
   const { user } = useAuth();
@@ -309,7 +313,7 @@ export default function RoleplAIGMPage() {
       }
     });
     return () => unsub();
-  }, [activeGameId, router, toast, generationProgress]);
+  }, [activeGameId, router, toast]);
 
   const handleUndo = async () => {
     if (!activeGameId || !previousWorldState) {
@@ -836,14 +840,54 @@ The stage is set. What do you do?
       toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
     }
   };
+  
+  const handleRegenerateConcept = async (newRequest: string) => {
+    if (!activeGameId) return;
+    setIsLoading(true);
+    const result = await regenerateGameConcept(activeGameId, newRequest);
+    if (result.success) {
+      toast({ title: 'Story Regenerated', description: 'The campaign concept has been updated.' });
+      if (result.warningMessage) {
+        toast({ title: 'Request Modified', description: result.warningMessage, duration: 6000 });
+      }
+    } else {
+      toast({ variant: 'destructive', title: 'Regeneration Failed', description: result.message });
+    }
+    setIsLoading(false);
+  }
+
+  const handleRegenerateField = async (fieldName: 'setting' | 'tone') => {
+    if (!activeGameId || !gameData) return;
+    setIsLoading(true);
+    const result = await regenerateGameField(activeGameId, {
+      request: (gameData as any).originalRequest || gameData.name,
+      fieldName,
+      currentValue: gameData[fieldName],
+    });
+    if (result.success) {
+      toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
+    } else {
+      toast({ variant: 'destructive', title: 'Regeneration Failed', description: result.message });
+    }
+    setIsLoading(false);
+  };
+
 
   const renderContent = () => {
+    if (generationProgress) {
+        return (
+          <div className="flex h-full w-full items-center justify-center p-4">
+            <GenerationProgress current={generationProgress.current} total={generationProgress.total} step={generationProgress.step} />
+          </div>
+        );
+    }
+    
     switch (step) {
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
       case 'characters':
         return (
-          <CharacterCreationForm
+          <MemoizedCharacterCreationForm
             gameData={gameData!}
             initialCharacters={characters}
             onCharactersFinalized={handleCharactersFinalized}
@@ -852,16 +896,11 @@ The stage is set. What do you do?
             currentUser={user}
             activeGameId={activeGameId}
             userPreferences={userPreferences}
+            onRegenerateConcept={handleRegenerateConcept}
+            onRegenerateField={handleRegenerateField}
           />
         );
       case 'play':
-        if (generationProgress) {
-          return (
-            <div className="flex h-full w-full items-center justify-center p-4">
-              <GenerationProgress current={generationProgress.current} total={generationProgress.total} step={generationProgress.step} />
-            </div>
-          );
-        }
         return (
           <GameView
             messages={messages}

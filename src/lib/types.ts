@@ -31,9 +31,8 @@ export type GameData = GenerateNewGameOutput & {
   userId?: string; // The user who created the game
   characters?: Character[];
   campaignStructure?: CampaignStructure; // This is now optional, as it will be loaded from a subcollection
-  difficulty?: string;
   playMode?: 'local' | 'remote';
-  initialHooks?: string;
+  originalRequest?: string; // The sanitized prompt used to generate the game
 };
 
 export type MechanicsVisibility = 'Hidden' | 'Minimal' | 'Full';
