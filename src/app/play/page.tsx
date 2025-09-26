@@ -29,7 +29,7 @@ import {
   saveCampaignStructure,
   regenerateGameConcept,
   regenerateGameField,
-  narratePlayerActions, // Import the new action
+  narratePlayerActions,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
@@ -583,7 +583,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           }
         }
         
-        // **NEW LOGIC START**
         // 1. Get conversational acknowledgement for chat
         const acknowledgement = await narratePlayerActions({
           playerAction: playerInput,
@@ -597,9 +596,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           content: acknowledgement.narration,
         };
 
-        const finalMessages = [...newMessagesForChat, acknowledgementMessage];
-        setMessages(finalMessages); // Show acknowledgement immediately
-
         // 2. Get narrative result for storyboard
         const storyResponse = await continueStory({
           actionDescription: playerInput,
@@ -610,8 +606,8 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
         });
 
         const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
-        setStoryMessages(newStoryMessages);
-
+        const finalMessages = [...newMessagesForChat, acknowledgementMessage];
+        
         const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
         const nextIndex = (currentIndex + 1) % characters.length;
         const foundNextCharacter = characters[nextIndex];
@@ -625,7 +621,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           await updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: storyResponse.narrativeResult, // world state still needs the real result
+            gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
             updates: {
               messages: finalMessages,
@@ -636,7 +632,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           await updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: storyResponse.narrativeResult, // world state still needs the real result
+            gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
             updates: {
               messages: finalMessages,
@@ -646,7 +642,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           });
           setActiveCharacter(foundNextCharacter);
         }
-        // **NEW LOGIC END**
 
       } else { // This is for "Question" intent
         const response = await getAnswerToQuestion({
@@ -665,7 +660,7 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
           gameId: activeGameId,
           updates: { messages: [...newMessagesForChat, assistantMessage] },
         });
-        setMessages((prev) => [...prev, assistantMessage]);
+        // Listener will update local state
       }
     } catch (error) {
       const err = error as Error;
@@ -856,7 +851,7 @@ The stage is set. What do you do?
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
     const result = await regenerateGameField(activeGameId, {
-      request: (gameData as any).originalRequest || gameData.name,
+      request: gameData.originalRequest || gameData.name,
       fieldName,
       currentValue: gameData[fieldName],
     });
