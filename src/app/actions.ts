@@ -117,10 +117,13 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       storyAspects: [],
       knownPlaces: [],
       knownFactions: [],
-      currentLocation: {
+      currentScene: {
+        nodeId: "start",
         name: "Unknown",
         description: "The adventure is about to begin.",
-        environmentalConditions: [],
+        presentCharacters: [],
+        presentNPCs: [],
+        environmentalFactors: [],
         connections: [],
       },
     };

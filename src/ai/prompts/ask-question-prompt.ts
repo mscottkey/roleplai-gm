@@ -5,8 +5,8 @@ You have a complete memory of the game world. Use it to inform your answer.
 - Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
 - Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
 - Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
+- Current Scene: You are in {{{worldState.currentScene.name}}}. {{{worldState.currentScene.description}}}
 
 The character asking is: {{{character.name}}}
 Player's Question: {{{question}}}

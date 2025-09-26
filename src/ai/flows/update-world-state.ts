@@ -45,11 +45,13 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
     updatedOutput.knownFactions = updatedOutput.knownFactions || [];
     
-    if (!updatedOutput.currentLocation) {
-        updatedOutput.currentLocation = input.worldState.currentLocation || { name: 'Unknown', description: 'The area has not been described.', environmentalConditions: [], connections: [] };
+    if (!updatedOutput.currentScene) {
+        updatedOutput.currentScene = input.worldState.currentScene || { nodeId: 'unknown', name: 'Unknown', description: 'The area has not been described.', presentCharacters: [], presentNPCs: [], environmentalFactors: [], connections: [] };
     }
-    updatedOutput.currentLocation.environmentalConditions = updatedOutput.currentLocation.environmentalConditions || [];
-    updatedOutput.currentLocation.connections = updatedOutput.currentLocation.connections || [];
+    updatedOutput.currentScene.presentCharacters = updatedOutput.currentScene.presentCharacters || [];
+    updatedOutput.currentScene.presentNPCs = updatedOutput.currentScene.presentNPCs || [];
+    updatedOutput.currentScene.environmentalFactors = updatedOutput.currentScene.environmentalFactors || [];
+    updatedOutput.currentScene.connections = updatedOutput.currentScene.connections || [];
 
 
     return updatedOutput;

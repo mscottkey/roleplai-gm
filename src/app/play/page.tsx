@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
   GameData,
@@ -60,7 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -154,9 +154,9 @@ const SummaryReview = ({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Regenerate Story Concept</DialogTitle>
-              <AlertDialogDescription>
+              <DialogDescription>
                 Edit the prompt below to generate a new story concept. This will replace the current setting, tone, and plot hooks.
-              </AlertDialogDescription>
+              </DialogDescription>
             </DialogHeader>
             <div className="py-4">
               <Label htmlFor="regen-prompt">New Prompt</Label>
@@ -602,10 +602,13 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.places': knownPlaces,
           'worldState.knownPlaces': [startingPlace],
           'worldState.knownFactions': [],
-          'worldState.currentLocation': {
+          'worldState.currentScene': {
+            nodeId: "start",
             name: startingNode.title,
             description: startingNode.description,
-            environmentalConditions: [],
+            presentCharacters: plainCharacters.map(c => c.id),
+            presentNPCs: startingNode.faces.map(f => f.name),
+            environmentalFactors: [],
             connections: startingNode.leads,
           },
           'worldState.settingCategory': settingCategory,

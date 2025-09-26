@@ -9,7 +9,7 @@ Current World State:
 - Story Aspects: {{#each world.storyAspects}}- {{{this}}}{{/each}}
 - Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Current Location: {{{worldState.currentLocation.name}}} - {{{worldState.currentLocation.description}}}
+- Current Scene: {{{worldState.currentScene.name}}} - {{{worldState.currentScene.description}}}
 
 Latest Game Event:
 - Player: {{{playerAction.characterName}}}
@@ -25,5 +25,5 @@ Your task is to return a NEW, UPDATED world state object.
 6.  **knownPlaces**: If the narration or event resulted in the players learning about a new location from the main 'places' list, add it here.
 7.  **knownFactions**: If the narration or event resulted in the players learning about a faction, add it here.
 8.  **storyAspects**: If the narration introduced a new, important story element, theme, or recurring concept, add it to the list.
-9.  **currentLocation**: If the party moves to a new location, update this object. If they remain in the same location, update the description or environmental conditions to reflect the consequences of the action. The 'name' should be one of the 'knownPlaces'. The 'connections' should be a list of other 'knownPlaces' reachable from here.
+9.  **currentScene**: If the party moves to a new location, update this object completely. If they remain in the same location, update its 'description', 'presentNPCs', or 'environmentalFactors' to reflect the consequences of the action. The 'name' should be one of the 'knownPlaces'. The 'nodeId' should match the ID of the story node for that location. 'presentCharacters' should list the IDs of all player characters.
 `;
