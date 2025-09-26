@@ -127,7 +127,6 @@ export default function RoleplAIGMPage() {
       volume: volumeMap[ttsVolume],
     });
 
-  const lastSpokenMessageRef = useRef<Message | null>(null);
   const sessionLoadedRef = useRef<string | null>(null);
   const userInteractedRef = useRef(false);
 
@@ -148,28 +147,6 @@ export default function RoleplAIGMPage() {
     [storyMessages]
   );
   
-  // Autoplay ONLY the newest assistant story, move cursor
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    
-    if (
-      supported &&
-      userInteractedRef.current &&
-      document.visibilityState === 'visible' &&
-      isAutoPlayEnabled &&
-      generationProgress === null &&
-      lastMessage?.role === 'assistant' &&
-      lastMessage !== lastSpokenMessageRef.current
-    ) {
-      const prose = extractProseForTTS(lastMessage.content);
-      if (prose) {
-        speak({ text: prose });
-        lastSpokenMessageRef.current = lastMessage;
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isAutoPlayEnabled, supported, generationProgress]);
-
   // Manual Play: resume, or read from cursor → end
   const handlePlayAll = (text?: string, onBoundary?: (e: SpeechSynthesisEvent) => void) => {
     if (isPaused) { resume(); return; }
@@ -634,7 +611,6 @@ ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
 
         if (gameData?.playMode === 'local') {
           setShowHandoff(true);
-          // Also save state for local play
           updateWorldState({
             gameId: activeGameId,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
