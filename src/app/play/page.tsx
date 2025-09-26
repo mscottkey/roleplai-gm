@@ -1,12 +1,32 @@
-
-
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams }
-from 'next/navigation';
-import type { GameData, Message, MechanicsVisibility, Character, GameSession, PlayerSlot } from '@/app/lib/types';
-import { startNewGame, continueStory, updateWorldState, routePlayerInput, getAnswerToQuestion, checkConsequences, undoLastAction, generateCore, generateFactionsAction, generateNodesAction, generateRecap, deleteGame, renameGame, updateUserProfile, saveCampaignStructure } from '@/app/actions';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type {
+  GameData,
+  Message,
+  MechanicsVisibility,
+  Character,
+  GameSession,
+  PlayerSlot,
+} from '@/app/lib/types';
+import {
+  startNewGame,
+  continueStory,
+  updateWorldState,
+  routePlayerInput,
+  getAnswerToQuestion,
+  checkConsequences,
+  undoLastAction,
+  generateCore,
+  generateFactionsAction,
+  generateNodesAction,
+  generateRecap,
+  deleteGame,
+  renameGame,
+  updateUserProfile,
+  saveCampaignStructure,
+} from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -15,14 +35,32 @@ import { GameView } from '@/components/game-view';
 import { useToast } from '@/hooks/use-toast';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/hooks/use-auth';
-import { doc, onSnapshot, getFirestore, collection, query, where, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import {
+  doc,
+  onSnapshot,
+  getFirestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  updateDoc,
+} from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useSpeechSynthesis, type Voice } from '@/hooks/use-speech-synthesis';
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cleanMarkdown } from '@/lib/utils';
 import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,14 +70,17 @@ import { getUserPreferences, type UserPreferences } from '../actions/user-prefer
 import { GenerationProgress } from '@/components/generation-progress';
 import { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 
+// NEW: prose extractor for TTS (you said you added this file already)
+import { extractProseForTTS } from '@/lib/tts';
+
 export default function RoleplAIGMPage() {
-  const { user } = useAuth(); // AuthGuard handles loading state
+  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [games, setGames] = useState<GameSession[]>([]);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
-  
+
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [previousWorldState, setPreviousWorldState] = useState<WorldState | null>(null);
@@ -51,12 +92,12 @@ export default function RoleplAIGMPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
-  const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void; } | null>(null);
-  
+  const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
   const [deleteConfirmation, setDeleteConfirmation] = useState<GameSession | null>(null);
   const [renameTarget, setRenameTarget] = useState<GameSession | null>(null);
   const [newGameName, setNewGameName] = useState('');
-  
+
   const [showHandoff, setShowHandoff] = useState(false);
   const [nextCharacter, setNextCharacter] = useState<Character | null>(null);
 
@@ -66,14 +107,30 @@ export default function RoleplAIGMPage() {
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number; step: string } | null>(null);
 
-
   const { toast } = useToast();
 
-  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  // ===== TTS STATE (NEW): volume toggle + read cursor + panel =================
+  type TtsVol = 'low' | 'med' | 'high';
+  const [ttsVolume, setTtsVolume] = useState<TtsVol>('med');
+  const volumeMap: Record<TtsVol, number> = { low: 0.4, med: 0.75, high: 1.0 };
+  const cycleTtsVolume = () => setTtsVolume(v => (v === 'low' ? 'med' : v === 'med' ? 'high' : 'low'));
+
+  // cursor: next story index to read
+  const [ttsCursor, setTtsCursor] = useState(0);
+  const ttsCursorRef = useRef(0);
+  useEffect(() => { ttsCursorRef.current = ttsCursor; }, [ttsCursor]);
+
+  // small floating panel for read-from-here (no GameView changes needed)
+  const [ttsPanelOpen, setTtsPanelOpen] = useState(false);
+  // ===========================================================================
   
-  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported, voices, selectVoice, selectedVoice } = useSpeechSynthesis({
-    preferredVoiceURI: userPreferences?.defaultVoiceURI,
-  });
+  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+
+  const { speak, pause, resume, cancel, isSpeaking, isPaused, supported, voices, selectVoice, selectedVoice } =
+    useSpeechSynthesis({
+      preferredVoiceURI: userPreferences?.defaultVoiceURI,
+      maxChunkLen: 220,
+    });
 
   const lastSpokenMessageRef = useRef<Message | null>(null);
   const sessionLoadedRef = useRef<string | null>(null);
@@ -83,110 +140,113 @@ export default function RoleplAIGMPage() {
     const setTrue = () => { userInteractedRef.current = true; };
     window.addEventListener('click', setTrue, { once: true });
     window.addEventListener('touchend', setTrue, { once: true });
+    window.addEventListener('keydown', setTrue, { once: true }); // extra gesture
     return () => {
       window.removeEventListener('click', setTrue);
       window.removeEventListener('touchend', setTrue);
+      window.removeEventListener('keydown', setTrue);
     };
   }, []);
 
-  const cleanForSpeech = (text: string) => {
-    if (!text) return '';
-    return text
-      // Remove markdown headers and titles (e.g., #, ##, ###, **Title:**)
-      .replace(/^#+\s.*$/gm, '')
-      .replace(/\*\*(.*?)\*\*/g, '')
-      // Remove all other markdown symbols like *, _, `
-      .replace(/[*_`]/g, '')
-      // Remove any lines that are just whitespace
-      .replace(/^\s*$/gm, '')
-      // Trim whitespace from the start and end of the string
-      .trim();
-  };
+  // Build a clean prose list from storyMessages for TTS
+  const proseItems = useMemo(
+    () => (storyMessages || []).map((m: any) => extractProseForTTS(m?.content || '').trim()),
+    [storyMessages]
+  );
 
+  // Autoplay ONLY the newest assistant story, move cursor
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
+    const lastStoryIdx = storyMessages.length - 1;
+
     if (
       supported &&
       userInteractedRef.current &&
       document.visibilityState === 'visible' &&
       isAutoPlayEnabled &&
-      generationProgress === null && // Only play when generation is complete
-      lastMessage &&
-      lastMessage.role === 'assistant' &&
-      lastMessage !== lastSpokenMessageRef.current
+      generationProgress === null &&
+      lastMessage?.role === 'assistant' &&
+      lastStoryIdx >= 0 &&
+      lastStoryIdx >= ttsCursorRef.current
     ) {
-      const cleanedText = cleanForSpeech(lastMessage.content);
-      if (cleanedText.trim()) {
-        speak(cleanedText);
+      const prose = proseItems[lastStoryIdx] || '';
+      if (prose) {
+        const vol = volumeMap[ttsVolume];
+        speak({
+          text: prose,
+          volume: vol,
+          onEnd: () => setTtsCursor(lastStoryIdx + 1),
+        });
+        lastSpokenMessageRef.current = lastMessage;
       }
-      lastSpokenMessageRef.current = lastMessage;
     }
-  }, [messages, speak, isAutoPlayEnabled, supported, generationProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, storyMessages, isAutoPlayEnabled, supported, generationProgress, ttsVolume, proseItems]);
 
-  const handlePlayAll = (text?: string) => {
-    if (isPaused) {
-      resume();
-      return;
-    }
-  
-    if (isSpeaking) {
-      cancel();
-      // If text is provided, we want to start speaking it immediately after cancelling.
-      // If no text, it was just a stop action.
-      if (!text) return;
-    }
-  
+  // Manual Play: resume, or read from cursor → end
+  const handlePlayAll = () => {
+    if (isPaused) { resume(); setTimeout(() => resume(), 50); return; }
+    if (isSpeaking) { cancel(); }
     if (!userInteractedRef.current) {
-      toast({
-        title: 'Click to enable audio',
-        description: 'Tap or click once anywhere, then press Play again.',
-      });
+      toast({ title: 'Click to enable audio', description: 'Tap anywhere once, then press Play again.' });
       return;
     }
-  
-    const storyText = text || storyMessages.map(m => cleanForSpeech(m.content)).join('\n\n');
-    if (storyText.trim()) {
-      speak(storyText);
+    const start = ttsCursorRef.current;
+    const chunk = proseItems.slice(start).filter(Boolean).join('\n\n');
+    if (chunk) {
+      speak({
+        text: chunk,
+        volume: volumeMap[ttsVolume],
+        onEnd: () => setTtsCursor(proseItems.length),
+      });
     }
   };
-  
-  
+
+  // Read from a specific story index
+  const handleReadFromIndex = (i: number) => {
+    if (isSpeaking) cancel();
+    const chunk = proseItems.slice(i).filter(Boolean).join('\n\n');
+    if (chunk) {
+      setTtsCursor(i);
+      speak({
+        text: chunk,
+        volume: volumeMap[ttsVolume],
+        onEnd: () => setTtsCursor(proseItems.length),
+      });
+    }
+  };
+
+  // ===== Firestore listeners & existing flows (unchanged) =====================
+
   useEffect(() => {
-    if (!user) return; // AuthGuard ensures user is present
-
-    // Fetch user preferences
+    if (!user) return;
     getUserPreferences(user.uid).then(setUserPreferences);
-    
+
     const db = getFirestore();
-    const q = query(
-      collection(db, 'games'), 
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, 'games'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const userGames = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as GameSession));
-      setGames(userGames);
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const userGames = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as GameSession));
+        setGames(userGames);
 
-      // If no game is selected via URL, and we have games, default to the latest one.
-      const currentGameId = searchParams.get('game');
-      if (!currentGameId && userGames.length > 0) {
-        // You can uncomment this to auto-select the first game.
-        // router.replace(`/play?game=${userGames[0].id}`);
-      } else if (!currentGameId) {
-        setStep('create');
+        const currentGameId = searchParams.get('game');
+        if (!currentGameId && userGames.length > 0) {
+          // router.replace(`/play?game=${userGames[0].id}`); // optional
+        } else if (!currentGameId) {
+          setStep('create');
+        }
+      },
+      (error) => {
+        console.error('[Firestore Listener Error]: ', error);
+        toast({
+          variant: 'destructive',
+          title: 'Database Error',
+          description: 'Could not fetch your games. Please check your connection and security rules.',
+        });
       }
-    }, (error) => {
-      console.error("[Firestore Listener Error]: ", error);
-      toast({
-        variant: "destructive",
-        title: "Database Error",
-        description: "Could not fetch your games. Please check your connection and security rules."
-      })
-    });
+    );
 
     return () => unsubscribe();
   }, [user, searchParams, router, toast]);
@@ -196,7 +256,6 @@ export default function RoleplAIGMPage() {
     if (gameId && gameId !== activeGameId) {
       setActiveGameId(gameId);
     } else if (!gameId && activeGameId) {
-      // Clear state when navigating away from a game
       setActiveGameId(null);
       setGameData(null);
       setWorldState(null);
@@ -206,26 +265,25 @@ export default function RoleplAIGMPage() {
       setCharacters([]);
       setActiveCharacter(null);
       setStep('create');
+      // reset TTS cursor when leaving a game
+      setTtsCursor(0);
     }
-    
-    // Cleanup TTS when navigating away from any game
-    return () => {
-        if (supported) cancel();
-    }
+
+    return () => { if (supported) cancel(); };
   }, [searchParams, activeGameId, cancel, supported]);
 
   useEffect(() => {
     if (!activeGameId) {
-        setStep('create');
-        return;
+      setStep('create');
+      return;
     }
-    
+
     setStep('loading');
     const db = getFirestore();
-    const unsub = onSnapshot(doc(db, "games", activeGameId), (doc) => {
-      if (doc.exists()) {
-        const game = doc.data() as GameSession;
-        
+    const unsub = onSnapshot(doc(db, 'games', activeGameId), (docSnap) => {
+      if (docSnap.exists()) {
+        const game = docSnap.data() as GameSession;
+
         // Add userId to gameData for host check
         game.gameData.userId = game.userId;
         setGameData(game.gameData);
@@ -237,63 +295,57 @@ export default function RoleplAIGMPage() {
         setMessages(currentMessages);
 
         setStoryMessages(game.storyMessages || []);
-        
+
         const finalCharacters: Character[] = (game.worldState?.characters || []).map((c: any) => ({
           ...c,
           playerId: c.playerId || '',
         }));
         setCharacters(finalCharacters);
-        
+
         if (finalCharacters.length > 0) {
-          const savedActiveCharId = game.activeCharacterId;
-          const restoredChar = finalCharacters.find(c => c.id === savedActiveCharId) || finalCharacters[0];
+          const savedActiveCharId = (game as any).activeCharacterId;
+          const restoredChar = finalCharacters.find((c) => c.id === savedActiveCharId) || finalCharacters[0];
           setActiveCharacter(restoredChar);
         }
-        
+
         if (game.step === 'play') {
-          // If a game is in play, but we are still showing progress, it means we are re-joining mid-generation.
-          // For now, we will just clear the progress. A more advanced implementation might try to recover the state.
-          if (generationProgress) {
-            setGenerationProgress(null);
-          }
-          
+          if (generationProgress) setGenerationProgress(null);
+
           if (sessionLoadedRef.current !== activeGameId) {
-              sessionLoadedRef.current = activeGameId;
-              // Check if it's a returning session
-              if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
-                setIsLoading(true);
-                generateRecap({ recentEvents: game.worldState.recentEvents })
-                  .then(recapResult => {
-                    const recapMessage: Message = {
-                      id: `recap-${Date.now()}`,
-                      role: 'system',
-                      content: `### Previously On...\n\n${recapResult.recap}`
-                    };
-                    setMessages(prev => [recapMessage, ...prev]);
-                  })
-                  .catch(err => {
-                    console.error("Failed to generate recap:", err);
-                    toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
-                  })
-                  .finally(() => setIsLoading(false));
-              }
+            sessionLoadedRef.current = activeGameId;
+
+            if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
+              setIsLoading(true);
+              generateRecap({ recentEvents: game.worldState.recentEvents })
+                .then((recapResult) => {
+                  const recapMessage: Message = {
+                    id: `recap-${Date.now()}`,
+                    role: 'system',
+                    content: `### Previously On...\n\n${recapResult.recap}`,
+                  };
+                  setMessages((prev) => [recapMessage, ...prev]);
+                })
+                .catch((err) => {
+                  console.error('Failed to generate recap:', err);
+                  toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
+                })
+                .finally(() => setIsLoading(false));
+            }
           }
         }
-
 
         setStep(game.step === 'characters' ? 'characters' : 'play');
       } else {
         if (deletingGameId.current !== activeGameId) {
-          console.error("No such game!");
+          console.error('No such game!');
           toast({ variant: 'destructive', title: 'Error', description: 'Game session not found.' });
         }
         router.push('/play');
       }
     });
     return () => unsub();
-    
-  }, [activeGameId, router, toast]);
-  
+  }, [activeGameId, router, toast, generationProgress]);
+
   if (step === 'loading') {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
@@ -302,11 +354,8 @@ export default function RoleplAIGMPage() {
       </div>
     );
   }
-  
-  if (!user) {
-    // This should not be reachable if AuthGuard is working, but it's a good failsafe.
-    return null;
-  }
+
+  if (!user) return null;
 
   const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
     if (!user) {
@@ -316,27 +365,19 @@ export default function RoleplAIGMPage() {
 
     setIsLoading(true);
     try {
-      const { gameId, warningMessage, newGame } = await startNewGame({ request, userId: user.uid, playMode });
-      
+      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+
       if (warningMessage) {
-        toast({
-          title: "Request Modified",
-          description: warningMessage,
-          duration: 6000,
-        });
+        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
       }
 
       router.push(`/play?game=${gameId}`);
-      setActiveGameId(gameId); // This will trigger the snapshot listener
+      setActiveGameId(gameId);
     } catch (error) {
-       const err = error as Error;
-       console.error("Failed to start new game:", err);
-       toast({
-         variant: "destructive",
-         title: "Failed to Start Game",
-         description: err.message || "An unknown error occurred.",
-       });
-       setStep('create');
+      const err = error as Error;
+      console.error('Failed to start new game:', err);
+      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
+      setStep('create');
     } finally {
       setIsLoading(false);
     }
@@ -344,114 +385,109 @@ export default function RoleplAIGMPage() {
 
   const handleCharactersFinalized = async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
-    
+
     if (finalCharacters.length === 0) {
-      toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.'});
+      toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.' });
       return;
     }
 
-    if (finalCharacters.some(c => !c.playerName.trim())) {
-        toast({
-            variant: "destructive",
-            title: "Player Names Required",
-            description: "All characters must have a player name before starting the game.",
-        });
-        return;
+    if (finalCharacters.some((c) => !c.playerName.trim())) {
+      toast({
+        variant: 'destructive',
+        title: 'Player Names Required',
+        description: 'All characters must have a player name before starting the game.',
+      });
+      return;
     }
 
-    if (gameData.playMode === 'remote' && finalCharacters.some(c => !c.playerId)) {
-        toast({
-            variant: "destructive",
-            title: "Unclaimed Characters",
-            description: "All characters must be claimed by a player before starting a remote game.",
-        });
-        return;
+    if (gameData.playMode === 'remote' && finalCharacters.some((c) => !c.playerId)) {
+      toast({
+        variant: 'destructive',
+        title: 'Unclaimed Characters',
+        description: 'All characters must be claimed by a player before starting a remote game.',
+      });
+      return;
     }
 
     setIsLoading(true);
-    
-    const plainCharacters: Character[] = finalCharacters.map(c => ({
+
+    const plainCharacters: Character[] = finalCharacters.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      aspect: c.aspect,
+      playerName: c.playerName,
+      isCustom: c.isCustom,
+      archetype: c.archetype,
+      pronouns: c.pronouns,
+      age: c.age,
+      stats: c.stats,
+      playerId: c.playerId,
+    }));
+
+    try {
+      const db = getFirestore();
+      await updateDoc(doc(db, 'games', activeGameId), {
+        'gameData.characters': plainCharacters,
+        'worldState.characters': plainCharacters,
+        activeCharacterId: finalCharacters.length > 0 ? finalCharacters[0].id : null,
+        step: 'play',
+      });
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to save characters before campaign generation:', err);
+      toast({ variant: 'destructive', title: 'Setup Error', description: 'Could not save character data.' });
+      setIsLoading(false);
+      return;
+    }
+
+    toast({ title: 'Finalizing Party', description: 'Saving characters and building the world...' });
+
+    try {
+      const charactersForAI: AICharacter[] = plainCharacters.map((c) => ({
         id: c.id,
         name: c.name,
         description: c.description,
         aspect: c.aspect,
         playerName: c.playerName,
-        isCustom: c.isCustom,
         archetype: c.archetype,
         pronouns: c.pronouns,
         age: c.age,
         stats: c.stats,
-        playerId: c.playerId,
-    }));
+      }));
 
+      const generationInputBase = {
+        setting: gameData.setting,
+        tone: gameData.tone,
+        characters: charactersForAI,
+      };
 
-    // First, save the current state of characters and transition the step.
-    try {
-      const db = getFirestore();
-      await updateDoc(doc(db, "games", activeGameId), {
-        'gameData.characters': plainCharacters,
-        'worldState.characters': plainCharacters,
-        'activeCharacterId': finalCharacters.length > 0 ? finalCharacters[0].id : null,
-        'step': 'play', // Move to play step immediately to show progress UI
-      });
-    } catch(error) {
-        const err = error as Error;
-        console.error("Failed to save characters before campaign generation:", err);
-        toast({ variant: 'destructive', title: 'Setup Error', description: 'Could not save character data.' });
-        setIsLoading(false);
-        return;
-    }
+      setGenerationProgress({ current: 1, total: 3, step: 'Generating core campaign concepts...' });
+      const coreConcepts = await generateCore(generationInputBase);
 
-    toast({ title: "Finalizing Party", description: "Saving characters and building the world..." });
+      setGenerationProgress({ current: 2, total: 3, step: 'Designing key factions and threats...' });
+      const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
 
-    try {
-        const charactersForAI: AICharacter[] = plainCharacters.map(c => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            aspect: c.aspect,
-            playerName: c.playerName,
-            archetype: c.archetype,
-            pronouns: c.pronouns,
-            age: c.age,
-            stats: c.stats,
-        }));
-        
-        const generationInputBase = {
-            setting: gameData.setting,
-            tone: gameData.tone,
-            characters: charactersForAI
-        };
-        
-        // Step 1: Generate Core Concepts
-        setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
-        const coreConcepts = await generateCore(generationInputBase);
+      setGenerationProgress({ current: 3, total: 3, step: 'Building the web of story nodes...' });
+      const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
 
-        // Step 2: Generate Factions
-        setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
-        const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
+      const campaignStructure = {
+        campaignIssues: coreConcepts.campaignIssues,
+        campaignAspects: coreConcepts.campaignAspects,
+        factions,
+        nodes,
+      };
 
-        // Step 3: Generate Nodes
-        setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
-        const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
+      const saveResult = await saveCampaignStructure(activeGameId, campaignStructure);
+      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
-        const campaignStructure = {
-            campaignIssues: coreConcepts.campaignIssues,
-            campaignAspects: coreConcepts.campaignAspects,
-            factions,
-            nodes,
-        };
-        
-        const saveResult = await saveCampaignStructure(activeGameId, campaignStructure);
-        if (!saveResult.success) {
-            throw new Error(saveResult.message || 'Failed to save campaign structure.');
-        }
+      const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
 
-        const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
-        
-        const characterList = plainCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
+      const characterList = plainCharacters
+        .map((c) => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`)
+        .join('\n');
 
-        const finalInitialMessageContent = `
+      const finalInitialMessageContent = `
 # ${gameData.name}
 
 ${startingNode ? startingNode.description : cleanMarkdown(gameData.setting)}
@@ -461,247 +497,221 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
 *The story awaits your choices.*
 `.trim();
 
-        const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
-        
-        const knownPlaces = campaignStructure.nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
-        const startingPlace = knownPlaces.find(p => p.name === startingNode.title)!;
+      const finalInitialMessage: Message = { id: `start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
 
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-                'messages': [finalInitialMessage],
-                'storyMessages': [{ content: finalInitialMessageContent }],
-                'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-                'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
-                'worldState.recentEvents': ["The adventure has just begun."],
-                'worldState.storyAspects': campaignStructure.campaignAspects,
-                'worldState.places': knownPlaces,
-                'worldState.knownPlaces': [startingPlace],
-                'worldState.knownFactions': [],
-                'worldState.currentLocation': {
-                    name: startingNode.title,
-                    description: startingNode.description,
-                    environmentalConditions: [],
-                    connections: startingNode.leads,
-                },
-                previousWorldState: null,
-            }
-        });
+      const knownPlaces = campaignStructure.nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
+      const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
 
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: {
+          messages: [finalInitialMessage],
+          storyMessages: [{ content: finalInitialMessageContent }],
+          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+          'worldState.storyOutline': campaignStructure.nodes.map((n) => n.title),
+          'worldState.recentEvents': ['The adventure has just begun.'],
+          'worldState.storyAspects': campaignStructure.campaignAspects,
+          'worldState.places': knownPlaces,
+          'worldState.knownPlaces': [startingPlace],
+          'worldState.knownFactions': [],
+          'worldState.currentLocation': {
+            name: startingNode.title,
+            description: startingNode.description,
+            environmentalConditions: [],
+            connections: startingNode.leads,
+          },
+          previousWorldState: null,
+        },
+      });
     } catch (error) {
-        const err = error as Error;
-        console.error("Failed to finalize characters and generate campaign:", err);
-        toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
+      const err = error as Error;
+      console.error('Failed to finalize characters and generate campaign:', err);
+      toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
     } finally {
-        setGenerationProgress(null);
-        setIsLoading(false);
-        setStep('play');
+      setGenerationProgress(null);
+      setIsLoading(false);
+      setStep('play');
+      // reset cursor to start of new story
+      setTtsCursor(0);
     }
   };
 
-
- const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
+  const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "A character and game state are required to proceed.",
-        });
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'A character and game state are required to proceed.' });
+      return;
     }
-    
-    const messagesWithoutRecap = messages.filter(m => m.id && !m.id.startsWith('recap-'));
-    
-    const actingCharacter = gameData?.playMode === 'remote'
-      ? characters.find(c => c.playerId === user.uid)
-      : activeCharacter;
+
+    const messagesWithoutRecap = messages.filter((m) => m.id && !m.id.startsWith('recap-'));
+
+    const actingCharacter = gameData?.playMode === 'remote' ? characters.find((c) => c.playerId === user.uid) : activeCharacter;
 
     if (!actingCharacter) {
       toast({ variant: 'destructive', title: 'No Character', description: "You don't have a character in this game to act with." });
       return;
     }
-    const authorName = actingCharacter.playerName || (user.isAnonymous ? "Guest" : user.email?.split('@')[0]) || "Player";
+    const authorName = actingCharacter.playerName || (user.isAnonymous ? 'Guest' : user.email?.split('@')[0]) || 'Player';
 
     const newMessage: Message = {
       id: `${user.uid}-${Date.now()}`,
       role: 'user',
       content: playerInput,
-      authorName: authorName,
+      authorName,
     };
 
-    const newMessages: Message[] = [...messagesWithoutRecap, newMessage ];
+    const newMessages: Message[] = [...messagesWithoutRecap, newMessage];
     setMessages(newMessages);
     setIsLoading(true);
 
     try {
-        const { intent } = await routePlayerInput({ playerInput });
+      const { intent } = await routePlayerInput({ playerInput });
 
-        if (intent === 'Action') {
-            // ACTION: This is turn-based.
-            if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
-                toast({ variant: "destructive", title: "Not Your Turn", description: `It's currently ${activeCharacter?.name}'s turn to act.` });
-                setMessages(messagesWithoutRecap);
-                setIsLoading(false);
-                return;
-            }
-            
-            if (!activeCharacter) {
-                 toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
-                 setIsLoading(false);
-                 setMessages(messagesWithoutRecap);
-                 return;
-            }
-
-            if (!confirmed) {
-                const consequenceResult = await checkConsequences({
-                    actionDescription: playerInput,
-                    worldState,
-                    character: {
-                        ...activeCharacter,
-                        stats: activeCharacter.stats || { skills: [], stunts: [] },
-                        id: activeCharacter.id || '',
-                    },
-                });
-
-                if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
-                    setConfirmation({
-                        message: consequenceResult.confirmationMessage,
-                        onConfirm: () => {
-                            setConfirmation(null);
-                            handleSendMessage(playerInput, true); // Resend with confirmation
-                        },
-                    });
-                    setMessages(messagesWithoutRecap);
-                    setIsLoading(false);
-                    return;
-                }
-            }
-        
-            const response = await continueStory({
-                actionDescription: playerInput,
-                worldState,
-                character: activeCharacter,
-                ruleAdapter: 'FateCore',
-                mechanicsVisibility,
-            });
-
-            const assistantMessage: Message = {
-                id: `assistant-${Date.now()}`,
-                role: 'assistant',
-                content: response.narrativeResult,
-                mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
-            };
-
-            const newStoryMessages = [...storyMessages, { content: response.narrativeResult }];
-            setStoryMessages(newStoryMessages);
-
-            const currentIndex = characters.findIndex(c => c.id === activeCharacter.id);
-            const nextIndex = (currentIndex + 1) % characters.length;
-            const foundNextCharacter = characters[nextIndex];
-            setNextCharacter(foundNextCharacter);
-
-            const serializableWorldState = JSON.parse(JSON.stringify(worldState));
-
-            if (gameData?.playMode === 'local') {
-              setShowHandoff(true);
-              setMessages(prev => [...prev, assistantMessage]);
-            } else {
-              // Remote play updates immediately
-              updateWorldState({
-                  gameId: activeGameId,
-                  playerAction: {
-                      characterName: activeCharacter.name,
-                      action: playerInput,
-                  },
-                  gmResponse: response.narrativeResult,
-                  currentWorldState: serializableWorldState,
-                  updates: {
-                      messages: [...newMessages, assistantMessage],
-                      storyMessages: newStoryMessages,
-                      activeCharacterId: foundNextCharacter.id,
-                  }
-              }).then(() => {
-                  setActiveCharacter(foundNextCharacter);
-              }).catch(err => {
-                  console.error("Failed to update world state:", err);
-              });
-              setMessages(prev => [...prev, assistantMessage]);
-            }
-
-        } else { 
-            // QUESTION: Not turn-based.
-            const response = await getAnswerToQuestion({
-                question: playerInput,
-                worldState,
-                character: actingCharacter,
-            });
-
-            const assistantMessage: Message = {
-                id: `assistant-${Date.now()}`,
-                role: 'assistant',
-                content: response.answer,
-            };
-
-            await updateWorldState({
-                gameId: activeGameId,
-                updates: {
-                    messages: [...newMessages, assistantMessage],
-                }
-            });
-            setMessages(prev => [...prev, assistantMessage]);
+      if (intent === 'Action') {
+        if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
+          toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
+          setMessages(messagesWithoutRecap);
+          setIsLoading(false);
+          return;
         }
 
-    } catch (error) {
-        const err = error as Error;
-        console.error("Failed to process input:", err);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: err.message || "An unknown error occurred.",
+        if (!activeCharacter) {
+          toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
+          setIsLoading(false);
+          setMessages(messagesWithoutRecap);
+          return;
+        }
+
+        if (!confirmed) {
+          const consequenceResult = await checkConsequences({
+            actionDescription: playerInput,
+            worldState,
+            character: {
+              ...activeCharacter,
+              stats: activeCharacter.stats || { skills: [], stunts: [] },
+              id: activeCharacter.id || '',
+            },
+          });
+
+          if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
+            setConfirmation({
+              message: consequenceResult.confirmationMessage,
+              onConfirm: () => {
+                setConfirmation(null);
+                handleSendMessage(playerInput, true);
+              },
+            });
+            setMessages(messagesWithoutRecap);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        const response = await continueStory({
+          actionDescription: playerInput,
+          worldState,
+          character: activeCharacter,
+          ruleAdapter: 'FateCore',
+          mechanicsVisibility,
         });
-        setMessages(messagesWithoutRecap);
+
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.narrativeResult,
+          mechanics: mechanicsVisibility !== 'Hidden' ? response.mechanicsDetails : undefined,
+        };
+
+        const newStoryMessages = [...storyMessages, { content: response.narrativeResult }];
+        setStoryMessages(newStoryMessages);
+
+        const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
+        const nextIndex = (currentIndex + 1) % characters.length;
+        const foundNextCharacter = characters[nextIndex];
+        setNextCharacter(foundNextCharacter);
+
+        const serializableWorldState = JSON.parse(JSON.stringify(worldState));
+
+        if (gameData?.playMode === 'local') {
+          setShowHandoff(true);
+          setMessages((prev) => [...prev, assistantMessage]);
+        } else {
+          updateWorldState({
+            gameId: activeGameId,
+            playerAction: { characterName: activeCharacter.name, action: playerInput },
+            gmResponse: response.narrativeResult,
+            currentWorldState: serializableWorldState,
+            updates: {
+              messages: [...newMessages, assistantMessage],
+              storyMessages: newStoryMessages,
+              activeCharacterId: foundNextCharacter.id,
+            },
+          })
+            .then(() => setActiveCharacter(foundNextCharacter))
+            .catch((err) => console.error('Failed to update world state:', err));
+          setMessages((prev) => [...prev, assistantMessage]);
+        }
+      } else {
+        const response = await getAnswerToQuestion({
+          question: playerInput,
+          worldState,
+          character: actingCharacter,
+        });
+
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.answer,
+        };
+
+        await updateWorldState({
+          gameId: activeGameId,
+          updates: { messages: [...newMessages, assistantMessage] },
+        });
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to process input:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'An unknown error occurred.' });
+      setMessages(messagesWithoutRecap);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
-};
+  };
 
   const handleHandoffConfirm = async () => {
-    if (!activeGameId || !nextCharacter || !worldState || !previousWorldState) return;
+    if (!activeGameId || !nextCharacter || !worldState) return;
 
     setShowHandoff(false);
-    
-    // The world state was already updated in memory, now we just persist it with the new active character
+
     await updateWorldState({
       gameId: activeGameId,
-      updates: {
-        activeCharacterId: nextCharacter.id,
-      }
+      updates: { activeCharacterId: nextCharacter.id },
     });
 
     setActiveCharacter(nextCharacter);
     setNextCharacter(null);
   };
 
-
   const handleUndo = async () => {
     if (!activeGameId || !previousWorldState) {
-        toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
-        return;
+      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
+      return;
     }
     setIsLoading(true);
     try {
-        const result = await undoLastAction(activeGameId);
-        if (result.success) {
-            toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
-        } else {
-            throw new Error(result.message || 'Failed to undo the last action.');
-        }
+      const result = await undoLastAction(activeGameId);
+      if (result.success) {
+        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
+      } else {
+        throw new Error(result.message || 'Failed to undo the last action.');
+      }
     } catch (error) {
-        const err = error as Error;
-        console.error("Failed to undo:", err);
-        toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
+      const err = error as Error;
+      console.error('Failed to undo:', err);
+      toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -710,52 +720,48 @@ ${characterList ? `\n**Your party:**\n${characterList}\n` : ''}
 
     setIsLoading(true);
     toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
-    
+
     try {
-        const currentCharacters = gameData.characters || [];
-        if (currentCharacters.length === 0) {
-            throw new Error("Cannot regenerate storyline without characters.");
-        }
-        
-        const charactersForAI: AICharacter[] = currentCharacters.map(c => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            aspect: c.aspect,
-            playerName: c.playerName,
-            archetype: c.archetype,
-            pronouns: c.pronouns,
-            age: c.age,
-            stats: c.stats,
-        }));
-        
-        const generationInputBase = {
-            setting: gameData.setting,
-            tone: gameData.tone,
-            characters: charactersForAI
-        };
-        
-        setGenerationProgress({ current: 1, total: 3, step: "Generating core campaign concepts..." });
-        const coreConcepts = await generateCore(generationInputBase);
+      const currentCharacters = gameData.characters || [];
+      if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
 
-        setGenerationProgress({ current: 2, total: 3, step: "Designing key factions and threats..." });
-        const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
+      const charactersForAI: AICharacter[] = currentCharacters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        aspect: c.aspect,
+        playerName: c.playerName,
+        archetype: c.archetype,
+        pronouns: c.pronouns,
+        age: c.age,
+        stats: c.stats,
+      }));
 
-        setGenerationProgress({ current: 3, total: 3, step: "Building the web of story nodes..." });
-        const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
+      const generationInputBase = {
+        setting: gameData.setting,
+        tone: gameData.tone,
+        characters: charactersForAI,
+      };
 
-        const campaignStructure = {
-            campaignIssues: coreConcepts.campaignIssues,
-            campaignAspects: coreConcepts.campaignAspects,
-            factions,
-            nodes,
-        };
-        
-        const startingNode = campaignStructure.nodes.find(n => n.isStartingNode) || campaignStructure.nodes[0];
-        
-        const characterList = currentCharacters.map(c => `- **${c.name}** (*${c.playerName || 'GM'}*): ${c.description}`).join('\n');
+      setGenerationProgress({ current: 1, total: 3, step: 'Generating core campaign concepts...' });
+      const coreConcepts = await generateCore(generationInputBase);
 
-        const finalInitialMessageContent = `
+      setGenerationProgress({ current: 2, total: 3, step: 'Designing key factions and threats...' });
+      const factions = await generateFactionsAction({ ...generationInputBase, ...coreConcepts });
+
+      setGenerationProgress({ current: 3, total: 3, step: 'Building the web of story nodes...' });
+      const nodes = await generateNodesAction({ ...generationInputBase, ...coreConcepts, factions });
+
+      const campaignStructure = {
+        campaignIssues: coreConcepts.campaignIssues,
+        campaignAspects: coreConcepts.campaignAspects,
+        factions,
+        nodes,
+      };
+
+      const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
+
+      const finalInitialMessageContent = `
 # Welcome to your (newly regenerated) adventure!
 
 ## Setting
@@ -771,32 +777,33 @@ ${startingNode.description}
 The stage is set. What do you do?
 `.trim();
 
-        const finalInitialMessage: Message = { id: `regen-start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
-        
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-                'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-                'worldState.storyOutline': campaignStructure.nodes.map(n => n.title),
-                'worldState.recentEvents': ["The adventure has just begun."],
-                'worldState.storyAspects': campaignStructure.campaignAspects,
-                'worldState.knownPlaces': [],
-                'worldState.knownFactions': [],
-                'worldState.places': [],
-                'messages': [finalInitialMessage],
-                'storyMessages': [{ content: finalInitialMessageContent }],
-                previousWorldState: null,
-            }
-        });
+      const finalInitialMessage: Message = { id: `regen-start-${Date.now()}`, role: 'assistant', content: finalInitialMessageContent };
 
-        toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: {
+          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+          'worldState.storyOutline': campaignStructure.nodes.map((n) => n.title),
+          'worldState.recentEvents': ['The adventure has just begun.'],
+          'worldState.storyAspects': campaignStructure.campaignAspects,
+          'worldState.knownPlaces': [],
+          'worldState.knownFactions': [],
+          'worldState.places': [],
+          messages: [finalInitialMessage],
+          storyMessages: [{ content: finalInitialMessageContent }],
+          previousWorldState: null,
+        },
+      });
+
+      toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
+      setTtsCursor(0);
     } catch (error) {
-        const err = error as Error;
-        console.error("Failed to regenerate storyline:", err);
-        toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
+      const err = error as Error;
+      console.error('Failed to regenerate storyline:', err);
+      toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
     } finally {
-        setGenerationProgress(null);
-        setIsLoading(false);
+      setGenerationProgress(null);
+      setIsLoading(false);
     }
   };
 
@@ -805,30 +812,29 @@ The stage is set. What do you do?
 
     const gameIdToDelete = deleteConfirmation.id;
     deletingGameId.current = gameIdToDelete;
-    setDeleteConfirmation(null); // Close dialog
-    
-    router.push('/play'); // Navigate away first
-    
+    setDeleteConfirmation(null);
+    router.push('/play');
+
     const result = await deleteGame(gameIdToDelete);
     if (result.success) {
-        toast({ title: "Game Deleted", description: "The game session has been successfully deleted." });
+      toast({ title: 'Game Deleted', description: 'The game session has been successfully deleted.' });
     } else {
-        toast({ variant: 'destructive', title: "Deletion Failed", description: result.message });
+      toast({ variant: 'destructive', title: 'Deletion Failed', description: result.message });
     }
     deletingGameId.current = null;
   };
-  
+
   const handleRenameGame = async () => {
     if (!renameTarget || !newGameName.trim()) return;
-    
+
     const gameIdToRename = renameTarget.id;
     setRenameTarget(null);
 
     const result = await renameGame(gameIdToRename, newGameName);
     if (result.success) {
-        toast({ title: "Game Renamed", description: "The game session has been successfully renamed." });
+      toast({ title: 'Game Renamed', description: 'The game session has been successfully renamed.' });
     } else {
-        toast({ variant: 'destructive', title: "Rename Failed", description: result.message });
+      toast({ variant: 'destructive', title: 'Rename Failed', description: result.message });
     }
     setNewGameName('');
   };
@@ -836,15 +842,15 @@ The stage is set. What do you do?
   const handleUpdatePlayerSlots = async (slots: PlayerSlot[]) => {
     if (!activeGameId) return;
 
-    const updatedCharacters = slots.map(s => s.character).filter(Boolean) as Character[];
+    const updatedCharacters = slots.map((s) => s.character).filter(Boolean) as Character[];
     const db = getFirestore();
-    
+
     try {
-        await updateDoc(doc(db, "games", activeGameId), {
-            'worldState.characters': updatedCharacters,
-            'gameData.characters': updatedCharacters,
-        });
-    } catch(e) {
+      await updateDoc(doc(db, 'games', activeGameId), {
+        'worldState.characters': updatedCharacters,
+        'gameData.characters': updatedCharacters,
+      });
+    } catch (e) {
       const err = e as Error;
       toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
@@ -855,29 +861,26 @@ The stage is set. What do you do?
       setActiveCharacter(char);
       updateWorldState({ gameId: activeGameId, updates: { activeCharacterId: char.id } });
     }
-  }
+  };
 
-  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string; }) => {
+  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string }) => {
     if (!user) return;
     const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
     if (result.success) {
       toast({ title: 'Profile Updated', description: 'Your preferences have been saved.' });
       setIsAccountDialogOpen(false);
-      // Auth state listener should pick up the change eventually, force a reload if needed
-      // Forcing a hard reload to ensure user object is updated everywhere
       window.location.reload();
     } else {
       toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
     }
   };
 
-
   const renderContent = () => {
     switch (step) {
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
       case 'characters':
-         return (
+        return (
           <CharacterCreationForm
             gameData={gameData!}
             initialCharacters={characters}
@@ -891,18 +894,14 @@ The stage is set. What do you do?
           />
         );
       case 'play':
-         if (generationProgress) {
-            return (
-                <div className="flex h-full w-full items-center justify-center p-4">
-                    <GenerationProgress
-                        current={generationProgress.current}
-                        total={generationProgress.total}
-                        step={generationProgress.step}
-                    />
-                </div>
-            );
+        if (generationProgress) {
+          return (
+            <div className="flex h-full w-full items-center justify-center p-4">
+              <GenerationProgress current={generationProgress.current} total={generationProgress.total} step={generationProgress.step} />
+            </div>
+          );
         }
-         return (
+        return (
           <GameView
             messages={messages}
             storyMessages={storyMessages}
@@ -919,7 +918,7 @@ The stage is set. What do you do?
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
-            // TTS props
+            // TTS props (unchanged API for GameView)
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
@@ -935,7 +934,6 @@ The stage is set. What do you do?
           />
         );
       default:
-        // This case should be covered by the top-level loading check, but it's a good failsafe.
         return (
           <div className="flex h-full w-full items-center justify-center">
             <LoadingSpinner className="h-8 w-8" />
@@ -960,8 +958,62 @@ The stage is set. What do you do?
       >
         {renderContent()}
       </AppShell>
-      
-      {/* Turn Handoff Dialog for Local Play */}
+
+      {/* Floating TTS Panel (no GameView change needed) */}
+      <div className="fixed bottom-4 right-4 flex flex-col items-end gap-2 z-40">
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setTtsPanelOpen(o => !o)}>
+            🎙️ Narrator
+          </Button>
+          <Button variant="ghost" onClick={cycleTtsVolume} title="Narrator volume">
+            {ttsVolume === 'low' && '🔈 Low'}
+            {ttsVolume === 'med' && '🔉 Med'}
+            {ttsVolume === 'high' && '🔊 High'}
+          </Button>
+        </div>
+
+        {ttsPanelOpen && (
+          <Card className="w-[360px] max-h-[50vh] overflow-auto shadow-xl">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium">Read from here</div>
+                <div className="text-xs text-muted-foreground">Cursor: {ttsCursor}/{proseItems.length}</div>
+              </div>
+              <div className="space-y-2">
+                {proseItems.length === 0 && (
+                  <div className="text-xs text-muted-foreground">No narration yet.</div>
+                )}
+                {proseItems.map((p, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Button
+                      size="sm"
+                      variant={i === ttsCursor ? 'default' : 'outline'}
+                      onClick={() => handleReadFromIndex(i)}
+                    >
+                      ▶
+                    </Button>
+                    <div className="text-xs leading-snug mt-1">
+                      <span className="font-mono text-muted-foreground">[{i}] </span>
+                      {p ? (p.length > 120 ? p.slice(0, 120) + '…' : p) : <em className="text-muted-foreground">—</em>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" onClick={handlePlayAll}>Play from cursor</Button>
+                {isPaused ? (
+                  <Button size="sm" variant="secondary" onClick={() => { resume(); setTimeout(() => resume(), 50); }}>Resume</Button>
+                ) : (
+                  <Button size="sm" variant="secondary" onClick={pause}>Pause</Button>
+                )}
+                <Button size="sm" variant="destructive" onClick={() => { cancel(); }}>Stop</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Turn Handoff Dialog */}
       {showHandoff && nextCharacter && (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-[425px] text-center p-8">
@@ -969,27 +1021,27 @@ The stage is set. What do you do?
               <DialogTitle className="text-2xl font-headline text-center">Turn Complete!</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-2">
-              <p>Pass the device to <strong className="text-primary">{nextCharacter.playerName}</strong>.</p>
+              <p>
+                Pass the device to <strong className="text-primary">{nextCharacter.playerName}</strong>.
+              </p>
               <p className="text-muted-foreground">You are playing as {nextCharacter.name}.</p>
             </div>
             <DialogFooter className="sm:justify-center">
               <Button type="button" size="lg" onClick={handleHandoffConfirm}>
-                Start {nextCharacter.playerName}'s Turn <ArrowRight className="ml-2 h-5 w-5"/>
+                Start {nextCharacter.playerName}'s Turn <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
-      
-      {/* Confirmation Dialog for any action */}
+
+      {/* Confirmation Dialog */}
       {confirmation && (
         <AlertDialog open onOpenChange={() => setConfirmation(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {confirmation.message}
-              </AlertDialogDescription>
+              <AlertDialogDescription>{confirmation.message}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setConfirmation(null)}>Cancel</AlertDialogCancel>
@@ -999,19 +1051,25 @@ The stage is set. What do you do?
         </AlertDialog>
       )}
 
-      {/* Delete Game Confirmation Dialog */}
+      {/* Delete Game Confirmation */}
       {deleteConfirmation && (
         <AlertDialog open onOpenChange={() => setDeleteConfirmation(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Game?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to permanently delete the game "{deleteConfirmation.gameData.name}"? This action cannot be undone.
+                Are you sure you want to permanently delete the game "{deleteConfirmation.gameData.name}"? This action cannot be
+                undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteGame} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
+              <AlertDialogAction
+                onClick={handleDeleteGame}
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1039,7 +1097,9 @@ The stage is set. What do you do?
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleRenameGame}>Save changes</Button>
+              <Button type="submit" onClick={handleRenameGame}>
+                Save changes
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

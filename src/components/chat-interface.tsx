@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -18,7 +16,6 @@ import { SendHorizonal, User, Bot, History, Ban } from 'lucide-react';
 import { SpeechInput } from './speech-input';
 import type { User as FirebaseUser } from 'firebase/auth';
 
-
 type ChatInterfaceProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
@@ -28,7 +25,54 @@ type ChatInterfaceProps = {
   canAct: boolean;
 };
 
-export function ChatInterface({ messages, onSendMessage, isLoading, activeCharacter, currentUser, canAct }: ChatInterfaceProps) {
+/** Dedent + normalize markdown so headings render instead of showing '#' */
+function normalizeMarkdown(md: string): string {
+  if (!md) return '';
+  // Normalize newlines
+  let s = md.replace(/\r\n/g, '\n');
+
+  // Split and compute minimal indent for non-empty, non-fenced lines
+  const lines = s.split('\n');
+  let inFence = false;
+  let minIndent = Number.POSITIVE_INFINITY;
+
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('```')) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    if (line.trim().length === 0) continue;
+    const m = line.match(/^\s*/);
+    if (m) minIndent = Math.min(minIndent, m[0].length);
+  }
+  if (!isFinite(minIndent)) minIndent = 0;
+
+  // Remove that indent for non-fenced lines
+  inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart();
+    if (trimmed.startsWith('```')) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    if (minIndent > 0) lines[i] = lines[i].slice(Math.min(minIndent, lines[i].length));
+  }
+  s = lines.join('\n');
+
+  // Ensure headings are at true line start (allow up to 3 spaces per CommonMark)
+  s = s.replace(/^( {1,3})(#{1,6}\s)/gm, '$2');
+
+  // Optional: collapse >2 blank lines
+  s = s.replace(/\n{3,}/g, '\n\n');
+
+  return s;
+}
+
+export function ChatInterface({
+  messages,
+  onSendMessage,
+  isLoading,
+  activeCharacter,
+  currentUser,
+  canAct
+}: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -37,10 +81,10 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
   useEffect(() => {
     // Auto-scroll to bottom
     if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div');
-        if (viewport) {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
-        }
+      const viewport = scrollAreaRef.current.querySelector('div');
+      if (viewport) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+      }
     }
   }, [messages]);
 
@@ -76,16 +120,16 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
       handleSubmit(e);
     }
   };
-  
+
   const getInitials = (name: string = '') => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'P';
-  }
-  
+  };
+
   const placeholderText = () => {
     if (!activeCharacter) return "Select a character to act";
     if (!canAct) return `Waiting for ${activeCharacter.name} to act...`;
     return `What does ${activeCharacter.name} do?`;
-  }
+  };
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -95,6 +139,7 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
             const isUser = message.role === 'user';
             const isSystem = message.role === 'system';
             const contentWithDialogue = formatDialogue(message.content, `chat-msg-${index}`);
+            const normalized = normalizeMarkdown(contentWithDialogue);
             const author = message.authorName || (isUser ? 'Player' : 'GM');
             return (
               <div
@@ -106,31 +151,40 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
               >
                 {!isUser && (
                   <Avatar className="w-8 h-8 bg-primary text-primary-foreground flex-shrink-0">
-                    <AvatarFallback>{isSystem ? <History className="w-5 h-5" /> : <Bot className="w-5 h-5" />}</AvatarFallback>
+                    <AvatarFallback>
+                      {isSystem ? <History className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                    </AvatarFallback>
                   </Avatar>
                 )}
                 <div
                   className={cn(
                     'max-w-xl rounded-lg p-3.5 shadow-sm relative group',
-                     isUser
+                    isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
-                      : isSystem 
+                      : isSystem
                       ? 'w-full max-w-2xl bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100 rounded-lg'
                       : 'bg-background border rounded-bl-none'
                   )}
                 >
-                  <div className={cn(
-                      "text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2",
-                      isSystem && "prose-headings:text-amber-900 dark:prose-headings:text-amber-100"
-                    )}>
+                  <div
+                    className={cn(
+                      'text-sm prose dark:prose-invert prose-p:my-0 prose-headings:my-2',
+                      isSystem && 'prose-headings:text-amber-900 dark:prose-headings:text-amber-100'
+                    )}
+                  >
                     {isUser && <p className="text-xs font-bold mb-2">{author}</p>}
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                      {contentWithDialogue}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw]}
+                    >
+                      {normalized}
                     </ReactMarkdown>
                   </div>
                   {message.mechanics && (
                     <div className="mt-3 pt-3 border-t border-dashed border-muted-foreground/30">
-                      <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">{message.mechanics}</p>
+                      <p className="text-xs text-muted-foreground italic whitespace-pre-wrap">
+                        {message.mechanics}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -140,19 +194,21 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
                   </Avatar>
                 )}
               </div>
-            )
+            );
           })}
-           {isLoading && messages[messages.length - 1]?.role === 'user' && (
+          {isLoading && messages[messages.length - 1]?.role === 'user' && (
             <div key="loading-indicator" className="flex items-start gap-4 justify-start">
-               <Avatar className="w-8 h-8 bg-primary text-primary-foreground">
-                  <AvatarFallback><Bot className="w-5 h-5" /></AvatarFallback>
-                </Avatar>
-                <div className="max-w-xl rounded-lg p-4 bg-card border rounded-bl-none">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <LoadingSpinner className="w-4 h-4 animate-spin"/>
-                        <span>GM is thinking...</span>
-                    </div>
+              <Avatar className="w-8 h-8 bg-primary text-primary-foreground">
+                <AvatarFallback>
+                  <Bot className="w-5 h-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="max-w-xl rounded-lg p-4 bg-card border rounded-bl-none">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <LoadingSpinner className="w-4 h-4 animate-spin" />
+                  <span>GM is thinking...</span>
                 </div>
+              </div>
             </div>
           )}
         </div>
@@ -173,17 +229,22 @@ export function ChatInterface({ messages, onSendMessage, isLoading, activeCharac
           <div className="absolute right-12 bottom-2">
             <SpeechInput onTranscript={setInput} disabled={isLoading || !canAct} />
           </div>
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim() || !canAct} className="flex-shrink-0 bg-accent hover:bg-accent/90">
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input.trim() || !canAct}
+            className="flex-shrink-0 bg-accent hover:bg-accent/90"
+          >
             <SendHorizonal className="h-5 w-5" />
             <span className="sr-only">Send</span>
           </Button>
         </form>
-         {!canAct && activeCharacter && (
-            <div className="text-center text-xs text-muted-foreground pt-2 animate-pulse flex items-center justify-center gap-2">
-              <Ban className="h-3 w-3" />
-              It's not your turn. Only questions are allowed.
-            </div>
-          )}
+        {!canAct && activeCharacter && (
+          <div className="text-center text-xs text-muted-foreground pt-2 animate-pulse flex items-center justify-center gap-2">
+            <Ban className="h-3 w-3" />
+            It's not your turn. Only questions are allowed.
+          </div>
+        )}
       </div>
     </div>
   );
