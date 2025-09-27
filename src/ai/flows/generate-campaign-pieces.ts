@@ -21,7 +21,7 @@ import {
   type GenerateCampaignStructureInput,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { MODEL_GENERATION } from '../models';
-import {z} from 'zod';
+import {z} from 'genkit';
 import { 
   generateCampaignCorePromptText, 
   generateCampaignFactionsPromptText, 

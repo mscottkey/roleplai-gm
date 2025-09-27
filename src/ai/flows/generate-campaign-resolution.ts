@@ -35,6 +35,9 @@ export const generateCampaignResolution = ai.defineFlow(
       retries: 2,
     });
     
-    return output!;
+    if (!output) {
+      throw new Error('The AI failed to generate the campaign\'s resolution and endgame.');
+    }
+    return output;
   }
 );
