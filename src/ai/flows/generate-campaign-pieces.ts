@@ -97,6 +97,9 @@ export const generateCampaignNodes = ai.defineFlow(
   async (input) => {
     const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
     
+    // Define the schema for the AI's output, excluding the 'id' field which we'll generate.
+    const NodeGenerationSchema = NodeSchema.omit({ id: true });
+    
     const { output } = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignNodesPromptText,
@@ -106,12 +109,16 @@ export const generateCampaignNodes = ai.defineFlow(
       },
       output: {
         format: 'json',
-        schema: z.array(NodeSchema.omit({ id: true })),
+        schema: z.array(NodeGenerationSchema),
       },
     });
 
+    if (!output || output.length === 0) {
+      throw new Error('The AI failed to generate any campaign nodes. The campaign structure could not be built.');
+    }
+
     // Manually add UUIDs to each node after generation
-    const nodesWithIds = output!.map(node => ({
+    const nodesWithIds = output.map(node => ({
       ...node,
       id: randomUUID(),
     }));
