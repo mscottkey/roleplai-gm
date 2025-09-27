@@ -965,7 +965,7 @@ The stage is set. What do you do?
     isSpeaking, isPaused, isAutoPlayEnabled, isTTSSupported: supported,
     onPlay: handlePlayAll, onPause: pause, onStop: cancel,
     onSetAutoPlay: setIsAutoPlayEnabled, voices, selectedVoice, onSelectVoice: selectVoice,
-    ttsVolume, onCycleTtsVolume,
+    ttsVolume, onCycleTtsVolume: cycleTtsVolume,
   };
 
   const renderContent = () => {
