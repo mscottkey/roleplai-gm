@@ -433,28 +433,6 @@ export default function RoleplAIGMPage() {
     };
   }, [activeGameId, router, toast]);
 
-  const handleUndo = async () => {
-    if (!activeGameId || !previousWorldState) {
-      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const result = await undoLastAction(activeGameId);
-      if (result.success) {
-        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
-      } else {
-        throw new Error(result.message || 'Failed to undo the last action.');
-      }
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to undo:', err);
-      toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleUpdateStatus = async (status: SessionStatus) => {
     if (!activeGameId) return;
     const result = await updateSessionStatus(activeGameId, status);
@@ -581,6 +559,28 @@ ${startingNode ? startingNode.description : gameData.setting}
       setStep('play');
     }
   }, [activeGameId, gameData, toast]);
+
+  const handleUndo = async () => {
+    if (!activeGameId || !previousWorldState) {
+      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await undoLastAction(activeGameId);
+      if (result.success) {
+        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
+      } else {
+        throw new Error(result.message || 'Failed to undo the last action.');
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to undo:', err);
+      toast({ variant: 'destructive', title: 'Undo Error', description: err.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (step === 'loading') {
     return (
@@ -1075,12 +1075,12 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={onUndo}
+            onUndo={handleUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             isSpeaking={isSpeaking}
             isPaused={isPaused}
