@@ -7,7 +7,7 @@
  * - generateCampaignStructure - A function that builds out the campaign web by orchestrating smaller generation flows.
  */
 
-import {ai} from 'genkit';
+import { ai } from '@/ai/genkit';
 import {
   GenerateCampaignStructureInputSchema,
   GenerateCampaignStructureOutputSchema,
