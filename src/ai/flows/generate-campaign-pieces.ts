@@ -18,7 +18,7 @@ import {
   GenerateFactionsInputSchema,
   GenerateNodesInputSchema,
   NodeSchema,
-  type GenerateCampaignStructureInput,
+  GenerateCampaignStructureInputSchema,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { MODEL_GENERATION } from '../models';
 import {z} from 'genkit';
@@ -30,20 +30,17 @@ import {
 import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 import { randomUUID } from 'crypto';
 
+const GenerateCampaignCoreInputSchema = GenerateCampaignStructureInputSchema.extend({
+  settingCategory: z.string(),
+});
+export type GenerateCampaignCoreInput = z.infer<typeof GenerateCampaignCoreInputSchema>;
 
-type GenerateCampaignCoreInput = GenerateCampaignStructureInput & { settingCategory: string };
 
-// Flow 1: Generate Core Concepts
-export const generateCampaignCore = ai.defineFlow(
-  {
-    name: 'generateCampaignCore',
-    inputSchema: z.custom<GenerateCampaignCoreInput>(),
-    outputSchema: CampaignCoreSchema,
-  },
-  async (input) => {
+// Step 1: Generate Core Concepts
+export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
     const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
     
-    const { output } = await ai.generate({
+    const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignCorePromptText,
       input: {
@@ -59,21 +56,17 @@ export const generateCampaignCore = ai.defineFlow(
       retries: 2,
     });
     
-    return output!;
-  }
-);
+    if (!result.output) {
+      throw new Error('AI failed to generate campaign core concepts.');
+    }
+    return result;
+}
 
-// Flow 2: Generate Factions
-export const generateCampaignFactions = ai.defineFlow(
-  {
-    name: 'generateCampaignFactions',
-    inputSchema: GenerateFactionsInputSchema,
-    outputSchema: z.array(FactionSchema),
-  },
-  async (input) => {
+// Step 2: Generate Factions
+export async function generateCampaignFactions(input: z.infer<typeof GenerateFactionsInputSchema>) {
     const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
 
-    const { output } = await ai.generate({
+    const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignFactionsPromptText,
       input: {
@@ -86,24 +79,20 @@ export const generateCampaignFactions = ai.defineFlow(
       },
       retries: 2,
     });
-    return output!;
-  }
-);
 
-// Flow 3: Generate Nodes
-export const generateCampaignNodes = ai.defineFlow(
-  {
-    name: 'generateCampaignNodes',
-    inputSchema: GenerateNodesInputSchema,
-    outputSchema: z.array(NodeSchema),
-  },
-  async (input) => {
+    if (!result.output || result.output.length === 0) {
+      throw new Error('AI failed to generate campaign factions.');
+    }
+    return result;
+}
+
+// Step 3: Generate Nodes
+export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesInputSchema>) {
     const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
     
-    // Define the schema for the AI's output, excluding the 'id' field which we'll generate.
     const NodeGenerationSchema = NodeSchema.omit({ id: true });
     
-    const { output } = await ai.generate({
+    const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignNodesPromptText,
       input: {
@@ -117,16 +106,16 @@ export const generateCampaignNodes = ai.defineFlow(
       retries: 2,
     });
 
+    const output = result.output;
+
     if (!output || output.length === 0) {
       throw new Error('The AI failed to generate any campaign nodes. The campaign structure could not be built.');
     }
 
-    // Manually add UUIDs to each node after generation
     const nodesWithIds = output.map(node => ({
       ...node,
       id: randomUUID(),
     }));
     
-    return nodesWithIds;
-  }
-);
+    return { ...result, output: nodesWithIds };
+}

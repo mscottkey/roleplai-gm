@@ -14,17 +14,12 @@ import {
 } from '@/ai/schemas/campaign-structure-schemas';
 import { MODEL_GENERATION } from '../models';
 import { generateCampaignResolutionPromptText } from '../prompts/generate-campaign-resolution-prompt';
+import { z } from 'genkit';
 
 
-export const generateCampaignResolution = ai.defineFlow(
-  {
-    name: 'generateCampaignResolution',
-    inputSchema: GenerateResolutionInputSchema,
-    outputSchema: CampaignResolutionSchema,
-  },
-  async (input) => {
+export async function generateCampaignResolution(input: z.infer<typeof GenerateResolutionInputSchema>) {
     
-    const { output } = await ai.generate({
+    const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignResolutionPromptText,
       input: input,
@@ -35,9 +30,8 @@ export const generateCampaignResolution = ai.defineFlow(
       retries: 2,
     });
     
-    if (!output) {
+    if (!result.output) {
       throw new Error('The AI failed to generate the campaign\'s resolution and endgame.');
     }
-    return output;
-  }
-);
+    return result;
+}
