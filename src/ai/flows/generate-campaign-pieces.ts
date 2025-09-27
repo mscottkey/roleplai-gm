@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -55,6 +56,7 @@ export const generateCampaignCore = ai.defineFlow(
         format: 'json',
         schema: CampaignCoreSchema,
       },
+      retries: 2,
     });
     
     return output!;
@@ -82,6 +84,7 @@ export const generateCampaignFactions = ai.defineFlow(
         format: 'json',
         schema: z.array(FactionSchema),
       },
+      retries: 2,
     });
     return output!;
   }
@@ -111,6 +114,7 @@ export const generateCampaignNodes = ai.defineFlow(
         format: 'json',
         schema: z.array(NodeGenerationSchema),
       },
+      retries: 2,
     });
 
     if (!output || output.length === 0) {

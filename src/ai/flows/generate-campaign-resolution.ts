@@ -32,6 +32,7 @@ export const generateCampaignResolution = ai.defineFlow(
         format: 'json',
         schema: CampaignResolutionSchema,
       },
+      retries: 2,
     });
     
     return output!;
