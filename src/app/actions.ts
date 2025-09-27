@@ -1,11 +1,11 @@
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import { resolveAction as resolveActionFlow, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
-import { classifyIntent as classifyIntentFlow } from "@/ai/flows/classify-intent";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput as GenCampaignInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
@@ -109,7 +109,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       knownFactions: [],
       factions: [],
       nodeStates: {},
-      resolution: undefined,
+      resolution: null,
       turn: 0,
       currentScene: {
         nodeId: "start",
