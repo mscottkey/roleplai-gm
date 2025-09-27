@@ -10,6 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
 import { GenerateCharacterInputSchema, GenerateCharacterOutputSchema, SingleCharacterInputSchema, CharacterSchema, type GenerateCharacterInput, type GenerateCharacterOutput } from '@/ai/schemas/generate-character-schemas';
 import { MODEL_GENERATION } from '../models';
 import { generateSingleCharacterPromptText } from '../prompts/generate-character-prompt';
