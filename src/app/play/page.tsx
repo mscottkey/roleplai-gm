@@ -18,7 +18,6 @@ import {
   updateWorldState,
   checkConsequences,
   undoLastAction,
-  generateCampaignStructureAction,
   generateRecap,
   deleteGame,
   renameGame,
@@ -80,7 +79,7 @@ import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Textarea } from '@/components/ui/textarea';
-import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignCore, CampaignResolution, CampaignStructure, Faction, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, Node } from '@/ai/schemas/campaign-structure-schemas';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -504,116 +503,73 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleCharactersFinalized = async (finalCharacters: Character[]) => {
+  const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
-
+  
     if (finalCharacters.length === 0) {
       toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.' });
       return;
     }
-
+  
     if (finalCharacters.some((c) => !c.playerName.trim())) {
-      toast({
-        variant: 'destructive',
-        title: 'Player Names Required',
-        description: 'All characters must have a player name before starting the game.',
-      });
+      toast({ variant: 'destructive', title: 'Player Names Required', description: 'All characters must have a player name before starting.' });
       return;
     }
-
+  
     if (gameData.playMode === 'remote' && finalCharacters.some((c) => !c.playerId)) {
-      toast({
-        variant: 'destructive',
-        title: 'Unclaimed Characters',
-        description: 'All characters must be claimed by a player before starting a remote game.',
-      });
+      toast({ variant: 'destructive', title: 'Unclaimed Characters', description: 'All characters must be claimed by a player.' });
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     const plainCharacters: Character[] = finalCharacters.map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      aspect: c.aspect,
-      playerName: c.playerName,
-      isCustom: c.isCustom,
-      archetype: c.archetype,
-      pronouns: c.pronouns,
-      age: c.age,
-      stats: c.stats,
-      playerId: c.playerId,
+      id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
+      archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
     }));
-
+  
     try {
-        await updateDoc(doc(getFirestore(), 'games', activeGameId), {
-            'gameData.characters': plainCharacters,
-            'worldState.characters': plainCharacters,
-            activeCharacterId: finalCharacters.length > 0 ? finalCharacters[0].id : null,
-        });
-
-        toast({ title: 'Finalizing Party', description: 'Saving characters and building the world...' });
-
-        const charactersForAI: AICharacter[] = plainCharacters.map((c) => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            aspect: c.aspect,
-            playerName: c.playerName,
-            archetype: c.archetype,
-            pronouns: c.pronouns,
-            age: c.age,
-            stats: c.stats,
-        }));
-        
-        // Step 1: Classify Setting
-        setGenerationProgress({ current: 1, total: 5, step: 'Classifying setting...' });
-        const classification = await unifiedClassify({
-            setting: gameData.setting,
-            tone: gameData.tone,
-            gameContext: { isFirstClassification: true }
-        });
-        const settingCategory = classification.settingClassification?.category || 'generic';
-
-        const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
-
-        // Step 2: Generate Core Concepts
-        setGenerationProgress({ current: 2, total: 5, step: 'Generating core concepts...' });
-        const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory });
-
-        // Step 3: Generate Factions
-        setGenerationProgress({ current: 3, total: 5, step: 'Designing factions...' });
-        const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory });
-
-        // Step 4: Generate Nodes
-        setGenerationProgress({ current: 4, total: 5, step: 'Building locations & situations...' });
-        const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory });
-
-        // Step 5: Generate Resolution
-        setGenerationProgress({ current: 5, total: 5, step: 'Defining endgame...' });
-        const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory });
-        
-        const finalCampaignStructure: CampaignStructure = {
-            campaignIssues: coreConcepts.campaignIssues,
-            campaignAspects: coreConcepts.campaignAspects,
-            factions,
-            nodes,
-            resolution,
-        };
-
-        const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
-        if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
-
-        const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
+      await updateDoc(doc(getFirestore(), 'games', activeGameId), {
+        'gameData.characters': plainCharacters, 'worldState.characters': plainCharacters,
+        activeCharacterId: finalCharacters[0].id,
+      });
+  
+      toast({ title: 'Finalizing Party', description: 'Saving characters and building the world...' });
+  
+      const charactersForAI: AICharacter[] = plainCharacters.map((c) => ({
+        id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName,
+        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats,
+      }));
       
-        const welcomeMessageForChat: Message = { 
-            id: `start-chat-${Date.now()}`, 
-            role: 'system', 
-            content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?`
-        };
+      const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
 
-        const storyboardContent = `
+      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } });
+      const settingCategory = classification.settingClassification?.category || 'generic';
+  
+      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
+      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory });
+  
+      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
+      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory });
+  
+      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
+      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory });
+  
+      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
+      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory });
+      
+      const finalCampaignStructure: CampaignStructure = {
+        campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects,
+        factions, nodes, resolution,
+      };
+  
+      const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
+      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
+  
+      const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
+      const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
+      const storyboardContent = `
 # Welcome to ${gameData.name}
 
 ### Setting
@@ -631,40 +587,27 @@ ${gameData.difficulty}
 
 ${startingNode ? startingNode.description : gameData.setting}
 `.trim();
-
-
-        const knownPlaces = nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
-        const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
-
-        const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
-        nodes.forEach(node => {
-            initialNodeStates[node.id] = {
-                discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
-                playerKnowledge: [],
-                revealedSecrets: [],
-            };
-        });
-
-        await updateWorldState({
-            gameId: activeGameId,
-            updates: {
-                messages: [welcomeMessageForChat],
-                storyMessages: [{ content: storyboardContent }],
-                'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-                'worldState.storyOutline': nodes.map((n) => n.title),
-                'worldState.recentEvents': ['The adventure has just begun.'],
-                'worldState.storyAspects': coreConcepts.campaignAspects,
-                'worldState.places': knownPlaces,
-                'worldState.knownPlaces': [startingPlace],
-                'worldState.knownFactions': [],
-                'worldState.nodeStates': initialNodeStates,
-                'worldState.resolution': resolution,
-                'worldState.factions': factions,
-                'worldState.settingCategory': settingCategory,
-                previousWorldState: null,
-                step: 'play',
-            },
-        });
+  
+      const knownPlaces = nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
+      const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
+      const initialNodeStates: Record<string, any> = {};
+      nodes.forEach(node => {
+        initialNodeStates[node.id] = { discoveryLevel: node.isStartingNode ? 'visited' : 'unknown', playerKnowledge: [], revealedSecrets: [] };
+      });
+  
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: {
+          messages: [welcomeMessageForChat], storyMessages: [{ content: storyboardContent }],
+          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+          'worldState.storyOutline': nodes.map((n) => n.title), 'worldState.recentEvents': ['The adventure has just begun.'],
+          'worldState.storyAspects': coreConcepts.campaignAspects, 'worldState.places': knownPlaces,
+          'worldState.knownPlaces': [startingPlace], 'worldState.knownFactions': [],
+          'worldState.nodeStates': initialNodeStates, 'worldState.resolution': resolution,
+          'worldState.factions': factions, 'worldState.settingCategory': settingCategory,
+          previousWorldState: null, step: 'play',
+        },
+      });
     } catch (error) {
       const err = error as Error;
       console.error('Failed to finalize characters and generate campaign:', err);
@@ -672,9 +615,9 @@ ${startingNode ? startingNode.description : gameData.setting}
     } finally {
       setGenerationProgress(null);
       setIsLoading(false);
-      setStep('play'); // Ensure we move to play step even on failure to see error
+      setStep('play');
     }
-  };
+  }, [activeGameId, gameData, toast]);
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user || !campaignStructure) {
@@ -890,17 +833,37 @@ ${startingNode ? startingNode.description : gameData.setting}
         stats: c.stats,
       }));
 
-      const generationInputBase = {
+      const baseInput = {
         setting: gameData.setting,
         tone: gameData.tone,
         characters: charactersForAI,
       };
 
-      setGenerationProgress({ current: 1, total: 1, step: 'Generating new campaign structure...' });
-      const newCampaignStructure = await generateCampaignStructureAction(generationInputBase);
-      const { settingCategory, ...campaignDataToSave } = newCampaignStructure;
+      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } });
+      const settingCategory = classification.settingClassification?.category || 'generic';
 
-      const saveResult = await saveCampaignStructure(activeGameId, campaignDataToSave);
+      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
+      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory });
+
+      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
+      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory });
+
+      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
+      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory });
+
+      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
+      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory });
+        
+      const newCampaignStructure: CampaignStructure = {
+        campaignIssues: coreConcepts.campaignIssues,
+        campaignAspects: coreConcepts.campaignAspects,
+        factions,
+        nodes,
+        resolution,
+      };
+
+      const saveResult = await saveCampaignStructure(activeGameId, newCampaignStructure);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
       const startingNode = newCampaignStructure.nodes.find((n) => n.isStartingNode) || newCampaignStructure.nodes[0];
@@ -1112,7 +1075,7 @@ The stage is set. What do you do?
             setActiveCharacter={handleLocalCharacterSwitch}
             mechanicsVisibility={mechanicsVisibility}
             setMechanicsVisibility={setMechanicsVisibility}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
