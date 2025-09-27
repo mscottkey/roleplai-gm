@@ -23,6 +23,24 @@ import { logUsage, getUsageForGame, calculateCost } from './actions/usage';
 import { updateUserPreferences } from './actions/user-preferences';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 
+// Imports for granular campaign generation
+import { 
+    generateCampaignCore, 
+    generateCampaignFactions, 
+    generateCampaignNodes 
+} from "@/ai/flows/generate-campaign-pieces";
+import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
+import type { 
+    CampaignCore, 
+    Faction, 
+    Node, 
+    CampaignResolution, 
+    GenerateFactionsInput, 
+    GenerateNodesInput, 
+    GenerateResolutionInput
+} from '@/ai/schemas/campaign-structure-schemas';
+import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
+
 
 import { z } from 'genkit';
 import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-schemas";
@@ -31,12 +49,22 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion, onSnapshot, writeBatch } from 'firebase/firestore';
 
-import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
 import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
-import type { CampaignStructure, Node } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
+import { GenerationUsage } from "genkit";
+
+// Helper for user-friendly error messages
+function handleAIError(error: Error, defaultMessage: string): Error {
+    if (error.message.includes('503') || error.message.toLowerCase().includes('overloaded')) {
+        return new Error("The AI is currently experiencing high demand. Please wait a moment and try again.");
+    }
+    return new Error(`${defaultMessage}: ${error.message}`);
+}
+
 
 // Initialize Firebase Admin SDK
 function getAdminSDK() {
@@ -151,14 +179,14 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     await setDoc(gameRef, newGameDocument);
 
     // Now that we have a gameId, log the usage. This is non-blocking.
-    await logUsage(gameRef.id, 'generateNewGame', model, usage);
+    await logUsage(gameRef.id, 'generateNewGame', model, usage as GenerationUsage);
 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
   } catch (error) {
     console.error("Critical error in startNewGame action:", error);
     if (error instanceof Error) {
-      throw new Error(`Failed to generate a new game: ${error.message}`);
+      throw handleAIError(error, 'Failed to generate a new game');
     }
     throw new Error("Failed to generate a new game. Please try again.");
   }
@@ -197,7 +225,7 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   } catch (error) {
     console.error("Error in continueStory action:", error);
     if (error instanceof Error) {
-        throw new Error(`The story could not be continued: ${error.message}`);
+        throw handleAIError(error, 'The story could not be continued');
     }
     throw new Error("The story could not be continued. Please try again.");
   }
@@ -209,7 +237,7 @@ export async function createCharacter(input: GenerateCharacterInput): Promise<Ge
     } catch (error) {
         console.error("Full error in createCharacter action:", error);
         if (error instanceof Error) {
-            throw new Error(`Failed to generate characters: ${error.message}`);
+            throw handleAIError(error, 'Failed to generate characters');
         }
         throw new Error("Failed to generate characters. An unknown error occurred.");
     }
@@ -259,7 +287,7 @@ export async function updateWorldState(input: UpdateWorldStateInput): Promise<Up
   } catch (error) {
     console.error("Error in updateWorldState action:", error);
     if (error instanceof Error) {
-        throw new Error(`Failed to update the world state: ${error.message}`);
+        throw handleAIError(error, 'Failed to update the world state');
     }
     throw new Error("Failed to update the world state. Please try again.");
   }
@@ -275,7 +303,7 @@ export async function getAnswerToQuestion(input: AskQuestionInput): Promise<AskQ
   } catch (error) {
     console.error("Error in getAnswerToQuestion action:", error);
     if (error instanceof Error) {
-        throw new Error(`Failed to get an answer from the GM: ${error.message}`);
+        throw handleAIError(error, 'Failed to get an answer from the GM');
     }
     throw new Error("Failed to get an answer from the GM. Please try again.");
   }
@@ -287,23 +315,63 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput): Pr
     } catch (error) {
         console.error("Error in narratePlayerActions action:", error);
         if (error instanceof Error) {
-            throw new Error(`Failed to get GM acknowledgement: ${error.message}`);
+            throw handleAIError(error, 'Failed to get GM acknowledgement');
         }
         throw new Error("Failed to get GM acknowledgement. Please try again.");
     }
 }
 
+// Orchestrator action is left for potential future use or for non-interactive generation
 export async function generateCampaignStructureAction(input: GenCampaignInput): Promise<GenerateCampaignStructureOutput> {
     try {
         return await generateCampaignStructureFlow(input);
     } catch (error) {
         console.error("Error in generateCampaignStructureAction action:", error);
         if (error instanceof Error) {
-            throw new Error(`Failed to generate campaign structure: ${error.message}`);
+            throw handleAIError(error, 'Failed to generate campaign structure');
         }
         throw new Error("Failed to generate campaign structure. Please try again.");
     }
 }
+
+// Granular actions for client-side orchestration
+type CampaignCoreInput = { setting: string; tone: string; characters: AICharacter[], settingCategory: string };
+export async function generateCampaignCoreAction(input: CampaignCoreInput): Promise<CampaignCore> {
+    try {
+        return await generateCampaignCore(input);
+    } catch (e) {
+        if (e instanceof Error) throw handleAIError(e, 'Failed to generate campaign core concepts');
+        throw e;
+    }
+}
+
+export async function generateCampaignFactionsAction(input: GenerateFactionsInput): Promise<Faction[]> {
+    try {
+        return await generateCampaignFactions(input);
+    } catch (e) {
+        if (e instanceof Error) throw handleAIError(e, 'Failed to generate campaign factions');
+        throw e;
+    }
+}
+
+export async function generateCampaignNodesAction(input: GenerateNodesInput): Promise<Node[]> {
+    try {
+        return await generateCampaignNodes(input);
+    } catch (e) {
+        if (e instanceof Error) throw handleAIError(e, 'Failed to generate campaign nodes');
+        throw e;
+    }
+}
+
+export async function generateCampaignResolutionAction(input: GenerateResolutionInput): Promise<CampaignResolution> {
+    try {
+        return await generateCampaignResolution(input);
+    } catch (e) {
+        if (e instanceof Error) throw handleAIError(e, 'Failed to generate campaign resolution');
+        throw e;
+    }
+}
+
 
 export async function saveCampaignStructure(gameId: string, campaign: CampaignStructure): Promise<{ success: boolean; message?: string }> {
   try {
@@ -344,7 +412,7 @@ export async function checkConsequences(input: AssessConsequencesInput): Promise
     {
         console.error("Error in checkConsequences action:", error);
         if (error instanceof Error) {
-            throw new Error(`Failed to assess consequences: ${error.message}`);
+            throw handleAIError(error, 'Failed to assess consequences');
         }
         throw new Error("Failed to assess consequences. Please try again.");
     }
@@ -356,7 +424,7 @@ export async function generateRecap(input: GenerateRecapInput): Promise<Generate
     } catch (error) {
         console.error("Error in generateRecap action:", error);
         if (error instanceof Error) {
-            throw new Error(`Failed to generate recap: ${error.message}`);
+            throw handleAIError(error, 'Failed to generate recap');
         }
         throw new Error("Failed to generate recap. Please try again.");
     }
@@ -514,8 +582,10 @@ export async function regenerateGameConcept(gameId: string, request: string): Pr
         return { success: true, warningMessage: ipCheck.warningMessage };
     } catch (error) {
         console.error("Error in regenerateGameConcept action:", error);
-        const message = error instanceof Error ? error.message : "An unknown error occurred.";
-        return { success: false, message };
+        if (error instanceof Error) {
+            throw handleAIError(error, 'Failed to regenerate game concept');
+        }
+        throw new Error("Failed to regenerate game concept. Please try again.");
     }
 }
 
@@ -534,6 +604,9 @@ export async function regenerateField(gameId: string, input: RegenerateFieldInpu
         return { success: true };
     } catch (error) {
         console.error(`Error in regenerateField action for field ${input.fieldName}:`, error);
+        if (error instanceof Error) {
+            throw handleAIError(error, `Failed to regenerate ${input.fieldName}`);
+        }
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message };
     }
@@ -560,4 +633,5 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
 
 export { unifiedClassify };
     
+
 
