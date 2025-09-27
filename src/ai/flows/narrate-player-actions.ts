@@ -28,7 +28,7 @@ const NarratePlayerActionsOutputSchema = z.object({
 });
 export type NarratePlayerActionsOutput = z.infer<typeof NarratePlayerActionsOutputSchema>;
 
-type NarratePlayerActionsResponse = {
+export type NarratePlayerActionsResponse = {
   output: NarratePlayerActionsOutput;
   usage: GenerationUsage;
   model: string;

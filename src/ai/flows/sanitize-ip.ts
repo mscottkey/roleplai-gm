@@ -27,7 +27,7 @@ const SanitizeIpOutputSchema = z.object({
 });
 export type SanitizeIpOutput = z.infer<typeof SanitizeIpOutputSchema>;
 
-type SanitizeIpResponse = {
+export type SanitizeIpResponse = {
   output: SanitizeIpOutput;
   usage: GenerationUsage;
   model: string;

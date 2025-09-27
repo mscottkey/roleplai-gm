@@ -57,7 +57,7 @@ const UnifiedClassifyOutputSchema = z.object({
 export type UnifiedClassifyInput = z.infer<typeof UnifiedClassifyInputSchema>;
 export type UnifiedClassifyOutput = z.infer<typeof UnifiedClassifyOutputSchema>;
 
-type UnifiedClassifyResponse = {
+export type UnifiedClassifyResponse = {
   output: UnifiedClassifyOutput;
   usage: GenerationUsage;
   model: string;

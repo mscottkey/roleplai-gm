@@ -25,7 +25,7 @@ const GenerateNewGameOutputSchema = z.object({
 });
 export type GenerateNewGameOutput = z.infer<typeof GenerateNewGameOutputSchema>;
 
-type GenerateNewGameResponse = {
+export type GenerateNewGameResponse = {
   output: GenerateNewGameOutput;
   usage: GenerationUsage;
   model: string;

@@ -30,7 +30,7 @@ const AskQuestionOutputSchema = z.object({
 });
 export type AskQuestionOutput = z.infer<typeof AskQuestionOutputSchema>;
 
-type AskQuestionResponse = {
+export type AskQuestionResponse = {
   output: AskQuestionOutput;
   usage: GenerationUsage;
   model: string;

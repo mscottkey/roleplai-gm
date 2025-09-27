@@ -23,7 +23,7 @@ const RegenerateFieldOutputSchema = z.object({
 });
 export type RegenerateFieldOutput = z.infer<typeof RegenerateFieldOutputSchema>;
 
-type RegenerateFieldResponse = {
+export type RegenerateFieldResponse = {
   output: RegenerateFieldOutput;
   usage: GenerationUsage;
   model: string;

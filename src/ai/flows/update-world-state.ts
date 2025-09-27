@@ -25,7 +25,7 @@ Handlebars.registerHelper('lookup', function(obj, key, options) {
   return obj && obj[key] ? options.fn(obj[key]) : '';
 });
 
-type UpdateWorldStateResponse = {
+export type UpdateWorldStateResponse = {
   output: UpdateWorldStateOutput;
   usage: GenerationUsage;
   model: string;

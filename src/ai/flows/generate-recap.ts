@@ -15,7 +15,7 @@ import { MODEL_GAMEPLAY } from '../models';
 import { generateRecapPromptText } from '../prompts/generate-recap-prompt';
 import type { GenerationUsage } from 'genkit';
 
-type GenerateRecapResponse = {
+export type GenerateRecapResponse = {
   output: GenerateRecapOutput;
   usage: GenerationUsage;
   model: string;
