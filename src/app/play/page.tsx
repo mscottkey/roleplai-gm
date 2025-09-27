@@ -77,7 +77,7 @@ import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import * as gtag from '@/lib/gtag';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
@@ -430,6 +430,13 @@ export default function RoleplAIGMPage() {
       archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
     }));
 
+    let settingCategory = 'generic';
+    let coreConcepts: CampaignCore;
+    let factions: Faction[];
+    let nodes: Node[];
+    let resolution: CampaignResolution;
+  
+    // AI Generation Step
     try {
       await updateDoc(doc(getFirestore(), 'games', activeGameId), {
         'gameData.characters': plainCharacters, 'worldState.characters': plainCharacters,
@@ -445,20 +452,36 @@ export default function RoleplAIGMPage() {
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
       const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
-      const settingCategory = classification.settingClassification?.category || 'generic';
+      settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
+      coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
+      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
+      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
-      
+      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
+    } catch (error) {
+      const err = error as Error;
+      const currentStep = generationProgress?.step || 'an unknown step';
+      console.error(`Failed during world generation at step: ${currentStep}`, err);
+      toast({
+          variant: 'destructive',
+          title: `World Generation Failed`,
+          description: `The process failed at: "${currentStep}". Error: ${err.message}`,
+          duration: 10000,
+      });
+      setGenerationProgress(null);
+      setIsLoading(false);
+      return; // Exit the function
+    }
+
+    // Finalization Step
+    try {
       const finalCampaignStructure: CampaignStructure = {
         campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects,
         factions, nodes, resolution,
@@ -467,13 +490,7 @@ export default function RoleplAIGMPage() {
       const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
-      // Fire Google Analytics event
-      gtag.event({
-        action: 'build_world',
-        category: 'game_setup',
-        label: settingCategory,
-        value: finalCharacters.length,
-      });
+      gtag.event({ action: 'build_world', category: 'game_setup', label: settingCategory, value: finalCharacters.length });
   
       const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
       const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
@@ -518,14 +535,18 @@ ${startingNode ? startingNode.description : gameData.setting}
       });
     } catch (error) {
       const err = error as Error;
-      console.error('Failed to finalize characters and generate campaign:', err);
-      toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
-      setGenerationProgress(null); // Ensure progress is hidden on error
+      console.error('Failed during final save/update state:', err);
+      toast({
+          variant: 'destructive',
+          title: 'Setup Finalization Failed',
+          description: `Could not save the generated world. Error: ${err.message}`,
+          duration: 10000,
+      });
     } finally {
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, toast]);
+  }, [activeGameId, gameData, toast, generationProgress]);
 
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
