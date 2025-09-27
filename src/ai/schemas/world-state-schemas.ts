@@ -19,6 +19,11 @@ const SceneSchema = z.object({
     connections: z.array(z.string()).describe("A list of names of directly adjacent or reachable known places from the current location."),
 });
 
+const NodeStateSchema = z.object({
+  discoveryLevel: z.enum(['unknown', 'rumored', 'visited', 'explored', 'resolved']).default('unknown'),
+  playerKnowledge: z.array(z.string()).describe('Specific pieces of information the players have learned about this node.'),
+});
+
 export const WorldStateSchema = z.object({
   summary: z.string().describe("A high-level summary of the adventure so far."),
   storyOutline: z.array(z.string()).describe("A list of potential future scenes or plot points. The GM's plan."),
@@ -30,6 +35,7 @@ export const WorldStateSchema = z.object({
   knownFactions: z.array(FactionSchema).describe("A list of factions the players have discovered."),
   currentScene: SceneSchema.describe("Details about the party's immediate scene."),
   settingCategory: z.string().optional().describe('The pre-classified genre category of the setting (e.g., "sci_fi_cyberpunk").'),
+  nodeStates: z.record(z.string(), NodeStateSchema).optional().describe('A map of nodeId to its current dynamic state (discovery level, known secrets).'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 

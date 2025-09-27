@@ -7,7 +7,7 @@ import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
 import { classifyIntent as classifyIntentFlow, type ClassifyIntentInput, type ClassifyIntentOutput } from "@/ai/flows/classify-intent";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
-import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
+import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput as GenCampaignInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
@@ -31,7 +31,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 
 import type { GenerateCharacterInput, GenerateCharacterOutput, AICharacter } from "@/ai/schemas/generate-character-schemas";
-import type { Character, Message, GameSession } from "@/app/lib/types";
+import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
@@ -117,6 +117,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       storyAspects: [],
       knownPlaces: [],
       knownFactions: [],
+      nodeStates: {},
       currentScene: {
         nodeId: "start",
         name: "Unknown",
@@ -151,7 +152,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       storyMessages: [],
       step: 'summary',
       activeCharacterId: null,
-      sessionStatus: 'active',
+      sessionStatus: 'active' as SessionStatus,
     };
     
     console.log("Attempting to save game document...");
@@ -318,7 +319,7 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput): Pr
     }
 }
 
-export async function generateCampaignStructureAction(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
+export async function generateCampaignStructureAction(input: GenCampaignInput): Promise<GenerateCampaignStructureOutput> {
     try {
         return await generateCampaignStructureFlow(input);
     } catch (error) {
@@ -582,7 +583,7 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
     }
 }
 
-export async function updateSessionStatus(gameId: string, status: 'active' | 'paused' | 'finished' | 'archived'): Promise<{ success: boolean; message?: string }> {
+export async function updateSessionStatus(gameId: string, status: SessionStatus): Promise<{ success: boolean; message?: string }> {
     if (!gameId || !status) {
         return { success: false, message: "Game ID and status are required." };
     }

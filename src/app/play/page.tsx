@@ -590,6 +590,13 @@ ${startingNode ? startingNode.description : gameData.setting}
       const knownPlaces = campaignStructure.nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
       const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
 
+      const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[] }> = {};
+      campaignStructure.nodes.forEach(node => {
+        initialNodeStates[node.id] = { discoveryLevel: 'unknown', playerKnowledge: [] };
+      });
+      initialNodeStates[startingNode.id].discoveryLevel = 'visited';
+
+
       await updateWorldState({
         gameId: activeGameId,
         updates: {
@@ -602,8 +609,9 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.places': knownPlaces,
           'worldState.knownPlaces': [startingPlace],
           'worldState.knownFactions': [],
+          'worldState.nodeStates': initialNodeStates,
           'worldState.currentScene': {
-            nodeId: "start",
+            nodeId: startingNode.id,
             name: startingNode.title,
             description: startingNode.description,
             presentCharacters: plainCharacters.map(c => c.id),

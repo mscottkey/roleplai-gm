@@ -27,8 +27,9 @@ import {
   generateCampaignNodesPromptText 
 } from '../prompts/generate-campaign-pieces-prompts';
 import { SETTING_EXAMPLES } from '@/lib/setting-examples';
+import { randomUUID } from 'crypto';
 
-// This input type is for the flow, which now requires the category
+
 type GenerateCampaignCoreInput = GenerateCampaignStructureInput & { settingCategory: string };
 
 // Flow 1: Generate Core Concepts
@@ -105,9 +106,16 @@ export const generateCampaignNodes = ai.defineFlow(
       },
       output: {
         format: 'json',
-        schema: z.array(NodeSchema),
+        schema: z.array(z.Omit(NodeSchema.shape, ['id'])),
       },
     });
-    return output!;
+
+    // Manually add UUIDs to each node after generation
+    const nodesWithIds = output!.map(node => ({
+      ...node,
+      id: randomUUID(),
+    }));
+    
+    return nodesWithIds;
   }
 );

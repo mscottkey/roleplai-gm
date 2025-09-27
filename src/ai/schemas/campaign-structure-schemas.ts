@@ -23,6 +23,12 @@ const FaceSchema = z.object({
     description: z.string().describe('A one-sentence description of the NPC.'),
 });
 
+const SecretSchema = z.object({
+    id: z.string().describe('A short, unique identifier for the secret (e.g., "secret-altar", "hidden-ledger").'),
+    trigger: z.string().describe('A description of the player action or condition that would reveal this secret.'),
+    revelation: z.string().describe('The information that is learned when the secret is discovered.'),
+    impact: z.string().describe('A brief explanation of how this revelation changes the story or opens up new possibilities.'),
+});
 
 export const NodeSchema = z.object({
     title: z.string().describe('A clear, evocative name for the situation or location.'),
@@ -33,6 +39,8 @@ export const NodeSchema = z.object({
     challenges: z.array(z.string()).describe("A list of 2-3 general challenges or obstacles at this node."),
     faces: z.array(FaceSchema).describe('1-2 key NPCs at this node, with their roles and aspects.'),
     aspects: z.array(z.string()).describe('Two Fate Aspects specific to this node.'),
+    hiddenAgenda: z.string().optional().describe("The true nature of this location or situation, what's really going on beneath the surface."),
+    secrets: z.array(SecretSchema).optional().describe("A list of hidden secrets in this node, each with a trigger and a revelation."),
 });
 export type Node = z.infer<typeof NodeSchema>;
 

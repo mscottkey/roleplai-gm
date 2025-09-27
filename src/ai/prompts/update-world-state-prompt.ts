@@ -6,10 +6,11 @@ Current World State:
 - Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
 - Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - All Places: {{#each worldState.places}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Story Aspects: {{#each world.storyAspects}}- {{{this}}}{{/each}}
+- Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
 - Known Places: {{#each worldState.knownPlaces}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Known Factions: {{#each worldState.knownFactions}}- {{{this.name}}}: {{{this.description}}}{{/each}}
 - Current Scene: {{{worldState.currentScene.name}}} - {{{worldState.currentScene.description}}}
+- Current Node Secrets: {{#each worldState.currentScene.secrets}} - Trigger: {{this.trigger}}, Revelation: {{this.revelation}} {{/each}}
 
 Latest Game Event:
 - Player: {{{playerAction.characterName}}}
@@ -19,7 +20,7 @@ Latest Game Event:
 Your task is to return a NEW, UPDATED world state object.
 1.  **summary**: Briefly update the summary to reflect the latest major developments.
 2.  **storyOutline**: Review the existing outline. If the latest event addresses or completes a point, remove it. If the event introduces a new clear path, add a new point. Do not add vague points.
-3.  **recentEvents**: Add a new, concise summary of this event to the top of the list. Keep the list to a maximum of 5 events, removing the oldest if necessary.
+3.  **recentEvents**: Add a new, concise summary of this event to the top of the list. **If the player's action or GM's narration matches a trigger for one of the Current Node Secrets, include the revelation in this event summary.** Keep the list to a maximum of 5 events, removing the oldest if necessary.
 4.  **characters**: Do not modify characters. This is handled elsewhere. Just return the original characters.
 5.  **places**: If the narration introduced a new, significant named location, add it to the list with a brief description.
 6.  **knownPlaces**: If the narration or event resulted in the players learning about a new location from the main 'places' list, add it here.

@@ -77,9 +77,9 @@ Return the result as a single, valid JSON array of faction objects that conforms
 export const generateCampaignNodesPromptText = `You are a master storyteller and game designer creating a web of interconnected situations for a tabletop RPG.
 
 ## CRITICAL INSTRUCTIONS
-- Create nodes that directly reflect the specific setting, locations, and factions provided
-- Use the Notable Locations from the setting as the basis for your nodes
-- Make NPCs, challenges, and aspects that fit the established world
+- Create nodes that directly reflect the specific setting, locations, and factions provided.
+- Use the Notable Locations from the setting as the basis for your nodes.
+- Make NPCs, challenges, and secrets that fit the established world.
 
 ## Game Concept
 - Setting: {{{setting}}}
@@ -100,20 +100,22 @@ export const generateCampaignNodesPromptText = `You are a master storyteller and
 {{/each}}
 
 ## Your Task
-Create a web of 5 to 7 interconnected situation nodes, using the Notable Locations from the setting as inspiration and foundation for your nodes. Each node should feel like it belongs in the specific world described above.
+Create a web of 5 to 7 interconnected situation nodes, using the Notable Locations from the setting as inspiration. Each node must have narrative depth.
 
 For each node:
-1. **title:** A descriptive name for the situation or location.
-2. **description:** A one-paragraph description of the situation at this node.
-3. **isStartingNode:** Designate **exactly one** node as the starting point for the campaign by setting this to \`true\`. This should be the most logical and exciting entry point for the created party. All other nodes must have this set to \`false\`.
-4. **leads:** List 2-3 other node titles that this node provides clear leads to. This creates the "web."
-5. **stakes:** Briefly describe what changes if the PCs succeed, fail, or get delayed at this node. Focus on consequences.
-6. **challenges (2-3):** Provide 2-3 general challenges or obstacles present at this node. Examples: "A group of hostile NPCs", "A dangerous environmental condition", "A social conflict to navigate".
-7. **faces (1-2):** Name 1 or 2 key NPCs at this node. For each Face, provide:
-    *   **name:** The NPC's name.
-    *   **role:** Their job or function (e.g., "Merchant", "Guard Captain", "Village Elder").
-    *   **aspect:** A descriptive aspect implying their skills and personality (e.g., "Deceptively Honest", "Battle-Weary Veteran").
-    *   **description:** A one-sentence descriptor.
-8. **aspects (2):** Provide two Fate Aspects specific to this node, reflecting its unique nature.
+1.  **title:** A descriptive name for the situation or location.
+2.  **description:** A one-paragraph description of the situation at this node.
+3.  **isStartingNode:** Designate **exactly one** node as the starting point for the campaign by setting this to \`true\`. This should be the most logical entry point. All other nodes must have this set to \`false\`.
+4.  **leads:** List 2-3 other node titles that this node provides clear leads to.
+5.  **stakes:** Briefly describe what changes if the PCs succeed, fail, or get delayed here.
+6.  **challenges (2-3):** Provide 2-3 general challenges or obstacles present at this node.
+7.  **faces (1-2):** Name 1-2 key NPCs at this node. For each Face, provide a name, role, aspect, and one-sentence description.
+8.  **aspects (2):** Provide two Fate Aspects specific to this node.
+9.  **hiddenAgenda:** A one-sentence description of the true nature of this location or situation, or what's really going on beneath the surface.
+10. **secrets (2-3):** An array of 2-3 secret objects. Each secret must have:
+    *   **id:** A short, unique identifier for the secret (e.g., "secret-1").
+    *   **trigger:** A clear condition for discovering the secret (e.g., "If a character inspects the strange altar," "If a character with high Lore succeeds on a check").
+    *   **revelation:** The information that is learned when the secret is discovered.
+    *   **impact:** How this revelation changes the story or opens up new possibilities.
 
 Return the result as a single, valid JSON array of node objects that conforms to the schema. Do not include any extra text or explanations.`;
