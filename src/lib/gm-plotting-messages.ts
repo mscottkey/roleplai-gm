@@ -20,7 +20,7 @@ export const gmPlottingMessages = {
     '"No, that would be too straightforward. We need more layers."',
     '"What is the moral quandary at the heart of this story?"',
     '"Let\'s plant the seeds of a betrayal early on."',
-t`s a good starting point for chaos."',
+    '"It\'s a good starting point for chaos."',
     '"This aspect will be a fun one to compel at the worst possible moment."',
     '"The main theme should be... the illusion of choice."'
   ],
