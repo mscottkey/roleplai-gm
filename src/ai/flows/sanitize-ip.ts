@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -35,6 +36,7 @@ const prompt = ai.definePrompt({
   output: {schema: SanitizeIpOutputSchema},
   model: MODEL_CLASSIFICATION,
   prompt: sanitizeIpPromptText,
+  retries: 2,
 });
 
 const sanitizeIpFlow = ai.defineFlow(

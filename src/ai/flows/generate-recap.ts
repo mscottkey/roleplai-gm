@@ -24,6 +24,7 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateRecapOutputSchema},
   model: MODEL_GAMEPLAY,
   prompt: generateRecapPromptText,
+  retries: 2,
 });
 
 const generateRecapFlow = ai.defineFlow(

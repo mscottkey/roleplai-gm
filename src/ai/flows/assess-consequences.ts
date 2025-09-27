@@ -24,6 +24,7 @@ const prompt = ai.definePrompt({
   output: {schema: AssessConsequencesOutputSchema},
   model: MODEL_ANALYSIS,
   prompt: assessConsequencesPromptText,
+  retries: 2,
 });
 
 const assessConsequencesFlow = ai.defineFlow(

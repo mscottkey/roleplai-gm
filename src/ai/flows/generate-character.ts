@@ -25,6 +25,7 @@ const prompt = ai.definePrompt({
   output: {schema: CharacterSchema},
   model: MODEL_GENERATION,
   prompt: generateSingleCharacterPromptText,
+  retries: 2,
 });
 
 const generateCharacterFlow = ai.defineFlow(

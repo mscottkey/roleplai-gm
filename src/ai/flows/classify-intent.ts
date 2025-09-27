@@ -33,6 +33,7 @@ const prompt = ai.definePrompt({
   output: {schema: ClassifyIntentOutputSchema},
   model: MODEL_CLASSIFICATION,
   prompt: classifyIntentPromptText,
+  retries: 2,
 });
 
 const classifyIntentFlow = ai.defineFlow(

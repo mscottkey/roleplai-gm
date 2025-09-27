@@ -1,3 +1,4 @@
+
 // src/ai/flows/unified-classify.ts
 
 'use server';
@@ -167,6 +168,7 @@ export const unifiedClassify = ai.defineFlow(
           format: 'json',
           schema: UnifiedClassifyOutputSchema,
         },
+        retries: 2,
       });
 
       let result = output || {};

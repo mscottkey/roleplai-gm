@@ -42,6 +42,7 @@ const resolveActionPrompt = ai.definePrompt({
   input: {schema: ResolveActionInputSchema},
   output: {schema: ResolveActionOutputSchema},
   prompt: resolveActionPromptText,
+  retries: 2,
 });
 
 const resolveActionFlow = ai.defineFlow(
