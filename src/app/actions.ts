@@ -517,6 +517,4 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     }
 }
 
-  
-
     
