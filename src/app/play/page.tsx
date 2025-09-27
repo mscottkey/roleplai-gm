@@ -804,7 +804,7 @@ The stage is set. What do you do?
     setIsLoading(true);
   
     try {
-      const { output: intentClassification } = await unifiedClassify({ playerInput }, activeGameId);
+      const intentClassification = await unifiedClassify({ playerInput }, activeGameId);
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
@@ -831,7 +831,7 @@ The stage is set. What do you do?
         }
 
         if (!confirmed) {
-            const { output: consequenceResult } = await checkConsequences({
+            const consequenceResult = await checkConsequences({
                 actionDescription: playerInput,
                 worldState,
                 character: {
@@ -855,7 +855,7 @@ The stage is set. What do you do?
             }
         }
         
-        const { output: acknowledgement } = await narratePlayerActions({
+        const acknowledgement = await narratePlayerActions({
             playerAction: playerInput,
             gameState: worldState.summary,
             character: activeCharacter,
@@ -869,7 +869,7 @@ The stage is set. What do you do?
         
         const finalChatMessages = [...newMessages, acknowledgementMessage];
 
-        const { output: storyResponse } = await continueStory({
+        const storyResponse = await continueStory({
             actionDescription: playerInput,
             characterId: actingCharacter.id,
             worldState,
@@ -911,7 +911,7 @@ The stage is set. What do you do?
   
       } else {
         // QUESTION intent
-        const { output: response } = await getAnswerToQuestion({
+        const response = await getAnswerToQuestion({
           question: playerInput,
           worldState,
           character: actingCharacter,
@@ -1100,7 +1100,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
@@ -1256,3 +1256,5 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
