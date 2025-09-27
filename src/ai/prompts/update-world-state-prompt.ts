@@ -2,14 +2,10 @@
 You are the memory cortex for an AI Game Master. Your role is to process the latest game event (a player action and a GM response) and update the world state accordingly. Be concise but comprehensive.
 
 ## Current World State
-- Summary: {{{worldState.summary}}}
-- Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
-- Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
-- Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
-- Current Scene: {{{worldState.currentScene.name}}}
+{{{json worldState}}}
 
 ## Full Campaign Structure
-You have access to the full static campaign structure, including all nodes and their secrets and potential evolutions. You can look up the current node's full details using `worldState.currentScene.nodeId`.
+{{{json campaignStructure}}}
 
 ## Latest Game Event:
 - Player: {{{playerAction.characterName}}}
