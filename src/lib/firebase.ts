@@ -4,7 +4,6 @@ import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence, Auth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
-import { getPerformance } from "firebase/performance";
 
 
 const firebaseConfig: FirebaseOptions = {
@@ -24,7 +23,7 @@ if (typeof window !== 'undefined') {
   isAnalyticsSupported().then(supported => {
     if (supported) {
       getAnalytics(app);
-      getPerformance(app);
+      // getPerformance(app); // Disabled due to crash with long CSS class names
     }
   });
 }
