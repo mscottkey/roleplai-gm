@@ -490,7 +490,13 @@ export default function RoleplAIGMPage() {
       const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
-      gtag.event({ action: 'build_world', category: 'game_setup', label: settingCategory, value: finalCharacters.length });
+      // Fire Google Analytics event
+      gtag.event({
+        action: 'build_world',
+        category: 'game_setup',
+        label: settingCategory,
+        value: finalCharacters.length,
+      });
   
       const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
       const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
@@ -546,7 +552,7 @@ ${startingNode ? startingNode.description : gameData.setting}
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, toast, generationProgress]);
+  }, [activeGameId, gameData, toast]);
 
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
@@ -1094,7 +1100,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
