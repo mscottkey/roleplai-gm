@@ -28,6 +28,8 @@ const NarratePlayerActionsOutputSchema = z.object({
 });
 export type NarratePlayerActionsOutput = z.infer<typeof NarratePlayerActionsOutputSchema>;
 
+export type { NarratePlayerActionsInput, NarratePlayerActionsOutput };
+
 export type NarratePlayerActionsResponse = {
   output: NarratePlayerActionsOutput;
   usage: GenerationUsage;
@@ -63,3 +65,4 @@ const narratePlayerActionsFlow = ai.defineFlow(
     return output!;
   }
 );
+

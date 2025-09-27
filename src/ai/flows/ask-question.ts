@@ -30,6 +30,8 @@ const AskQuestionOutputSchema = z.object({
 });
 export type AskQuestionOutput = z.infer<typeof AskQuestionOutputSchema>;
 
+export type { AskQuestionInput, AskQuestionOutput };
+
 export type AskQuestionResponse = {
   output: AskQuestionOutput;
   usage: GenerationUsage;
@@ -65,3 +67,4 @@ const askQuestionFlow = ai.defineFlow(
     return output!;
   }
 );
+

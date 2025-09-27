@@ -23,6 +23,8 @@ const RegenerateFieldOutputSchema = z.object({
 });
 export type RegenerateFieldOutput = z.infer<typeof RegenerateFieldOutputSchema>;
 
+export type { RegenerateFieldInput, RegenerateFieldOutput };
+
 export type RegenerateFieldResponse = {
   output: RegenerateFieldOutput;
   usage: GenerationUsage;
@@ -58,3 +60,4 @@ const regenerateFieldFlow = ai.defineFlow(
     return output!;
   }
 );
+

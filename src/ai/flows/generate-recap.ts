@@ -15,6 +15,8 @@ import { MODEL_GAMEPLAY } from '../models';
 import { generateRecapPromptText } from '../prompts/generate-recap-prompt';
 import type { GenerationUsage } from 'genkit';
 
+export type { GenerateRecapInput, GenerateRecapOutput };
+
 export type GenerateRecapResponse = {
   output: GenerateRecapOutput;
   usage: GenerationUsage;
@@ -50,3 +52,4 @@ const generateRecapFlow = ai.defineFlow(
     return output!;
   }
 );
+
