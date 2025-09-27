@@ -66,7 +66,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
-import type { AICharacter, CampaignStructure } from '@/ai/schemas/generate-character-schemas';
+import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -76,6 +76,7 @@ import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Textarea } from '@/components/ui/textarea';
+import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -597,7 +598,7 @@ ${startingNode ? startingNode.description : gameData.setting}
       const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
 
       const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
-        campaignStructure.nodes.forEach(node => {
+      campaignStructure.nodes.forEach(node => {
           initialNodeStates[node.id] = {
             discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
             playerKnowledge: [],
@@ -619,6 +620,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.knownFactions': [],
           'worldState.nodeStates': initialNodeStates,
           'worldState.resolution': campaignStructure.resolution,
+          'worldState.factions': campaignStructure.factions,
           'worldState.currentScene': {
             nodeId: startingNode.id,
             name: startingNode.title,
@@ -1253,4 +1255,3 @@ The stage is set. What do you do?
     </>
   );
 }
-

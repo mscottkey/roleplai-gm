@@ -22,7 +22,7 @@ const SceneSchema = z.object({
 const NodeStateSchema = z.object({
   discoveryLevel: z.enum(['unknown', 'rumored', 'visited', 'explored', 'resolved']).default('unknown'),
   playerKnowledge: z.array(z.string()).describe('Specific facts or clues the players have learned about this node.'),
-  revealedSecrets: z.array(z.string().uuid()).describe('A list of IDs of secrets that have been revealed.'),
+  revealedSecrets: z.array(z.string()).describe('A list of IDs of secrets that have been revealed.'),
   currentState: z.string().optional().describe("If the node has evolved, this describes its current state."),
 });
 export type NodeState = z.infer<typeof NodeStateSchema>;
@@ -40,6 +40,7 @@ export const WorldStateSchema = z.object({
   settingCategory: z.string().optional().describe('The pre-classified genre category of the setting (e.g., "sci_fi_cyberpunk").'),
   nodeStates: z.record(z.string(), NodeStateSchema).optional().describe('A map of nodeId to its current dynamic state (discovery level, known secrets).'),
   resolution: CampaignResolutionSchema.optional().describe('The dynamic state of the campaign\'s endgame.'),
+  factions: z.array(FactionSchema).optional().describe('The dynamic state of the campaign\'s factions and their clocks.'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 
@@ -59,4 +60,3 @@ export type UpdateWorldStateInput = z.infer<typeof UpdateWorldStateInputSchema>;
 
 export const UpdateWorldStateOutputSchema = WorldStateSchema;
 export type UpdateWorldStateOutput = z.infer<typeof UpdateWorldStateOutputSchema>;
-

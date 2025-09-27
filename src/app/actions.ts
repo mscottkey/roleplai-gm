@@ -107,6 +107,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       storyAspects: [],
       knownPlaces: [],
       knownFactions: [],
+      factions: [],
       nodeStates: {},
       resolution: undefined,
       currentScene: {
@@ -561,4 +562,3 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
 }
 
 export { classifyIntent, unifiedClassify };
-
