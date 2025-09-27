@@ -33,7 +33,7 @@ const ResolveActionOutputSchema = z.object({
 });
 export type ResolveActionOutput = z.infer<typeof ResolveActionOutputSchema>;
 
-type ResolveActionResponse = {
+export type ResolveActionResponse = {
   output: ResolveActionOutput;
   usage: GenerationUsage;
   model: string;
