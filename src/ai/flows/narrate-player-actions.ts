@@ -14,6 +14,7 @@ import {z} from 'genkit';
 import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { narratePlayerActionsPromptText } from '../prompts/narrate-player-actions-prompt';
+import type { GenerationUsage } from 'genkit';
 
 const NarratePlayerActionsInputSchema = z.object({
   playerAction: z.string().describe('The action the player is taking.'),
@@ -27,8 +28,19 @@ const NarratePlayerActionsOutputSchema = z.object({
 });
 export type NarratePlayerActionsOutput = z.infer<typeof NarratePlayerActionsOutputSchema>;
 
-export async function narratePlayerActions(input: NarratePlayerActionsInput): Promise<NarratePlayerActionsOutput> {
-  return narratePlayerActionsFlow(input);
+type NarratePlayerActionsResponse = {
+  output: NarratePlayerActionsOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function narratePlayerActions(input: NarratePlayerActionsInput): Promise<NarratePlayerActionsResponse> {
+  const result = await narratePlayerActionsPrompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const narratePlayerActionsPrompt = ai.definePrompt({

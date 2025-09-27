@@ -9,7 +9,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { MODEL_GENERATION } from '../models';
 import { generateNewGamePromptText } from '../prompts/generate-new-game-prompt';
-import { GenerationUsage } from 'genkit';
+import type { GenerationUsage } from 'genkit';
 
 const GenerateNewGameInputSchema = z.object({
   request: z.string().describe('A simple request describing the desired game, e.g., \'I want to play a cyberpunk heist.\''),
@@ -24,6 +24,13 @@ const GenerateNewGameOutputSchema = z.object({
   initialHooks: z.array(z.string()).length(3).describe('An array of three, one-sentence plot hooks to give players immediate ideas.'),
 });
 export type GenerateNewGameOutput = z.infer<typeof GenerateNewGameOutputSchema>;
+
+type GenerateNewGameResponse = {
+  output: GenerateNewGameOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
 
 // Helper function to clean up markdown formatting
 function cleanMarkdown(text: string): string {
@@ -51,16 +58,16 @@ function cleanMarkdown(text: string): string {
 }
 
 
-export async function generateNewGame(input: GenerateNewGameInput): Promise<{ output: GenerateNewGameOutput; usage: GenerationUsage; model: string; }> {
-  const { output, usage, model } = await prompt(input);
+export async function generateNewGame(input: GenerateNewGameInput): Promise<GenerateNewGameResponse> {
+  const result = await prompt(input);
   
   // Clean up the markdown formatting in the response
   const cleanedOutput = {
-    ...output!,
-    setting: cleanMarkdown(output!.setting),
-    tone: cleanMarkdown(output!.tone),
+    ...result.output!,
+    setting: cleanMarkdown(result.output!.setting),
+    tone: cleanMarkdown(result.output!.tone),
   };
-  return { output: cleanedOutput, usage, model };
+  return { ...result, output: cleanedOutput };
 }
 
 const prompt = ai.definePrompt({

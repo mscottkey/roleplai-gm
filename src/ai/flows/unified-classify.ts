@@ -7,6 +7,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { MODEL_CLASSIFICATION } from '../models';
 import { SettingCategory, SETTING_KEYWORDS, SETTING_EXAMPLES } from '../../lib/setting-examples';
+import type { GenerationUsage } from 'genkit';
 
 // Helper function to generate enum values dynamically from the lib
 function getSettingCategoryEnum() {
@@ -55,6 +56,13 @@ const UnifiedClassifyOutputSchema = z.object({
 
 export type UnifiedClassifyInput = z.infer<typeof UnifiedClassifyInputSchema>;
 export type UnifiedClassifyOutput = z.infer<typeof UnifiedClassifyOutputSchema>;
+
+type UnifiedClassifyResponse = {
+  output: UnifiedClassifyOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
 
 // Keyword-based setting classification fallback
 function classifySettingByKeywords(text: string): { category: SettingCategory; score: number } {
@@ -151,7 +159,16 @@ Classify this player input as either an Action or Question:
 
 Return only a valid JSON object with your classifications.`;
 
-export const unifiedClassify = ai.defineFlow(
+export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyResponse> {
+  const result = await unifiedClassifyFlow(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
+}
+
+export const unifiedClassifyFlow = ai.defineFlow(
   {
     name: 'unifiedClassify',
     inputSchema: UnifiedClassifyInputSchema,
@@ -160,7 +177,7 @@ export const unifiedClassify = ai.defineFlow(
   async (input) => {
     try {
       // Try AI classification first
-      const { output } = await ai.generate({
+      const result = await ai.generate({
         model: MODEL_CLASSIFICATION,
         prompt: unifiedClassifyPromptText,
         input: input,
@@ -171,36 +188,36 @@ export const unifiedClassify = ai.defineFlow(
         retries: 2,
       });
 
-      let result = output || {};
+      let finalOutput = result.output || {};
 
       // Fallback to keyword-based classification if AI confidence is low or failed
-      if (input.setting && (!result.settingClassification || result.settingClassification.confidence < 0.6)) {
+      if (input.setting && (!finalOutput.settingClassification || finalOutput.settingClassification.confidence < 0.6)) {
         const keywordResult = classifySettingByKeywords(input.setting + ' ' + (input.tone || ''));
-        result.settingClassification = {
+        finalOutput.settingClassification = {
           category: keywordResult.category,
-          confidence: Math.max(keywordResult.score, result.settingClassification?.confidence || 0),
-          reasoning: `Classified using keyword analysis. ${result.settingClassification?.reasoning || 'AI classification had low confidence.'}`
+          confidence: Math.max(keywordResult.score, finalOutput.settingClassification?.confidence || 0),
+          reasoning: `Classified using keyword analysis. ${finalOutput.settingClassification?.reasoning || 'AI classification had low confidence.'}`
         };
       }
 
-      if (input.playerInput && (!result.intentClassification || result.intentClassification.confidence < 0.6)) {
+      if (input.playerInput && (!finalOutput.intentClassification || finalOutput.intentClassification.confidence < 0.6)) {
         const keywordResult = classifyIntentByKeywords(input.playerInput);
-        result.intentClassification = {
+        finalOutput.intentClassification = {
           intent: keywordResult.intent,
-          confidence: Math.max(keywordResult.confidence, result.intentClassification?.confidence || 0),
-          reasoning: `Classified using keyword analysis. ${result.intentClassification?.reasoning || 'AI classification had low confidence.'}`
+          confidence: Math.max(keywordResult.confidence, finalOutput.intentClassification?.confidence || 0),
+          reasoning: `Classified using keyword analysis. ${finalOutput.intentClassification?.reasoning || 'AI classification had low confidence.'}`
         };
       }
 
-      return result;
+      return { ...result, output: finalOutput };
 
     } catch (error) {
       // Pure keyword fallback if AI fails completely
-      const result: UnifiedClassifyOutput = {};
+      const fallbackOutput: UnifiedClassifyOutput = {};
       
       if (input.setting) {
         const keywordResult = classifySettingByKeywords(input.setting + ' ' + (input.tone || ''));
-        result.settingClassification = {
+        fallbackOutput.settingClassification = {
           category: keywordResult.category,
           confidence: keywordResult.score,
           reasoning: `Classified using keyword analysis due to AI error: ${error}`
@@ -209,14 +226,19 @@ export const unifiedClassify = ai.defineFlow(
 
       if (input.playerInput) {
         const keywordResult = classifyIntentByKeywords(input.playerInput);
-        result.intentClassification = {
+        fallbackOutput.intentClassification = {
           intent: keywordResult.intent,
           confidence: keywordResult.confidence,
           reasoning: `Classified using keyword analysis due to AI error: ${error}`
         };
       }
-
-      return result;
+      
+      // Since this is a fallback, usage and model are synthetic
+      return {
+        output: fallbackOutput,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        model: 'fallback-classifier'
+      }
     }
   }
 );

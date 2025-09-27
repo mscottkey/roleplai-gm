@@ -1,5 +1,4 @@
 
-
 'use server';
 
 /**
@@ -15,6 +14,7 @@ import { UpdateWorldStateInputSchema, UpdateWorldStateOutputSchema, PlayerAction
 import { MODEL_GAMEPLAY } from '../models';
 import { updateWorldStatePromptText } from '../prompts/update-world-state-prompt';
 import Handlebars from 'handlebars';
+import type { GenerationUsage } from 'genkit';
 
 // Register a Handlebars helper to look up a node by ID
 Handlebars.registerHelper('lookup', function(obj, key, options) {
@@ -25,9 +25,19 @@ Handlebars.registerHelper('lookup', function(obj, key, options) {
   return obj && obj[key] ? options.fn(obj[key]) : '';
 });
 
+type UpdateWorldStateResponse = {
+  output: UpdateWorldStateOutput;
+  usage: GenerationUsage;
+  model: string;
+};
 
-export async function updateWorldState(input: UpdateWorldStateInput): Promise<UpdateWorldStateOutput> {
-  return updateWorldStateFlow(input);
+export async function updateWorldState(input: UpdateWorldStateInput): Promise<UpdateWorldStateResponse> {
+  const result = await updateWorldStateFlow(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const prompt = ai.definePrompt({
@@ -46,9 +56,8 @@ const updateWorldStateFlow = ai.defineFlow(
     outputSchema: UpdateWorldStateOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    
-    const updatedOutput = output!;
+    const result = await prompt(input);
+    const updatedOutput = result.output!;
     
     // Ensure critical fields are not lost
     updatedOutput.characters = input.worldState.characters; 
@@ -71,7 +80,6 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.currentScene.environmentalFactors = updatedOutput.currentScene.environmentalFactors || [];
     updatedOutput.currentScene.connections = updatedOutput.currentScene.connections || [];
 
-
-    return updatedOutput;
+    return { ...result, output: updatedOutput };
   }
 );

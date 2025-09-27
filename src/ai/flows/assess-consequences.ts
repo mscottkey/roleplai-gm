@@ -13,9 +13,21 @@ import {ai} from '@/ai/genkit';
 import { AssessConsequencesInputSchema, AssessConsequencesOutputSchema, type AssessConsequencesInput, type AssessConsequencesOutput } from '@/ai/schemas/assess-consequences-schemas';
 import { MODEL_ANALYSIS } from '../models';
 import { assessConsequencesPromptText } from '../prompts/assess-consequences-prompt';
+import type { GenerationUsage } from 'genkit';
 
-export async function assessConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {
-  return assessConsequencesFlow(input);
+type AssessConsequencesResponse = {
+  output: AssessConsequencesOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function assessConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesResponse> {
+  const result = await prompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const prompt = ai.definePrompt({

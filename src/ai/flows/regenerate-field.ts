@@ -9,6 +9,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { MODEL_GENERATION } from '../models';
 import { regenerateFieldPromptText } from '../prompts/regenerate-field-prompt';
+import type { GenerationUsage } from 'genkit';
 
 const RegenerateFieldInputSchema = z.object({
   request: z.string().describe("The original user request for the game concept."),
@@ -22,8 +23,19 @@ const RegenerateFieldOutputSchema = z.object({
 });
 export type RegenerateFieldOutput = z.infer<typeof RegenerateFieldOutputSchema>;
 
-export async function regenerateField(input: RegenerateFieldInput): Promise<RegenerateFieldOutput> {
-  return regenerateFieldFlow(input);
+type RegenerateFieldResponse = {
+  output: RegenerateFieldOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function regenerateField(input: RegenerateFieldInput): Promise<RegenerateFieldResponse> {
+  const result = await prompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const prompt = ai.definePrompt({

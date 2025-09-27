@@ -23,7 +23,6 @@ import {
   renameGame,
   updateUserProfile,
   saveCampaignStructure,
-  regenerateGameConcept,
   regenerateField,
   narratePlayerActions,
   unifiedClassify,
@@ -79,7 +78,7 @@ import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Textarea } from '@/components/ui/textarea';
-import type { CampaignCore, CampaignResolution, CampaignStructure, Faction, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, Node } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -87,22 +86,24 @@ const SummaryReview = ({
     gameData,
     isLoading,
     onContinue,
-    onRegenerateConcept,
     onRegenerateField,
   }: {
     gameData: GameData;
     isLoading: boolean;
     onContinue: () => void;
-    onRegenerateConcept: (newRequest: string) => Promise<void>;
     onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
   }) => {
     
     const [newRequest, setNewRequest] = useState(gameData.originalRequest || '');
     const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
-    
-    const handleRegenSubmit = async () => {
-        await onRegenerateConcept(newRequest);
-        setIsRegenDialogOpen(false);
+
+    const handleRegenField = async (fieldName: 'setting' | 'tone') => {
+        setIsLoading(true);
+        try {
+            await onRegenerateField(fieldName);
+        } finally {
+            setIsLoading(false);
+        }
     }
     
     return (
@@ -122,7 +123,7 @@ const SummaryReview = ({
                 <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Setting</h2>
-                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('setting')} disabled={isLoading}>
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('setting')} disabled={isLoading}>
                         <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
                     </Button>
                   </div>
@@ -133,7 +134,7 @@ const SummaryReview = ({
                 <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
                    <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Tone</h2>
-                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onRegenerateField('tone')} disabled={isLoading}>
+                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('tone')} disabled={isLoading}>
                         <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
                     </Button>
                   </div>
@@ -147,39 +148,9 @@ const SummaryReview = ({
             <Button size="lg" onClick={onContinue} disabled={isLoading} className="font-headline text-xl">
               Continue to Character Creation <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button variant="outline" onClick={() => setIsRegenDialogOpen(true)} disabled={isLoading}>
-                <LoadingSpinner className={cn("mr-2 h-4 w-4", isLoading ? "inline-block" : "hidden")} /> Regenerate Entire Concept
-            </Button>
           </CardFooter>
         </Card>
       </div>
-
-       <Dialog open={isRegenDialogOpen} onOpenChange={setIsRegenDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Regenerate Story Concept</DialogTitle>
-              <DialogDescription>
-                Edit the prompt below to generate a new story concept. This will replace the current setting, tone, and plot hooks.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="regen-prompt">New Prompt</Label>
-               <Textarea
-                id="regen-prompt"
-                value={newRequest}
-                onChange={(e) => setNewRequest(e.target.value)}
-                className="min-h-[100px] mt-2"
-                autoFocus
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setIsRegenDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleRegenSubmit} disabled={isLoading}>
-                 <LoadingSpinner className={cn("mr-2 h-4 w-4", isLoading ? "inline-block" : "hidden")} /> Regenerate
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </>
     );
 }
@@ -375,7 +346,7 @@ export default function RoleplAIGMPage() {
                   storyOutline: game.worldState.storyOutline,
                   characters: game.worldState.characters,
                   factions: game.worldState.factions,
-              })
+              }, activeGameId)
                 .then((recapResult) => {
                   let recapContent = `### Previously On...\n\n${recapResult.recap}`;
 
@@ -443,7 +414,7 @@ export default function RoleplAIGMPage() {
     }
     if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
-
+  
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
   
@@ -468,14 +439,12 @@ export default function RoleplAIGMPage() {
       id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
       archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
     }));
-  
+
     try {
       await updateDoc(doc(getFirestore(), 'games', activeGameId), {
         'gameData.characters': plainCharacters, 'worldState.characters': plainCharacters,
         activeCharacterId: finalCharacters[0].id,
       });
-  
-      toast({ title: 'Finalizing Party', description: 'Saving characters and building the world...' });
   
       const charactersForAI: AICharacter[] = plainCharacters.map((c) => ({
         id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName,
@@ -485,20 +454,20 @@ export default function RoleplAIGMPage() {
       const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } });
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
       const settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory });
+      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory });
+      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory });
+      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
   
       setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory });
+      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
       
       const finalCampaignStructure: CampaignStructure = {
         campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects,
@@ -553,14 +522,14 @@ ${startingNode ? startingNode.description : gameData.setting}
       const err = error as Error;
       console.error('Failed to finalize characters and generate campaign:', err);
       toast({ variant: 'destructive', title: 'Setup Error', description: err.message || 'Could not finalize the campaign setup.' });
+      setGenerationProgress(null); // Ensure progress is hidden on error
     } finally {
       setGenerationProgress(null);
       setIsLoading(false);
-      setStep('play');
     }
   }, [activeGameId, gameData, toast]);
 
-  const handleUndo = async () => {
+  const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
       toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
       return;
@@ -580,7 +549,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeGameId, previousWorldState, toast]);
 
   if (step === 'loading') {
     return (
@@ -657,7 +626,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      const { intentClassification } = await unifiedClassify({ playerInput });
+      const { intentClassification } = await unifiedClassify({ playerInput }, activeGameId);
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
@@ -692,7 +661,7 @@ ${startingNode ? startingNode.description : gameData.setting}
                     stats: activeCharacter.stats || { skills: [], stunts: [] },
                     id: activeCharacter.id || '',
                 },
-            });
+            }, activeGameId);
 
             if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
                 setConfirmation({
@@ -712,7 +681,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             playerAction: playerInput,
             gameState: worldState.summary,
             character: activeCharacter,
-        });
+        }, activeGameId);
 
         const acknowledgementMessage: Message = {
             id: `assistant-ack-${Date.now()}`,
@@ -729,6 +698,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             ruleAdapter: "FateCore",
             mechanicsVisibility: mechanicsVisibility,
             settingCategory: worldState.settingCategory || 'generic',
+            gameId: activeGameId,
         });
 
         const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
@@ -768,6 +738,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           worldState,
           character: actingCharacter,
           settingCategory: worldState.settingCategory || 'generic',
+          gameId: activeGameId,
         });
   
         const assistantMessage: Message = {
@@ -811,7 +782,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     setNextCharacter(null);
   };
 
-  const onRegenerateStoryline = async () => {
+  const onRegenerateStoryline = useCallback(async () => {
     if (!activeGameId || !gameData) return;
 
     setIsLoading(true);
@@ -840,20 +811,20 @@ ${startingNode ? startingNode.description : gameData.setting}
       };
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } });
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
       const settingCategory = classification.settingClassification?.category || 'generic';
 
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory });
+      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
 
       setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory });
+      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
 
       setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory });
+      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
 
       setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory });
+      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
         
       const newCampaignStructure: CampaignStructure = {
         campaignIssues: coreConcepts.campaignIssues,
@@ -923,7 +894,7 @@ The stage is set. What do you do?
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  };
+  }, [activeGameId, gameData, toast]);
 
   const handleDeleteGame = async () => {
     if (!deleteConfirmation) return;
@@ -976,36 +947,22 @@ The stage is set. What do you do?
     }
   };
   
-  const handleRegenerateConcept = async (newRequest: string) => {
-    if (!activeGameId) return;
-    setIsLoading(true);
-    const result = await regenerateGameConcept(activeGameId, newRequest);
-    if (result.success) {
-      toast({ title: 'Story Regenerated', description: 'The campaign concept has been updated.' });
-      if (result.warningMessage) {
-        toast({ title: 'Request Modified', description: result.warningMessage, duration: 6000 });
-      }
-    } else {
-      toast({ variant: 'destructive', title: 'Regeneration Failed', description: result.message });
-    }
-    setIsLoading(false);
-  }
-
-  const handleRegenerateField = async (fieldName: 'setting' | 'tone') => {
+  const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
-    const result = await regenerateField(activeGameId, {
-      request: gameData.originalRequest || gameData.name,
-      fieldName,
-      currentValue: gameData[fieldName],
-    });
-    if (result.success) {
-      toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
-    } else {
-      toast({ variant: 'destructive', title: 'Regeneration Failed', description: result.message });
+    try {
+        const result = await regenerateField({
+            request: gameData.originalRequest || gameData.name,
+            fieldName,
+            currentValue: gameData[fieldName],
+        }, activeGameId);
+        toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
-  };
+  }, [activeGameId, gameData]);
 
 
   const renderContent = () => {
@@ -1033,20 +990,19 @@ The stage is set. What do you do?
                 await updateWorldState({ gameId: activeGameId, updates: { step: 'characters' } });
               }
             }}
-            onRegenerateConcept={handleRegenerateConcept}
             onRegenerateField={handleRegenerateField}
           />
         );
       case 'characters':
-        if (!gameData) {
+        if (!gameData || !activeGameId) {
             return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
         }
         return (
           <MemoizedCharacterCreationForm
-            gameData={gameData!}
+            gameData={gameData}
             initialCharacters={characters}
             onCharactersFinalized={handleCharactersFinalized}
-            generateCharacterSuggestions={createCharacter}
+            generateCharacterSuggestions={(input) => createCharacter(input, activeGameId)}
             isLoading={isLoading}
             currentUser={user}
             activeGameId={activeGameId}
@@ -1082,19 +1038,7 @@ The stage is set. What do you do?
             sessionStatus={sessionStatus}
             onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
-            isSpeaking={isSpeaking}
-            isPaused={isPaused}
-            isAutoPlayEnabled={isAutoPlayEnabled}
-            isTTSSupported={supported}
-            onPlay={handlePlayAll}
-            onPause={pause}
-            onStop={cancel}
-            onSetAutoPlay={setIsAutoPlayEnabled}
-            voices={voices}
-            selectedVoice={selectedVoice}
-            onSelectVoice={selectVoice}
-            ttsVolume={ttsVolume}
-            onCycleTtsVolume={cycleTtsVolume}
+            {...ttsProps}
           />
         );
       default:

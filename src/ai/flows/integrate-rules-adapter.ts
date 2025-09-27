@@ -15,6 +15,7 @@ import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { WorldStateSchema } from '../schemas/world-state-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { resolveActionPromptText } from '../prompts/integrate-rules-adapter-prompt';
+import type { GenerationUsage } from 'genkit';
 
 const ResolveActionInputSchema = z.object({
   actionDescription: z.string().describe('The description of the player action.'),
@@ -32,8 +33,19 @@ const ResolveActionOutputSchema = z.object({
 });
 export type ResolveActionOutput = z.infer<typeof ResolveActionOutputSchema>;
 
-export async function resolveAction(input: ResolveActionInput): Promise<ResolveActionOutput> {
-  return resolveActionFlow(input);
+type ResolveActionResponse = {
+  output: ResolveActionOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function resolveAction(input: ResolveActionInput): Promise<ResolveActionResponse> {
+  const result = await resolveActionPrompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const resolveActionPrompt = ai.definePrompt({

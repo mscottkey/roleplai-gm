@@ -30,29 +30,6 @@ const MODEL_PRICING: Record<string, { input: number, output: number }> = {
 };
 
 
-export async function logUsage(gameId: string, flowName: string, model: string, usage: TokenUsage) {
-  if (!gameId || !usage) return;
-
-  try {
-    const app = await getServerApp();
-    const db = getFirestore(app);
-    const usageCollection = collection(db, 'games', gameId, 'token_usage');
-    
-    const record = {
-      flowName,
-      model,
-      ...usage,
-      timestamp: serverTimestamp(),
-    };
-
-    await addDoc(usageCollection, record);
-
-  } catch (error) {
-    console.error(`Failed to log token usage for game ${gameId}:`, error);
-    // We don't re-throw here as logging is a non-critical background task.
-  }
-}
-
 export async function getUsageForGame(gameId: string): Promise<TokenUsageRecord[]> {
   if (!gameId) return [];
 

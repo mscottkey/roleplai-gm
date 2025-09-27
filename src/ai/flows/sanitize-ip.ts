@@ -13,6 +13,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { MODEL_CLASSIFICATION } from '../models';
 import { sanitizeIpPromptText } from '../prompts/sanitize-ip-prompt';
+import type { GenerationUsage } from 'genkit';
 
 const SanitizeIpInputSchema = z.object({
   request: z.string().describe("The user's initial request for a new game."),
@@ -26,8 +27,19 @@ const SanitizeIpOutputSchema = z.object({
 });
 export type SanitizeIpOutput = z.infer<typeof SanitizeIpOutputSchema>;
 
-export async function sanitizeIp(input: SanitizeIpInput): Promise<SanitizeIpOutput> {
-  return sanitizeIpFlow(input);
+type SanitizeIpResponse = {
+  output: SanitizeIpOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function sanitizeIp(input: SanitizeIpInput): Promise<SanitizeIpResponse> {
+  const result = await prompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const prompt = ai.definePrompt({

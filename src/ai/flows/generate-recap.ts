@@ -13,9 +13,21 @@ import {ai} from '@/ai/genkit';
 import { GenerateRecapInputSchema, GenerateRecapOutputSchema, type GenerateRecapInput, type GenerateRecapOutput } from '@/ai/schemas/generate-recap-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { generateRecapPromptText } from '../prompts/generate-recap-prompt';
+import type { GenerationUsage } from 'genkit';
 
-export async function generateRecap(input: GenerateRecapInput): Promise<GenerateRecapOutput> {
-  return generateRecapFlow(input);
+type GenerateRecapResponse = {
+  output: GenerateRecapOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function generateRecap(input: GenerateRecapInput): Promise<GenerateRecapResponse> {
+  const result = await prompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const prompt = ai.definePrompt({

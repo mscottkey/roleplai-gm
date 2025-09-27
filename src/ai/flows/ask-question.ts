@@ -15,6 +15,7 @@ import { CharacterSchema } from '../schemas/generate-character-schemas';
 import { WorldStateSchema } from '../schemas/world-state-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { askQuestionPromptText } from '../prompts/ask-question-prompt';
+import type { GenerationUsage } from 'genkit';
 
 const AskQuestionInputSchema = z.object({
   question: z.string().describe('The question the player is asking the GM.'),
@@ -29,8 +30,19 @@ const AskQuestionOutputSchema = z.object({
 });
 export type AskQuestionOutput = z.infer<typeof AskQuestionOutputSchema>;
 
-export async function askQuestion(input: AskQuestionInput): Promise<AskQuestionOutput> {
-  return askQuestionFlow(input);
+type AskQuestionResponse = {
+  output: AskQuestionOutput;
+  usage: GenerationUsage;
+  model: string;
+};
+
+export async function askQuestion(input: AskQuestionInput): Promise<AskQuestionResponse> {
+  const result = await askQuestionPrompt(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model,
+  };
 }
 
 const askQuestionPrompt = ai.definePrompt({
