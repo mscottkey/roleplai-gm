@@ -37,7 +37,7 @@ import type {
     GenerateFactionsInput, 
     GenerateNodesInput, 
     GenerateResolutionInput,
-    GenerateCampaignCoreInput
+    GenerateCampaignCoreInput as CampaignCoreInput
 } from '@/ai/schemas/campaign-structure-schemas';
 import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 
@@ -53,7 +53,7 @@ import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schem
 import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
-import { initializeApp as initializeAdminApp, getApps as getAdminApps, getApp as getAdminApp, cert } from 'firebase-admin/app';
+import { getAdminApp } from '@/lib/firebase-admin';
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { GenerationUsage } from "genkit";
 import { UnifiedClassifyInput, UnifiedClassifyOutput } from "@/ai/flows/unified-classify";
@@ -66,32 +66,6 @@ function handleAIError(error: Error, defaultMessage: string): Error {
     }
     return new Error(`${defaultMessage}: ${error.message}`);
 }
-
-
-// Initialize Firebase Admin SDK
-function getAdminSDK() {
-  if (getAdminApps().length > 0) {
-    return getAdminApp();
-  }
-
-  const serviceAccountKeyBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!serviceAccountKeyBase64) {
-    throw new Error('The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. It must be a base64 encoded string.');
-  }
-
-  try {
-    const serviceAccountJson = Buffer.from(serviceAccountKeyBase64, 'base64').toString('utf8');
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    
-    return initializeAdminApp({
-      credential: cert(serviceAccount),
-    });
-  } catch (e: any) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it is a valid base64-encoded JSON string.', e.message);
-    throw e;
-  }
-}
-
 
 // Initialize Firebase for server actions
 const firebaseConfig = {
@@ -432,7 +406,7 @@ export async function unifiedClassify(input: UnifiedClassifyInput, gameId: strin
 }
 
 // Granular actions for client-side orchestration
-export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string): Promise<CampaignCore> {
+export async function generateCampaignCoreAction(input: CampaignCoreInput, gameId: string): Promise<CampaignCore> {
     const flowName = 'generateCampaignCore';
     const startTime = Date.now();
     try {
@@ -637,11 +611,11 @@ export async function updateUserProfile(userId: string, isAnonymous: boolean, up
     const { displayName, defaultPronouns, defaultVoiceURI } = updates;
     
     try {
-        getAdminSDK();
+        const adminApp = getAdminApp();
         
         if (displayName && displayName.trim().length >= 3) {
             if (!isAnonymous) {
-                await getAdminAuth().updateUser(userId, { displayName });
+                await getAdminAuth(adminApp).updateUser(userId, { displayName });
             }
         } else if (displayName) {
              return { success: false, message: "Display name must be at least 3 characters long." };
@@ -669,8 +643,8 @@ export async function updateUserProfile(userId: string, isAnonymous: boolean, up
 
 export async function setAdminClaim(userId: string): Promise<{ success: boolean; message: string }> {
   try {
-    getAdminSDK();
-    await getAdminAuth().setCustomUserClaims(userId, { admin: true });
+    const adminApp = getAdminApp();
+    await getAdminAuth(adminApp).setCustomUserClaims(userId, { admin: true });
     return { success: true, message: `Successfully set admin claim for user ${userId}.` };
   } catch (error) {
     console.error(`Error setting admin claim for user ${userId}:`, error);
