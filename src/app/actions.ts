@@ -1,18 +1,17 @@
 
 'use server';
 
-import { generateNewGame as generateNewGameFlow, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
-import { resolveAction as resolveActionFlow, type ResolveActionOutput } from "@/ai/flows/integrate-rules-adapter";
-import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-character";
-import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
-import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
-import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput as GenCampaignInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
-import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
-import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
-import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
-import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
-import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
-import { unifiedClassify as unifiedClassifyFlow } from "@/ai/flows/unified-classify";
+import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameOutput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
+import { resolveAction as resolveActionFlow, type ResolveActionOutput, type ResolveActionResponse } from "@/ai/flows/integrate-rules-adapter";
+import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse } from "@/ai/flows/generate-character";
+import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse } from "@/ai/flows/update-world-state";
+import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
+import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
+import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse } from "@/ai/flows/assess-consequences";
+import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
+import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
+import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
+import { unifiedClassify as unifiedClassifyFlow, type UnifiedClassifyResponse } from "@/ai/flows/unified-classify";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
@@ -37,7 +36,8 @@ import type {
     CampaignResolution, 
     GenerateFactionsInput, 
     GenerateNodesInput, 
-    GenerateResolutionInput
+    GenerateResolutionInput,
+    GenerateCampaignCoreInput
 } from '@/ai/schemas/campaign-structure-schemas';
 import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 
@@ -112,42 +112,44 @@ export async function getServerApp() {
   return app;
 }
 
-type GenerateNewGameInput = {
+type StartNewGameInput = {
   request: string;
   userId: string;
   playMode: 'local' | 'remote';
 };
 
 
-export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
+export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
   const startTime = Date.now();
+  let gameIdForLogging = 'pre-game';
   
   // Step 1: Sanitize IP (this is also an AI call)
   const sanitizeInput = { request: input.request };
   let ipCheck: SanitizeIpOutput;
   try {
-    const sanitizeResult = await sanitizeIpFlow(sanitizeInput);
+    const sanitizeResult: SanitizeIpResponse = await sanitizeIpFlow(sanitizeInput);
     ipCheck = sanitizeResult.output;
     await logAiInteraction({
-      gameId: 'pre-game', flowName: 'sanitizeIp', status: 'success', input: sanitizeInput,
+      gameId: gameIdForLogging, flowName: 'sanitizeIp', status: 'success', input: sanitizeInput,
       output: ipCheck, usage: sanitizeResult.usage, model: sanitizeResult.model, latency: Date.now() - startTime,
     });
   } catch (e: any) {
     await logAiInteraction({
-      gameId: 'pre-game', flowName: 'sanitizeIp', status: 'failure', input: sanitizeInput, error: e.message, latency: Date.now() - startTime,
+      gameId: gameIdForLogging, flowName: 'sanitizeIp', status: 'failure', input: sanitizeInput, error: e.message, latency: Date.now() - startTime,
     });
     throw handleAIError(e, 'Failed to sanitize your request');
   }
 
   // Step 2: Generate Game
-  const generateGameInput = { request: ipCheck.sanitizedRequest };
+  const generateGameInput: GenerateNewGameInput = { request: ipCheck.sanitizedRequest };
   try {
     const generateGameStartTime = Date.now();
-    const { output: newGame, usage, model } = await generateNewGameFlow(generateGameInput);
+    const { output: newGame, usage, model }: GenerateNewGameResponse = await generateNewGameFlow(generateGameInput);
     
     const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(collection(db, 'games'));
+    gameIdForLogging = gameRef.id;
 
     const initialWorldState: WorldState = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
@@ -194,7 +196,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
 
   } catch (e: any) {
     await logAiInteraction({
-      gameId: 'pre-game', flowName: 'generateNewGame', status: 'failure', input: generateGameInput, error: e.message, latency: Date.now() - startTime,
+      gameId: gameIdForLogging, flowName: 'generateNewGame', status: 'failure', input: generateGameInput, error: e.message, latency: Date.now() - startTime,
     });
     throw handleAIError(e, 'Failed to generate a new game');
   }
@@ -203,6 +205,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
 type ContinueStoryInput = Omit<ResolveActionInput, 'character'> & { characterId: string; gameId: string; };
 export async function continueStory(input: ContinueStoryInput): Promise<ResolveActionOutput> {
   const { characterId, worldState, gameId, ...rest } = input;
+  const flowName = 'resolveAction';
   const startTime = Date.now();
 
   const character = worldState.characters.find(c => c.id === characterId);
@@ -221,15 +224,15 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   
   const flowInput = { ...rest, worldState, character };
   try {
-    const { output, usage, model } = await resolveActionFlow(flowInput);
+    const { output, usage, model }: ResolveActionResponse = await resolveActionFlow(flowInput);
     await logAiInteraction({
-      gameId, flowName: 'resolveAction', status: 'success', input: flowInput,
+      gameId, flowName, status: 'success', input: flowInput,
       output, usage, model, latency: Date.now() - startTime
     });
     return output;
   } catch (e: any) {
     await logAiInteraction({
-      gameId, flowName: 'resolveAction', status: 'failure', input: flowInput,
+      gameId, flowName, status: 'failure', input: flowInput,
       error: e.message, latency: Date.now() - startTime
     });
     throw handleAIError(e, 'The story could not be continued');
@@ -237,17 +240,18 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 }
 
 export async function createCharacter(input: GenerateCharacterInput, gameId: string): Promise<GenerateCharacterOutput> {
+    const flowName = 'generateCharacter';
     const startTime = Date.now();
     try {
-        const result = await generateCharacterFlow(input);
+        const result: GenerateCharacterResponse = await generateCharacterFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'generateCharacter', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output: result.output, usage: result.usage, model: result.model, latency: Date.now() - startTime
         });
         return result.output;
     } catch (e: any) {
          await logAiInteraction({
-            gameId, flowName: 'generateCharacter', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, 'Failed to generate characters');
@@ -268,6 +272,7 @@ type UpdateWorldStateServerInput = {
 
 export async function updateWorldState(input: UpdateWorldStateServerInput): Promise<UpdateWorldStateOutput | void> {
   const { gameId, updates, playerAction, gmResponse, currentWorldState, campaignStructure } = input;
+  const flowName = 'updateWorldState';
   
   try {
     const app = await getServerApp();
@@ -278,16 +283,16 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       const startTime = Date.now();
       try {
-        const { output: newWorldState, usage, model } = await updateWorldStateFlow(flowInput);
+        const { output: newWorldState, usage, model }: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
         await logAiInteraction({
-          gameId, flowName: 'updateWorldState', status: 'success', input: flowInput,
+          gameId, flowName, status: 'success', input: flowInput,
           output: newWorldState, usage, model, latency: Date.now() - startTime
         });
         await updateDoc(gameRef, { worldState: newWorldState, previousWorldState: currentWorldState, ...updates });
         return newWorldState;
       } catch (e: any) {
         await logAiInteraction({
-          gameId, flowName: 'updateWorldState', status: 'failure', input: flowInput,
+          gameId, flowName, status: 'failure', input: flowInput,
           error: e.message, latency: Date.now() - startTime
         });
         throw e; // Re-throw to be caught by the outer catch block
@@ -305,20 +310,21 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
 
 export async function getAnswerToQuestion(input: AskQuestionInput & { gameId: string }): Promise<AskQuestionOutput> {
   const { gameId, ...flowInput } = input;
+  const flowName = 'askQuestion';
   const startTime = Date.now();
   try {
     const character = flowInput.worldState.characters.find(c => c.id === flowInput.character.id);
     if (!character) throw new Error("Character asking question not found in world state.");
     
-    const { output, usage, model } = await askQuestionFlow({ ...flowInput, character });
+    const { output, usage, model }: AskQuestionResponse = await askQuestionFlow({ ...flowInput, character });
     await logAiInteraction({
-      gameId, flowName: 'askQuestion', status: 'success', input: flowInput,
+      gameId, flowName, status: 'success', input: flowInput,
       output, usage, model, latency: Date.now() - startTime
     });
     return output;
   } catch (e: any) {
     await logAiInteraction({
-      gameId, flowName: 'askQuestion', status: 'failure', input: flowInput,
+      gameId, flowName, status: 'failure', input: flowInput,
       error: e.message, latency: Date.now() - startTime
     });
     throw handleAIError(e, 'Failed to get an answer from the GM');
@@ -326,17 +332,18 @@ export async function getAnswerToQuestion(input: AskQuestionInput & { gameId: st
 }
 
 export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string): Promise<NarratePlayerActionsOutput> {
+    const flowName = 'narratePlayerActions';
     const startTime = Date.now();
     try {
-        const { output, usage, model } = await narratePlayerActionsFlow(input);
+        const { output, usage, model }: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'narratePlayerActions', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output, usage, model, latency: Date.now() - startTime
         });
         return output;
     } catch (e: any) {
         await logAiInteraction({
-            gameId, flowName: 'narratePlayerActions', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, 'Failed to get GM acknowledgement');
@@ -344,17 +351,18 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 }
 
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
+    const flowName = 'assessConsequences';
     const startTime = Date.now();
     try {
-        const { output, usage, model } = await assessConsequencesFlow(input);
+        const { output, usage, model }: AssessConsequencesResponse = await assessConsequencesFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'assessConsequences', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output, usage, model, latency: Date.now() - startTime
         });
         return output;
     } catch (e: any) {
         await logAiInteraction({
-            gameId, flowName: 'assessConsequences', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, 'Failed to assess consequences');
@@ -362,17 +370,18 @@ export async function checkConsequences(input: AssessConsequencesInput, gameId: 
 }
 
 export async function generateRecap(input: GenerateRecapInput, gameId: string): Promise<GenerateRecapOutput> {
+    const flowName = 'generateRecap';
     const startTime = Date.now();
     try {
-        const { output, usage, model } = await generateRecapFlow(input);
+        const { output, usage, model }: GenerateRecapResponse = await generateRecapFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'generateRecap', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output, usage, model, latency: Date.now() - startTime
         });
         return output;
     } catch (e: any) {
         await logAiInteraction({
-            gameId, flowName: 'generateRecap', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, 'Failed to generate recap');
@@ -380,11 +389,12 @@ export async function generateRecap(input: GenerateRecapInput, gameId: string): 
 }
 
 export async function regenerateField(input: RegenerateFieldInput, gameId: string): Promise<{newValue: string}> {
+    const flowName = 'regenerateField';
     const startTime = Date.now();
     try {
-        const { output, usage, model } = await regenerateFieldFlow(input);
+        const { output, usage, model }: RegenerateFieldResponse = await regenerateFieldFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'regenerateField', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output, usage, model, latency: Date.now() - startTime
         });
         const app = await getServerApp();
@@ -395,7 +405,7 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
         return output;
     } catch (e: any) {
         await logAiInteraction({
-            gameId, flowName: 'regenerateField', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, `Failed to regenerate ${input.fieldName}`);
@@ -403,17 +413,18 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
 }
 
 export async function unifiedClassify(input: UnifiedClassifyInput, gameId: string): Promise<UnifiedClassifyOutput> {
+    const flowName = 'unifiedClassify';
     const startTime = Date.now();
     try {
-        const { output, usage, model } = await unifiedClassifyFlow(input);
+        const { output, usage, model }: UnifiedClassifyResponse = await unifiedClassifyFlow(input);
         await logAiInteraction({
-            gameId, flowName: 'unifiedClassify', status: 'success', input,
+            gameId, flowName, status: 'success', input,
             output, usage, model, latency: Date.now() - startTime
         });
         return output;
     } catch (e: any) {
         await logAiInteraction({
-            gameId, flowName: 'unifiedClassify', status: 'failure', input,
+            gameId, flowName, status: 'failure', input,
             error: e.message, latency: Date.now() - startTime
         });
         throw handleAIError(e, 'Failed to classify input');
@@ -421,74 +432,85 @@ export async function unifiedClassify(input: UnifiedClassifyInput, gameId: strin
 }
 
 // Granular actions for client-side orchestration
-type CampaignCoreInput = { setting: string; tone: string; characters: AICharacter[], settingCategory: string };
-export async function generateCampaignCoreAction(input: CampaignCoreInput, gameId: string): Promise<CampaignCore> {
+export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string): Promise<CampaignCore> {
+    const flowName = 'generateCampaignCore';
     const startTime = Date.now();
     try {
         const { output, usage, model } = await generateCampaignCore(input);
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignCore', status: 'success', input,
-            output, usage, model, latency: Date.now() - startTime
+            gameId, flowName, status: 'success', input,
+            output, usage, model, latency
         });
         return output;
     } catch (e: any) {
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignCore', status: 'failure', input,
-            error: e.message, latency: Date.now() - startTime
+            gameId, flowName, status: 'failure', input,
+            error: e.message, latency,
         });
         throw handleAIError(e, 'Failed to generate campaign core concepts');
     }
 }
 
 export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string): Promise<Faction[]> {
+    const flowName = 'generateCampaignFactions';
     const startTime = Date.now();
     try {
         const { output, usage, model } = await generateCampaignFactions(input);
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignFactions', status: 'success', input,
-            output, usage, model, latency: Date.now() - startTime
+            gameId, flowName, status: 'success', input,
+            output, usage, model, latency
         });
         return output;
     } catch (e: any) {
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignFactions', status: 'failure', input,
-            error: e.message, latency: Date.now() - startTime
+            gameId, flowName, status: 'failure', input,
+            error: e.message, latency,
         });
         throw handleAIError(e, 'Failed to generate campaign factions');
     }
 }
 
 export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string): Promise<Node[]> {
+    const flowName = 'generateCampaignNodes';
     const startTime = Date.now();
     try {
         const { output, usage, model } = await generateCampaignNodes(input);
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignNodes', status: 'success', input,
-            output, usage, model, latency: Date.now() - startTime
+            gameId, flowName, status: 'success', input,
+            output, usage, model, latency
         });
         return output;
     } catch (e: any) {
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignNodes', status: 'failure', input,
-            error: e.message, latency: Date.now() - startTime
+            gameId, flowName, status: 'failure', input,
+            error: e.message, latency,
         });
         throw handleAIError(e, 'Failed to generate campaign nodes');
     }
 }
 
 export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string): Promise<CampaignResolution> {
+    const flowName = 'generateCampaignResolution';
     const startTime = Date.now();
     try {
         const { output, usage, model } = await generateCampaignResolution(input);
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignResolution', status: 'success', input,
-            output, usage, model, latency: Date.now() - startTime
+            gameId, flowName, status: 'success', input,
+            output, usage, model, latency
         });
         return output;
     } catch (e: any) {
+        const latency = Date.now() - startTime;
         await logAiInteraction({
-            gameId, flowName: 'generateCampaignResolution', status: 'failure', input,
-            error: e.message, latency: Date.now() - startTime
+            gameId, flowName, status: 'failure', input,
+            error: e.message, latency,
         });
         throw handleAIError(e, 'Failed to generate campaign resolution');
     }

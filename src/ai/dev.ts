@@ -8,7 +8,6 @@ import '@/ai/flows/generate-character.ts';
 import '@/ai/flows/update-world-state.ts';
 import '@/ai/flows/classify-intent.ts';
 import '@/ai/flows/ask-question.ts';
-import '@/ai/flows/generate-campaign-structure.ts';
 import '@/ai/flows/sanitize-ip.ts';
 import '@/ai/flows/assess-consequences.ts';
 import '@/ai/flows/generate-recap.ts';
@@ -30,4 +29,3 @@ import '@/ai/prompts/narrate-player-actions-prompt.ts';
 import '@/ai/prompts/sanitize-ip-prompt.ts';
 import '@/ai/prompts/update-world-state-prompt.ts';
 import '@/ai/prompts/regenerate-field-prompt.ts';
-
