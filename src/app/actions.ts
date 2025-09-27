@@ -3,7 +3,7 @@
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import { resolveAction as resolveActionFlow, type ResolveActionOutput, type ResolveActionResponse } from "@/ai/flows/integrate-rules-adapter";
-import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse } from "@/ai/flows/generate-character";
+import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse, type GenerateCharacterInput, type GenerateCharacterOutput } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse } from "@/ai/flows/update-world-state";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
@@ -11,7 +11,7 @@ import { assessConsequences as assessConsequencesFlow, type AssessConsequencesRe
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
-import { unifiedClassify as unifiedClassifyFlow, type UnifiedClassifyResponse } from "@/ai/flows/unified-classify";
+import { unifiedClassify as unifiedClassifyFlow, type UnifiedClassifyResponse, type UnifiedClassifyInput, type UnifiedClassifyOutput } from "@/ai/flows/unified-classify";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
@@ -46,12 +46,11 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion, onSnapshot, writeBatch } from 'firebase/firestore';
 
-import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
+
 import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { GenerationUsage } from "genkit";
-import { UnifiedClassifyInput, UnifiedClassifyOutput } from "@/ai/flows/unified-classify";
 
 // Helper for user-friendly error messages
 function handleAIError(error: Error, defaultMessage: string): Error {
@@ -119,7 +118,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       knownFactions: [],
       factions: [],
       nodeStates: {},
-      resolution: null,
+      resolution: undefined,
       turn: 0,
       currentScene: {
         nodeId: "start",
@@ -516,5 +515,7 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
         return { success: false, message };
     }
 }
+
+    
 
     
