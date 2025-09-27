@@ -1,7 +1,7 @@
 
 'use server';
 
-import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameOutput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
+import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 import { resolveAction as resolveActionFlow, type ResolveActionOutput, type ResolveActionResponse } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse } from "@/ai/flows/update-world-state";
@@ -102,7 +102,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   // Step 2: Generate Game
   const generateGameInput: GenerateNewGameInput = { request: ipCheck.sanitizedRequest };
   try {
-    const { output: newGame, usage, model }: GenerateNewGameResponse = await generateNewGameFlow(generateGameInput);
+    const { output: newGame }: { output: GenerateNewGameOutput } = await generateNewGameFlow(generateGameInput);
     
     const app = await getServerApp();
     const db = getFirestore(app);
@@ -467,11 +467,6 @@ export async function updateUserProfile(userId: string, isAnonymous: boolean, up
     }
 }
 
-export async function setAdminClaim(userId: string): Promise<{ success: boolean; message: string }> {
-    return { success: false, message: "Admin operations are not available." };
-}
-
-
 export async function regenerateGameConcept(gameId: string, request: string): Promise<{ success: boolean; warningMessage?: string; message?: string }> {
     const sanitizeInput = { request };
     let ipCheck: SanitizeIpOutput;
@@ -523,3 +518,5 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
 }
 
   
+
+    
