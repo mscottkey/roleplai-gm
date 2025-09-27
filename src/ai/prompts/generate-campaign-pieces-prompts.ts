@@ -1,3 +1,4 @@
+
 // src/ai/prompts/generate-campaign-pieces-prompts.ts
 
 export const generateCampaignCorePromptText = `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign. Based on the provided setting, tone, and characters, generate the core narrative concepts.

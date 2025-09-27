@@ -31,6 +31,7 @@ const SecretSchema = z.object({
 });
 
 export const NodeSchema = z.object({
+    id: z.string().describe('A unique identifier for this node.'),
     title: z.string().describe('A clear, evocative name for the situation or location.'),
     description: z.string().describe('A one-paragraph description of the situation at this node.'),
     isStartingNode: z.boolean().describe('Set to true for exactly one node, which will be the campaign entry point.'),

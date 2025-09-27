@@ -12,7 +12,7 @@ import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
-import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
+import { regenerateGameField as regenerateGameFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
@@ -565,7 +565,7 @@ export async function regenerateGameConcept(gameId: string, request: string): Pr
 
 export async function regenerateGameField(gameId: string, input: RegenerateFieldInput): Promise<{ success: boolean; message?: string }> {
     try {
-        const { newValue } = await regenerateFieldFlow(input);
+        const { newValue } = await regenerateGameFieldFlow(input);
 
         const app = await getServerApp();
         const db = getFirestore(app);
