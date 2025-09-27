@@ -667,7 +667,7 @@ The stage is set. What do you do?
         toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
     }
   }, [activeGameId, gameData, toast]);
-  
+
   if (step === 'loading') {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
@@ -964,7 +964,7 @@ The stage is set. What do you do?
   const ttsProps = {
     isSpeaking, isPaused, isAutoPlayEnabled, isTTSSupported: supported,
     onPlay: handlePlayAll, onPause: pause, onStop: cancel,
-    onSetAutoPlay: setIsAutoPlayEnabled, voices, selectedVoice, onSelectVoice,
+    onSetAutoPlay: setIsAutoPlayEnabled, voices, selectedVoice, onSelectVoice: selectVoice,
     ttsVolume, onCycleTtsVolume,
   };
 
