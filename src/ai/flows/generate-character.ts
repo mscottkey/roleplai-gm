@@ -16,7 +16,7 @@ import { MODEL_GENERATION } from '../models';
 import { generateSingleCharacterPromptText } from '../prompts/generate-character-prompt';
 import type { GenerationUsage } from 'genkit';
 
-type GenerateCharacterResponse = {
+export type GenerateCharacterResponse = {
   output: GenerateCharacterOutput;
   usage: GenerationUsage;
   model: string;
