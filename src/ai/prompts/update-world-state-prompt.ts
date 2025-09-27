@@ -25,9 +25,9 @@ Return a NEW, UPDATED world state object based on the rules below, processed in 
     - Add a summary of the `revelation` to the top of the `recentEvents` list (e.g., "SECRET REVEALED: The strange altar is actually a teleportation device.").
     - Consider if the `impact` of the secret creates a new `storyAspect`.
 
-### 2. Node Evolution
+### 2. Node Evolution (From Player Action)
 - After checking for secrets, check if the `gmResponse` matches any `trigger` in the `evolutions` array of the current node.
-- If an evolution is triggered:
+- If an evolution is triggered by the player's direct action:
     - You MUST update the `currentState` property in the `nodeStates` map for the current node. The `currentState` should describe the new status (e.g., "The leader has been replaced", "The bridge is destroyed").
     - You MUST also update the `currentScene.description` to reflect the new state of the evolved node.
     - You MUST also add a summary of this change to the `recentEvents` list.
@@ -36,8 +36,10 @@ Return a NEW, UPDATED world state object based on the rules below, processed in 
 - Review the current state of all `worldState.factions` and their project clocks.
 - Consider the player's action and the overall story. Did the players fail a task related to a faction? Did they ignore an obvious threat for a long time?
 - Based on this, you have the option to advance **at most one** faction clock by one step. Do not advance a clock every turn; do it only when it makes narrative sense (e.g., after a significant player failure, or after 3-5 turns of ignoring a threat).
-- If you advance a clock, you MUST update the `value` of the clock in the corresponding faction object within the new `worldState.factions` array.
-- You MUST also add a summary of the clock advancing to the `recentEvents` list (e.g., "Meanwhile, The Crimson Hand completes the next step of their plan...").
+- If you advance a clock:
+    - You MUST update the `value` of the clock in the corresponding faction object within the new `worldState.factions` array.
+    - You MUST also add a summary of the clock advancing to the `recentEvents` list (e.g., "Meanwhile, The Crimson Hand completes the next step of their plan...").
+    - **CASCADE EFFECT**: After advancing a clock, immediately check ALL nodes in the `campaignStructure`. Does the new clock value and step description match an evolution `trigger` on ANY node (e.g., trigger is "The Crimson Hand clock reaches 3")? If so, trigger that node's evolution by updating its `currentState` in the `nodeStates` map, even if the players are not there. Add this background change to `recentEvents` as well (e.g., "Because the Crimson Hand advanced their plan, the City Gates are now heavily fortified.").
 
 ### 4. Endgame Progression
 - Review the `worldState.resolution.victoryConditions` and `worldState.resolution.convergenceTriggers`.
