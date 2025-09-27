@@ -18,7 +18,7 @@ export type TokenUsageRecord = TokenUsage & {
   timestamp: any; // Firestore serverTimestamp
 };
 
-export const MODEL_PRICING: Record<string, { input: number, output: number }> = {
+const MODEL_PRICING: Record<string, { input: number, output: number }> = {
   'gemini-2.5-flash': {
     input: 0.00000035, // $0.35 per 1M tokens
     output: 0.0000021,  // $2.10 per 1M tokens
