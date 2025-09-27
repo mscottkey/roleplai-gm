@@ -9,6 +9,7 @@ import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-worl
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput as GenCampaignInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
+import { classifyIntent as classifyIntentFlow, type ClassifyIntentOutput, type ClassifyIntentInput } from "@/ai/flows/classify-intent";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
@@ -151,7 +152,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     await setDoc(gameRef, newGameDocument);
 
     // Now that we have a gameId, log the usage. This is non-blocking.
-    logUsage(gameRef.id, 'generateNewGame', model, usage);
+    await logUsage(gameRef.id, 'generateNewGame', model, usage);
 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
@@ -334,7 +335,7 @@ export async function saveCampaignStructure(gameId: string, campaign: CampaignSt
 
 export async function getActualCost(gameId: string): Promise<{ totalInputTokens: number; totalOutputTokens: number; totalCost: number }> {
     const usageRecords = await getUsageForGame(gameId);
-    return calculateCost(usageRecords);
+    return await calculateCost(usageRecords);
 }
 
 export async function checkConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {

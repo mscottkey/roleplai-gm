@@ -70,7 +70,7 @@ export async function getUsageForGame(gameId: string): Promise<TokenUsageRecord[
   }
 }
 
-export function calculateCost(usageRecords: TokenUsageRecord[]): { totalInputTokens: number; totalOutputTokens: number; totalCost: number } {
+export async function calculateCost(usageRecords: TokenUsageRecord[]): Promise<{ totalInputTokens: number; totalOutputTokens: number; totalCost: number }> {
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let totalCost = 0;
