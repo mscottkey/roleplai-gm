@@ -3,6 +3,9 @@
 import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence, Auth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
+import { getPerformance } from "firebase/performance";
+
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -15,6 +18,17 @@ const firebaseConfig: FirebaseOptions = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
+
+// Initialize analytics and performance if on the client side and supported
+if (typeof window !== 'undefined') {
+  isAnalyticsSupported().then(supported => {
+    if (supported) {
+      getAnalytics(app);
+      getPerformance(app);
+    }
+  });
+}
+
 
 // Keep a client-side cache of the auth instance
 let authInstance: Auth | null = null;

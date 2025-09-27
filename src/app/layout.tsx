@@ -5,6 +5,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseProvider } from '@/components/firebase-provider';
 
+
 export const metadata: Metadata = {
   title: 'RoleplAI GM',
   description: 'Your AI-powered Game Master for tabletop RPGs.',
