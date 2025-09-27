@@ -13,6 +13,17 @@ import {ai} from '@/ai/genkit';
 import { UpdateWorldStateInputSchema, UpdateWorldStateOutputSchema, PlayerActionSchema, type UpdateWorldStateInput, type UpdateWorldStateOutput } from '../schemas/world-state-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { updateWorldStatePromptText } from '../prompts/update-world-state-prompt';
+import Handlebars from 'handlebars';
+
+// Register a Handlebars helper to look up a node by ID
+Handlebars.registerHelper('lookup', function(obj, key, options) {
+  if (Array.isArray(obj)) {
+    const item = obj.find(o => o.id === key);
+    return item ? options.fn(item) : '';
+  }
+  return obj && obj[key] ? options.fn(obj[key]) : '';
+});
+
 
 export async function updateWorldState(input: UpdateWorldStateInput): Promise<UpdateWorldStateOutput> {
   return updateWorldStateFlow(input);
@@ -35,15 +46,17 @@ const updateWorldStateFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     
-    // Ensure arrays are not null and carry over the original character data to prevent ID loss
     const updatedOutput = output!;
-    updatedOutput.characters = input.worldState.characters; // THIS IS THE FIX
+    
+    // Ensure critical fields are not lost
+    updatedOutput.characters = input.worldState.characters; 
     updatedOutput.storyOutline = updatedOutput.storyOutline || [];
     updatedOutput.recentEvents = updatedOutput.recentEvents || [];
     updatedOutput.places = updatedOutput.places || [];
     updatedOutput.storyAspects = updatedOutput.storyAspects || [];
     updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
     updatedOutput.knownFactions = updatedOutput.knownFactions || [];
+    updatedOutput.nodeStates = updatedOutput.nodeStates || input.worldState.nodeStates || {};
     
     if (!updatedOutput.currentScene) {
         updatedOutput.currentScene = input.worldState.currentScene || { nodeId: 'unknown', name: 'Unknown', description: 'The area has not been described.', presentCharacters: [], presentNPCs: [], environmentalFactors: [], connections: [] };

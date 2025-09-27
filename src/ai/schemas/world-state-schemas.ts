@@ -1,7 +1,7 @@
 
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
-import { FactionSchema } from './campaign-structure-schemas';
+import { CampaignStructureSchema, FactionSchema, NodeSchema } from './campaign-structure-schemas';
 
 export const PlaceSchema = z.object({
     name: z.string().describe('The name of the location.'),
@@ -21,8 +21,11 @@ const SceneSchema = z.object({
 
 const NodeStateSchema = z.object({
   discoveryLevel: z.enum(['unknown', 'rumored', 'visited', 'explored', 'resolved']).default('unknown'),
-  playerKnowledge: z.array(z.string()).describe('Specific pieces of information the players have learned about this node.'),
+  playerKnowledge: z.array(z.string()).describe('Specific facts or clues the players have learned about this node.'),
+  revealedSecrets: z.array(z.string().uuid()).describe('A list of IDs of secrets that have been revealed.'),
+  currentState: z.string().optional().describe("If the node has evolved, this describes its current state."),
 });
+export type NodeState = z.infer<typeof NodeStateSchema>;
 
 export const WorldStateSchema = z.object({
   summary: z.string().describe("A high-level summary of the adventure so far."),
@@ -49,6 +52,7 @@ export const UpdateWorldStateInputSchema = z.object({
   worldState: WorldStateSchema.describe("The current state of the world before the action."),
   playerAction: PlayerActionSchema.describe("The action taken by the player."),
   gmResponse: z.string().describe("The GM's narration of the outcome."),
+  campaignStructure: CampaignStructureSchema.describe("The static campaign structure, including all nodes and secrets."),
 });
 export type UpdateWorldStateInput = z.infer<typeof UpdateWorldStateInputSchema>;
 

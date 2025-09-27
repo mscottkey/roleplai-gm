@@ -66,7 +66,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
-import type { AICharacter } from '@/ai/schemas/generate-character-schemas';
+import type { AICharacter, CampaignStructure } from '@/ai/schemas/generate-character-schemas';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -188,9 +188,8 @@ export default function RoleplAIGMPage() {
   const [games, setGames] = useState<GameSession[]>([]);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   
-  const [input, setInput] = useState('');
-
   const [gameData, setGameData] = useState<GameData | null>(null);
+  const [campaignStructure, setCampaignStructure] = useState<CampaignStructure | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [previousWorldState, setPreviousWorldState] = useState<WorldState | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -221,7 +220,6 @@ export default function RoleplAIGMPage() {
 
   const { toast } = useToast();
 
-  // ===== TTS STATE (NEW): volume toggle + read cursor + panel =================
   type TtsVol = 'low' | 'med' | 'high';
   const [ttsVolume, setTtsVolume] = useState<TtsVol>('med');
   const volumeMap: Record<TtsVol, number> = { low: 0.4, med: 0.75, high: 1.0 };
@@ -243,7 +241,7 @@ export default function RoleplAIGMPage() {
     const setTrue = () => { userInteractedRef.current = true; };
     window.addEventListener('click', setTrue, { once: true });
     window.addEventListener('touchend', setTrue, { once: true });
-    window.addEventListener('keydown', setTrue, { once: true }); // extra gesture
+    window.addEventListener('keydown', setTrue, { once: true });
     return () => {
       window.removeEventListener('click', setTrue);
       window.removeEventListener('touchend', setTrue);
@@ -256,7 +254,6 @@ export default function RoleplAIGMPage() {
     [storyMessages]
   );
   
-  // Manual Play: resume, or read from cursor → end
   const handlePlayAll = (text?: string, onBoundary?: (e: SpeechSynthesisEvent) => void) => {
     if (isPaused) { resume(); return; }
     if (isSpeaking) { cancel(); }
@@ -273,8 +270,6 @@ export default function RoleplAIGMPage() {
   };
 
 
-  // ===== Firestore listeners & existing flows (unchanged) =====================
-
   useEffect(() => {
     if (!user) return;
     getUserPreferences(user.uid).then(setUserPreferences);
@@ -290,7 +285,6 @@ export default function RoleplAIGMPage() {
 
         const currentGameId = searchParams.get('game');
         if (!currentGameId && userGames.length > 0) {
-          // router.replace(`/play?game=${userGames[0].id}`); // optional
         } else if (!currentGameId) {
           setStep('create');
         }
@@ -317,6 +311,7 @@ export default function RoleplAIGMPage() {
       setGameData(null);
       setWorldState(null);
       setPreviousWorldState(null);
+      setCampaignStructure(null);
       setMessages([]);
       setStoryMessages([]);
       setCharacters([]);
@@ -340,7 +335,6 @@ export default function RoleplAIGMPage() {
       if (docSnap.exists()) {
         const game = docSnap.data() as GameSession;
 
-        // Add userId to gameData for host check
         game.gameData.userId = game.userId;
         setGameData(game.gameData);
 
@@ -400,7 +394,19 @@ export default function RoleplAIGMPage() {
         router.push('/play');
       }
     });
-    return () => unsub();
+
+    const unsubCampaign = onSnapshot(doc(db, 'games', activeGameId, 'campaign', 'data'), (docSnap) => {
+        if (docSnap.exists()) {
+            setCampaignStructure(docSnap.data() as CampaignStructure);
+        } else {
+            setCampaignStructure(null);
+        }
+    });
+
+    return () => {
+        unsub();
+        unsubCampaign();
+    };
   }, [activeGameId, router, toast]);
 
   const handleUndo = async () => {
@@ -590,12 +596,14 @@ ${startingNode ? startingNode.description : gameData.setting}
       const knownPlaces = campaignStructure.nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
       const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
 
-      const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[] }> = {};
-      campaignStructure.nodes.forEach(node => {
-        initialNodeStates[node.id] = { discoveryLevel: 'unknown', playerKnowledge: [] };
-      });
-      initialNodeStates[startingNode.id].discoveryLevel = 'visited';
-
+      const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
+        campaignStructure.nodes.forEach(node => {
+          initialNodeStates[node.id] = {
+            discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
+            playerKnowledge: [],
+            revealedSecrets: [],
+          };
+        });
 
       await updateWorldState({
         gameId: activeGameId,
@@ -636,7 +644,7 @@ ${startingNode ? startingNode.description : gameData.setting}
   };
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
-    if (!worldState || !activeGameId || !user) {
+    if (!worldState || !activeGameId || !user || !campaignStructure) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -725,7 +733,6 @@ ${startingNode ? startingNode.description : gameData.setting}
             }
         }
         
-        // 1. Get conversational acknowledgement for chat
         const acknowledgement = await narratePlayerActions({
             playerAction: playerInput,
             gameState: worldState.summary,
@@ -740,7 +747,6 @@ ${startingNode ? startingNode.description : gameData.setting}
         
         const finalChatMessages = [...newMessages, acknowledgementMessage];
 
-        // 2. Get narrative result for storyboard
         const storyResponse = await continueStory({
             actionDescription: playerInput,
             characterId: actingCharacter.id,
@@ -764,6 +770,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             playerAction: { characterName: activeCharacter.name, action: playerInput },
             gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
+            campaignStructure: campaignStructure,
             updates: {
                 messages: finalChatMessages,
                 storyMessages: newStoryMessages,
@@ -858,13 +865,13 @@ ${startingNode ? startingNode.description : gameData.setting}
       };
 
       setGenerationProgress({ current: 1, total: 1, step: 'Generating new campaign structure...' });
-      const campaignStructure = await generateCampaignStructureAction(generationInputBase);
-      const { settingCategory, ...campaignDataToSave } = campaignStructure;
+      const newCampaignStructure = await generateCampaignStructureAction(generationInputBase);
+      const { settingCategory, ...campaignDataToSave } = newCampaignStructure;
 
       const saveResult = await saveCampaignStructure(activeGameId, campaignDataToSave);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
 
-      const startingNode = campaignStructure.nodes.find((n) => n.isStartingNode) || campaignStructure.nodes[0];
+      const startingNode = newCampaignStructure.nodes.find((n) => n.isStartingNode) || newCampaignStructure.nodes[0];
       
       const welcomeMessageForChat: Message = { 
         id: `start-chat-regen-${Date.now()}`, 
@@ -888,16 +895,23 @@ ${startingNode.description}
 The stage is set. What do you do?
 `.trim();
 
+    const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
+    newCampaignStructure.nodes.forEach(node => {
+        initialNodeStates[node.id] = {
+        discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
+        playerKnowledge: [],
+        revealedSecrets: [],
+        };
+    });
+
       await updateWorldState({
         gameId: activeGameId,
         updates: {
           'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-          'worldState.storyOutline': campaignStructure.nodes.map((n) => n.title),
+          'worldState.storyOutline': newCampaignStructure.nodes.map((n) => n.title),
           'worldState.recentEvents': ['The adventure has just begun.'],
-          'worldState.storyAspects': campaignStructure.campaignAspects,
-          'worldState.knownPlaces': [],
-          'worldState.knownFactions': [],
-          'worldState.places': [],
+          'worldState.storyAspects': newCampaignStructure.campaignAspects,
+          'worldState.nodeStates': initialNodeStates,
           'worldState.settingCategory': settingCategory,
           messages: [welcomeMessageForChat],
           storyMessages: [{ content: storyboardContent }],
@@ -1060,6 +1074,7 @@ The stage is set. What do you do?
             isLoading={isLoading}
             gameData={gameData!}
             worldState={worldState}
+            campaignStructure={campaignStructure}
             characters={characters}
             activeCharacter={activeCharacter}
             setActiveCharacter={handleLocalCharacterSwitch}
@@ -1069,11 +1084,9 @@ The stage is set. What do you do?
             canUndo={!!previousWorldState}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
-            // Session Status
             sessionStatus={sessionStatus}
             onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
-            // TTS props
             isSpeaking={isSpeaking}
             isPaused={isPaused}
             isAutoPlayEnabled={isAutoPlayEnabled}
@@ -1082,7 +1095,6 @@ The stage is set. What do you do?
             onPause={pause}
             onStop={cancel}
             onSetAutoPlay={setIsAutoPlayEnabled}
-            // Voice selection
             voices={voices}
             selectedVoice={selectedVoice}
             onSelectVoice={selectVoice}
@@ -1116,7 +1128,6 @@ The stage is set. What do you do?
         {renderContent()}
       </AppShell>
 
-      {/* Turn Handoff Dialog */}
       {showHandoff && nextCharacter && (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-[425px] text-center p-8">
@@ -1138,7 +1149,6 @@ The stage is set. What do you do?
         </Dialog>
       )}
 
-      {/* Confirmation Dialog */}
       {confirmation && (
         <AlertDialog open onOpenChange={() => setConfirmation(null)}>
           <AlertDialogContent>
@@ -1154,7 +1164,6 @@ The stage is set. What do you do?
         </AlertDialog>
       )}
 
-      {/* Delete Game Confirmation */}
       {deleteConfirmation && (
         <AlertDialog open onOpenChange={() => setDeleteConfirmation(null)}>
           <AlertDialogContent>
@@ -1178,7 +1187,6 @@ The stage is set. What do you do?
         </AlertDialog>
       )}
 
-      {/* Rename Game Dialog */}
       {renameTarget && (
         <Dialog open onOpenChange={() => setRenameTarget(null)}>
           <DialogContent>
@@ -1208,7 +1216,6 @@ The stage is set. What do you do?
         </Dialog>
       )}
 
-      {/* End Campaign Confirmation */}
       {endCampaignConfirmation && (
         <AlertDialog open onOpenChange={setEndCampaignConfirmation}>
           <AlertDialogContent>
@@ -1231,7 +1238,6 @@ The stage is set. What do you do?
         </AlertDialog>
       )}
 
-      {/* Account Settings Dialog */}
       {user && (
         <AccountDialog
           isOpen={isAccountDialogOpen}

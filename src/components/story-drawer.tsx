@@ -55,6 +55,7 @@ import { VoiceSelector } from './ui/voice-selector';
 
 import type { GameData, MechanicsVisibility, SessionStatus } from "@/app/lib/types";
 import type { WorldState } from "@/ai/schemas/world-state-schemas";
+import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useSearchParams } from 'next/navigation';
@@ -66,6 +67,7 @@ type StoryDrawerProps = {
     onOpenChange: (isOpen: boolean) => void;
     gameData: GameData;
     worldState: WorldState | null;
+    campaignStructure: CampaignStructure | null;
     mechanicsVisibility: MechanicsVisibility;
     setMechanicsVisibility: (value: MechanicsVisibility) => void;
     onRegenerateStoryline: () => void;
@@ -92,6 +94,7 @@ export function StoryDrawer({
     onOpenChange,
     gameData,
     worldState,
+    campaignStructure,
     mechanicsVisibility,
     setMechanicsVisibility,
     onRegenerateStoryline,
@@ -103,7 +106,7 @@ export function StoryDrawer({
     onUpdateStatus,
     onConfirmEndCampaign,
 }: StoryDrawerProps) {
-    const { characters, campaignStructure, setting, tone, playMode } = gameData;
+    const { characters, setting, tone, playMode } = gameData;
     const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const searchParams = useSearchParams();

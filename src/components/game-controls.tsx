@@ -14,6 +14,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 
 import type { GameData, Message, MechanicsVisibility, Character, SessionStatus } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
+import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import type { Voice } from '@/hooks/use-speech-synthesis';
 
 type GameControlsProps = {
@@ -22,6 +23,7 @@ type GameControlsProps = {
   isLoading: boolean;
   gameData: GameData;
   worldState: WorldState | null;
+  campaignStructure: CampaignStructure | null;
   characters: Character[];
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character) => void;
@@ -59,6 +61,7 @@ export function GameControls({
   isLoading,
   gameData,
   worldState,
+  campaignStructure,
   characters,
   activeCharacter,
   setActiveCharacter,
@@ -117,6 +120,7 @@ export function GameControls({
         onOpenChange={setIsDrawerOpen}
         gameData={gameData}
         worldState={worldState}
+        campaignStructure={campaignStructure}
         mechanicsVisibility={mechanicsVisibility}
         setMechanicsVisibility={setMechanicsVisibility}
         onRegenerateStoryline={onRegenerateStoryline}

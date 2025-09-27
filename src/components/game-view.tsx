@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { GameControls } from '@/components/game-controls';
 import type { GameData, Message, MechanicsVisibility, Character, StoryMessage, SessionStatus } from '@/app/lib/types';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
+import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
 import { ArrowDown } from 'lucide-react';
@@ -34,6 +35,7 @@ type GameViewProps = {
   isLoading: boolean;
   gameData: GameData;
   worldState: WorldState | null;
+  campaignStructure: CampaignStructure | null;
   characters: Character[];
   activeCharacter: Character | null;
   setActiveCharacter: (character: Character) => void;
@@ -71,6 +73,7 @@ export function GameView({
   isLoading,
   gameData,
   worldState,
+  campaignStructure,
   characters,
   activeCharacter,
   setActiveCharacter,
@@ -258,7 +261,6 @@ export function GameView({
         </div>
       )}
 
-      {/* Right Pane: Game Controls */}
       <div className="h-full flex flex-col overflow-hidden">
           {gameData.playMode === 'local' && <LocalPlayerGrid />}
            <GameControls
@@ -267,6 +269,7 @@ export function GameView({
               isLoading={isLoading}
               gameData={gameData}
               worldState={worldState}
+              campaignStructure={campaignStructure}
               characters={characters}
               activeCharacter={activeCharacter}
               setActiveCharacter={setActiveCharacter}
