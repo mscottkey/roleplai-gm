@@ -310,10 +310,9 @@ export function StoryDrawer({
                     </div>
                      <Separator />
                      <div className="space-y-4">
-                        <h4 className="font-medium text-foreground">Cost Estimation</h4>
+                        <h4 className="font-medium text-foreground">Cost Tracking</h4>
                         <CostEstimator 
-                            characters={characters || []}
-                            campaignGenerated={!!campaignStructure}
+                            gameId={gameId}
                         />
                      </div>
                      <Separator />

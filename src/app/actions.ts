@@ -8,7 +8,6 @@ import { generateCharacter as generateCharacterFlow } from "@/ai/flows/generate-
 import { updateWorldState as updateWorldStateFlow } from "@/ai/flows/update-world-state";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput } from "@/ai/flows/ask-question";
 import { generateCampaignStructure as generateCampaignStructureFlow, type GenerateCampaignStructureInput as GenCampaignInput, type GenerateCampaignStructureOutput } from "@/ai/flows/generate-campaign-structure";
-import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
@@ -18,7 +17,8 @@ import { unifiedClassify } from "@/ai/flows/unified-classify";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
-import type { EstimateCostInput, EstimateCostOutput } from "@/ai/schemas/cost-estimation-schemas";
+import { logUsage, getUsageForGame, calculateCost } from './actions/usage';
+
 
 import { updateUserPreferences } from './actions/user-preferences';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
@@ -92,7 +92,7 @@ type GenerateNewGameInput = {
 export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
   try {
     const ipCheck = await sanitizeIpFlow({ request: input.request });
-    const newGame = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+    const { output: newGame, usage, model } = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
     
     const app = await getServerApp();
     const db = getFirestore(app);
@@ -149,6 +149,9 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
     };
     
     await setDoc(gameRef, newGameDocument);
+
+    // Now that we have a gameId, log the usage. This is non-blocking.
+    logUsage(gameRef.id, 'generateNewGame', model, usage);
 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
@@ -329,16 +332,9 @@ export async function saveCampaignStructure(gameId: string, campaign: CampaignSt
 }
 
 
-export async function getCostEstimation(input: EstimateCostInput): Promise<EstimateCostOutput> {
-    try {
-        return await estimateCostFlow(input);
-    } catch (error) {
-        console.error("Error in getCostEstimation action:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to get cost estimation: ${error.message}`);
-        }
-        throw new Error("Failed to get cost estimation. Please try again.");
-    }
+export async function getActualCost(gameId: string): Promise<{ totalInputTokens: number; totalOutputTokens: number; totalCost: number }> {
+    const usageRecords = await getUsageForGame(gameId);
+    return calculateCost(usageRecords);
 }
 
 export async function checkConsequences(input: AssessConsequencesInput): Promise<AssessConsequencesOutput> {
@@ -499,7 +495,7 @@ export async function setAdminClaim(userId: string): Promise<{ success: boolean;
 export async function regenerateGameConcept(gameId: string, request: string): Promise<{ success: boolean; warningMessage?: string; message?: string }> {
     try {
         const ipCheck = await sanitizeIpFlow({ request });
-        const newGame = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+        const { output: newGame } = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
 
         const app = await getServerApp();
         const db = getFirestore(app);
@@ -563,5 +559,4 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
 }
 
 export { unifiedClassify };
-
     

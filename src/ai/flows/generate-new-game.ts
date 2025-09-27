@@ -9,6 +9,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { MODEL_GENERATION } from '../models';
 import { generateNewGamePromptText } from '../prompts/generate-new-game-prompt';
+import { GenerationUsage } from 'genkit';
 
 const GenerateNewGameInputSchema = z.object({
   request: z.string().describe('A simple request describing the desired game, e.g., \'I want to play a cyberpunk heist.\''),
@@ -35,7 +36,7 @@ function cleanMarkdown(text: string): string {
     .replace(/\*\*(Vibe|Tone Levers|Notable Locations):\s*/g, '## $1\n\n')
     // Fix malformed bullet points patterns - be more conservative
     .replace(/\*\*\*\*\* /g, '* ')
-    .replace(/\*\*\*\* /g, '* ')
+    .replace(/\*\*\* /g, '* ')
     // Fix mangled asterisks around text
     .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
     // Clean up excessive whitespace but preserve single spaces
@@ -50,15 +51,16 @@ function cleanMarkdown(text: string): string {
 }
 
 
-export async function generateNewGame(input: GenerateNewGameInput): Promise<GenerateNewGameOutput> {
-  const result = await generateNewGameFlow(input);
+export async function generateNewGame(input: GenerateNewGameInput): Promise<{ output: GenerateNewGameOutput; usage: GenerationUsage; model: string; }> {
+  const { output, usage, model } = await prompt(input);
   
   // Clean up the markdown formatting in the response
-  return {
-    ...result,
-    setting: cleanMarkdown(result.setting),
-    tone: cleanMarkdown(result.tone),
+  const cleanedOutput = {
+    ...output!,
+    setting: cleanMarkdown(output!.setting),
+    tone: cleanMarkdown(output!.tone),
   };
+  return { output: cleanedOutput, usage, model };
 }
 
 const prompt = ai.definePrompt({
@@ -69,6 +71,7 @@ const prompt = ai.definePrompt({
   prompt: generateNewGamePromptText,
 });
 
+// This flow is now only for the Genkit developer UI and is not called directly by application code.
 const generateNewGameFlow = ai.defineFlow(
   {
     name: 'generateNewGameFlow',
