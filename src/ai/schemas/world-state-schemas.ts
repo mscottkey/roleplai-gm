@@ -1,7 +1,7 @@
 
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
-import { CampaignStructureSchema, FactionSchema, NodeSchema } from './campaign-structure-schemas';
+import { CampaignStructureSchema, FactionSchema, NodeSchema, CampaignResolutionSchema } from './campaign-structure-schemas';
 
 export const PlaceSchema = z.object({
     name: z.string().describe('The name of the location.'),
@@ -39,6 +39,7 @@ export const WorldStateSchema = z.object({
   currentScene: SceneSchema.describe("Details about the party's immediate scene."),
   settingCategory: z.string().optional().describe('The pre-classified genre category of the setting (e.g., "sci_fi_cyberpunk").'),
   nodeStates: z.record(z.string(), NodeStateSchema).optional().describe('A map of nodeId to its current dynamic state (discovery level, known secrets).'),
+  resolution: CampaignResolutionSchema.optional().describe('The dynamic state of the campaign\'s endgame.'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 
@@ -58,3 +59,4 @@ export type UpdateWorldStateInput = z.infer<typeof UpdateWorldStateInputSchema>;
 
 export const UpdateWorldStateOutputSchema = WorldStateSchema;
 export type UpdateWorldStateOutput = z.infer<typeof UpdateWorldStateOutputSchema>;
+

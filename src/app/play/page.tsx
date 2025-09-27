@@ -618,6 +618,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.knownPlaces': [startingPlace],
           'worldState.knownFactions': [],
           'worldState.nodeStates': initialNodeStates,
+          'worldState.resolution': campaignStructure.resolution,
           'worldState.currentScene': {
             nodeId: startingNode.id,
             name: startingNode.title,
@@ -678,15 +679,14 @@ ${startingNode ? startingNode.description : gameData.setting}
     };
     
     setMessages((prev) => [...prev, newUserMessage]);
-    setInput('');
     setIsLoading(true);
   
     try {
-      const { intent } = await classifyIntent({ playerInput });
+      const { intentClassification } = await unifiedClassify({ playerInput });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
-      if (intent === 'Action') {
+      if (intentClassification?.intent === 'Action') {
         if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
             toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
             setMessages(messagesWithoutRecap);
@@ -1253,3 +1253,4 @@ The stage is set. What do you do?
     </>
   );
 }
+

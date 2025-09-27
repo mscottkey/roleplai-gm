@@ -1,4 +1,3 @@
-
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
 
