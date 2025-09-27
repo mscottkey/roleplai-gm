@@ -23,7 +23,6 @@ if (typeof window !== 'undefined') {
   isAnalyticsSupported().then(supported => {
     if (supported) {
       getAnalytics(app);
-      // getPerformance(app); // Disabled due to crash with long CSS class names
     }
   });
 }
@@ -51,3 +50,5 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
 }
 
 export { app, db }
+
+  
