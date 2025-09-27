@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,11 +20,33 @@ export function GenerationProgress({ current, total, step }: GenerationProgressP
     const stageKeys: (keyof typeof gmPlottingMessages)[] = ['classify', 'core', 'factions', 'nodes', 'resolution'];
     const currentStageKey = stageKeys[current - 1];
     
-    if (currentStageKey && gmPlottingMessages[currentStageKey]) {
-      const messages = gmPlottingMessages[currentStageKey];
-      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-      setGmMessage(randomMessage);
+    if (!currentStageKey || !gmPlottingMessages[currentStageKey]) {
+      return;
     }
+
+    const messagesForStage = gmPlottingMessages[currentStageKey];
+    let lastIndex = -1;
+
+    const pickRandomMessage = () => {
+      let randomIndex = Math.floor(Math.random() * messagesForStage.length);
+      // Avoid showing the same message twice in a row if possible
+      if (messagesForStage.length > 1 && randomIndex === lastIndex) {
+        randomIndex = (randomIndex + 1) % messagesForStage.length;
+      }
+      lastIndex = randomIndex;
+      setGmMessage(messagesForStage[randomIndex]);
+    };
+
+    // Set an initial message immediately
+    pickRandomMessage();
+
+    // Set up the interval to rotate messages
+    const intervalId = setInterval(pickRandomMessage, 2000);
+
+    // Cleanup function to clear the interval when the component unmounts or the step changes
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [current, step]);
 
   return (
