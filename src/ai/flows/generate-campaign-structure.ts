@@ -15,6 +15,7 @@ import {
   type GenerateCampaignStructureOutput,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from './generate-campaign-pieces';
+import { generateCampaignResolution } from './generate-campaign-resolution';
 import { unifiedClassify } from './unified-classify';
 
 export async function generateCampaignStructure(input: GenerateCampaignStructureInput): Promise<GenerateCampaignStructureOutput> {
@@ -44,13 +45,17 @@ const generateCampaignStructureFlow = ai.defineFlow(
 
     // Step 4: Generate the nodes based on the core concepts and factions
     const nodes = await generateCampaignNodes({ ...input, ...coreConcepts, factions, settingCategory });
+    
+    // Step 5: Generate the resolution structure based on all previous data
+    const resolution = await generateCampaignResolution({ ...input, ...coreConcepts, factions, nodes, settingCategory });
 
-    // Step 5: Assemble the final campaign structure, including the setting category
+    // Step 6: Assemble the final campaign structure
     const finalStructure: GenerateCampaignStructureOutput = {
       campaignIssues: coreConcepts.campaignIssues,
       campaignAspects: coreConcepts.campaignAspects,
       factions,
       nodes,
+      resolution,
       settingCategory,
     };
 

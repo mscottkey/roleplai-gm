@@ -45,11 +45,31 @@ export const NodeSchema = z.object({
 });
 export type Node = z.infer<typeof NodeSchema>;
 
+export const CampaignResolutionSchema = z.object({
+  primaryObjective: z.string().describe('The main goal the players must achieve to "win" the campaign.'),
+  hiddenTruth: z.string().describe('The secret, underlying story or context that re-frames the entire campaign.'),
+  victoryConditions: z.array(z.object({
+    id: z.string().describe('A unique ID for this condition.'),
+    description: z.string().describe('A specific condition that must be met.'),
+    achieved: z.boolean().describe('Whether this condition has been met.'),
+  })).describe('A list of major objectives that contribute to the final victory.'),
+  convergenceTriggers: z.array(z.object({
+    condition: z.string().describe('A world-state condition that, when met, triggers a step towards the endgame.'),
+    triggered: z.boolean().describe('Whether this trigger has been activated.'),
+    result: z.string().describe('The narrative result of this trigger activating.'),
+  })).describe('Events that advance the world towards its final climax.'),
+  climaxReady: z.boolean().describe('Becomes true when enough triggers have been activated.'),
+  climaxLocation: z.string().optional().describe('The location of the final confrontation.'),
+  involvedFactions: z.array(z.string()).describe('The factions central to the endgame.'),
+});
+export type CampaignResolution = z.infer<typeof CampaignResolutionSchema>;
+
 export const CampaignStructureSchema = z.object({
     campaignIssues: z.array(z.string()).length(2).describe('Two high-level, unresolved tensions for the campaign.'),
     campaignAspects: z.array(z.string()).min(3).max(5).describe('3-5 overarching Fate Aspects for the campaign world.'),
     factions: z.array(FactionSchema).min(2).max(3).describe('2-3 key factions or looming threats.'),
     nodes: z.array(NodeSchema).min(5).max(7).describe('A web of 5-7 interconnected situation nodes.'),
+    resolution: CampaignResolutionSchema.optional().describe("The overarching endgame structure and victory conditions."),
 });
 export type CampaignStructure = z.infer<typeof CampaignStructureSchema>;
 
@@ -72,7 +92,6 @@ export const CampaignCoreSchema = z.object({
 });
 export type CampaignCore = z.infer<typeof CampaignCoreSchema>;
 
-// Base input for all sub-flows now includes the settingCategory
 const SubFlowInputBaseSchema = GenerateCampaignStructureInputSchema.extend({
     settingCategory: z.string(),
 });
@@ -84,3 +103,8 @@ export const GenerateNodesInputSchema = GenerateFactionsInputSchema.extend({
     factions: z.array(FactionSchema),
 });
 export type GenerateNodesInput = z.infer<typeof GenerateNodesInputSchema>;
+
+export const GenerateResolutionInputSchema = GenerateNodesInputSchema.extend({
+    nodes: z.array(NodeSchema),
+});
+export type GenerateResolutionInput = z.infer<typeof GenerateResolutionInputSchema>;

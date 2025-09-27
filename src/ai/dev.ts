@@ -10,6 +10,7 @@ import '@/ai/flows/classify-intent.ts';
 import '@/ai/flows/ask-question.ts';
 import '@/ai/flows/generate-campaign-structure.ts';
 import '@/ai/flows/generate-campaign-pieces.ts';
+import '@/ai/flows/generate-campaign-resolution.ts';
 import '@/ai/flows/estimate-cost.ts';
 import '@/ai/flows/sanitize-ip.ts';
 import '@/ai/flows/assess-consequences.ts';
@@ -23,6 +24,7 @@ import '@/ai/prompts/assess-consequences-prompt.ts';
 import '@/ai/prompts/classify-intent-prompt.ts';
 import '@/aiפהprompts/estimate-cost-prompt.ts';
 import '@/ai/prompts/generate-campaign-pieces-prompts.ts';
+import '@/ai/prompts/generate-campaign-resolution-prompt.ts';
 import '@/ai/prompts/generate-character-prompt.ts';
 import '@/ai/prompts/generate-new-game-prompt.ts';
 import '@/ai/prompts/generate-recap-prompt.ts';
@@ -31,7 +33,3 @@ import '@/ai/prompts/narrate-player-actions-prompt.ts';
 import '@/ai/prompts/sanitize-ip-prompt.ts';
 import '@/ai/prompts/update-world-state-prompt.ts';
 import '@/ai/prompts/regenerate-field-prompt.ts';
-
-
-
-
