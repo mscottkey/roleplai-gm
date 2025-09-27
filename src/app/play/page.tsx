@@ -78,6 +78,7 @@ import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
+import * as gtag from '@/lib/gtag';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -465,6 +466,14 @@ export default function RoleplAIGMPage() {
   
       const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
       if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
+
+      // Fire Google Analytics event
+      gtag.event({
+        action: 'build_world',
+        category: 'game_setup',
+        label: settingCategory,
+        value: finalCharacters.length,
+      });
   
       const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
       const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
