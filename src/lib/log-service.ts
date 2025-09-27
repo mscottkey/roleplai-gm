@@ -1,9 +1,8 @@
 
 'use server';
 
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, getApps, getApp, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { getFirestore as getAdminFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { GenerationUsage } from 'genkit';
 
 export type AILogRecord = {
@@ -59,7 +58,7 @@ export async function logAiInteraction(log: Omit<AILogRecord, 'timestamp'>) {
       ...log,
       input: JSON.parse(JSON.stringify(log.input || {})),
       output: log.output ? JSON.parse(JSON.stringify(log.output)) : undefined,
-      timestamp: serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
     };
 
     await logsCollection.add(serializableLog);
