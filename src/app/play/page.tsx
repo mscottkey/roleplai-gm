@@ -77,7 +77,6 @@ import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Textarea } from '@/components/ui/textarea';
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
@@ -96,13 +95,14 @@ const SummaryReview = ({
     
     const [newRequest, setNewRequest] = useState(gameData.originalRequest || '');
     const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleRegenField = async (fieldName: 'setting' | 'tone') => {
-        setIsLoading(true);
+        setIsSubmitting(true);
         try {
             await onRegenerateField(fieldName);
         } finally {
-            setIsLoading(false);
+            setIsSubmitting(false);
         }
     }
     
@@ -123,8 +123,8 @@ const SummaryReview = ({
                 <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Setting</h2>
-                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('setting')} disabled={isLoading}>
-                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('setting')} disabled={isLoading || isSubmitting}>
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isSubmitting ? "inline-block animate-spin" : "hidden")} /> Regenerate
                     </Button>
                   </div>
                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -134,8 +134,8 @@ const SummaryReview = ({
                 <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
                    <div className="flex items-center justify-between mb-2">
                     <h2 className="mt-0">Tone</h2>
-                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('tone')} disabled={isLoading}>
-                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isLoading ? "inline-block" : "hidden")} /> Regenerate
+                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRegenField('tone')} disabled={isLoading || isSubmitting}>
+                        <LoadingSpinner className={cn("mr-2 h-3 w-3", isSubmitting ? "inline-block animate-spin" : "hidden")} /> Regenerate
                     </Button>
                   </div>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -145,7 +145,7 @@ const SummaryReview = ({
              </div>
           </CardContent>
           <CardFooter className="flex-col gap-4 justify-center pt-6">
-            <Button size="lg" onClick={onContinue} disabled={isLoading} className="font-headline text-xl">
+            <Button size="lg" onClick={onContinue} disabled={isLoading || isSubmitting} className="font-headline text-xl">
               Continue to Character Creation <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </CardFooter>
@@ -404,17 +404,6 @@ export default function RoleplAIGMPage() {
     };
   }, [activeGameId, router, toast]);
 
-  const handleUpdateStatus = async (status: SessionStatus) => {
-    if (!activeGameId) return;
-    const result = await updateSessionStatus(activeGameId, status);
-    if (result.success) {
-      toast({ title: `Session ${status}`, description: `The game session has been marked as ${status}.`});
-    } else {
-      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
-    }
-    if (endCampaignConfirmation) setEndCampaignConfirmation(false);
-  };
-  
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
   
@@ -551,237 +540,6 @@ ${startingNode ? startingNode.description : gameData.setting}
     }
   }, [activeGameId, previousWorldState, toast]);
 
-  if (step === 'loading') {
-    return (
-      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
-        <BrandedLoadingSpinner className="w-48 h-48" />
-        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
-
-      if (warningMessage) {
-        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
-      }
-
-      router.push(`/play?game=${gameId}`);
-      setActiveGameId(gameId);
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to start new game:', err);
-      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
-      setStep('create');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
-    if (!worldState || !activeGameId || !user || !campaignStructure) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'A character and game state are required to proceed.',
-      });
-      return;
-    }
-  
-    const messagesWithoutRecap = messages.filter((m) => m.id && !m.id.startsWith('recap-'));
-  
-    const actingCharacter = gameData?.playMode === 'remote'
-      ? characters.find(c => c.playerId === user.uid)
-      : activeCharacter;
-
-    if (!actingCharacter) {
-      toast({
-        variant: 'destructive',
-        title: 'No Character',
-        description: "You don't have a character in this game to act with.",
-      });
-      return;
-    }
-    
-    const authorName = actingCharacter.playerName || (user.isAnonymous ? 'Guest' : user.email?.split('@')[0]) || 'Player';
-
-    const newUserMessage: Message = {
-      id: `${user.uid}-${Date.now()}`,
-      role: 'user',
-      content: playerInput,
-      authorName,
-    };
-    
-    setMessages((prev) => [...prev, newUserMessage]);
-    setIsLoading(true);
-  
-    try {
-      const { intentClassification } = await unifiedClassify({ playerInput }, activeGameId);
-      
-      const newMessages = [...messagesWithoutRecap, newUserMessage];
-  
-      if (intentClassification?.intent === 'Action') {
-        if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
-            toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
-            setMessages(messagesWithoutRecap);
-            setIsLoading(false);
-            return;
-        }
-
-        if (!activeCharacter) {
-            toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
-            setIsLoading(false);
-            setMessages(messagesWithoutRecap);
-            return;
-        }
-
-        if (sessionStatus !== 'active') {
-          toast({ variant: 'destructive', title: 'Session Paused', description: 'Please resume the session to perform actions.' });
-          setMessages(messagesWithoutRecap);
-          setIsLoading(false);
-          return;
-        }
-
-        if (!confirmed) {
-            const consequenceResult = await checkConsequences({
-                actionDescription: playerInput,
-                worldState,
-                character: {
-                    ...activeCharacter,
-                    stats: activeCharacter.stats || { skills: [], stunts: [] },
-                    id: activeCharacter.id || '',
-                },
-            }, activeGameId);
-
-            if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
-                setConfirmation({
-                    message: consequenceResult.confirmationMessage,
-                    onConfirm: () => {
-                        setConfirmation(null);
-                        handleSendMessage(playerInput, true);
-                    },
-                });
-                setMessages(messagesWithoutRecap);
-                setIsLoading(false);
-                return;
-            }
-        }
-        
-        const acknowledgement = await narratePlayerActions({
-            playerAction: playerInput,
-            gameState: worldState.summary,
-            character: activeCharacter,
-        }, activeGameId);
-
-        const acknowledgementMessage: Message = {
-            id: `assistant-ack-${Date.now()}`,
-            role: 'assistant',
-            content: acknowledgement.narration,
-        };
-        
-        const finalChatMessages = [...newMessages, acknowledgementMessage];
-
-        const storyResponse = await continueStory({
-            actionDescription: playerInput,
-            characterId: actingCharacter.id,
-            worldState,
-            ruleAdapter: "FateCore",
-            mechanicsVisibility: mechanicsVisibility,
-            settingCategory: worldState.settingCategory || 'generic',
-            gameId: activeGameId,
-        });
-
-        const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
-  
-        const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
-        const nextIndex = (currentIndex + 1) % characters.length;
-        const foundNextCharacter = characters[nextIndex];
-        setNextCharacter(foundNextCharacter);
-  
-        const serializableWorldState = JSON.parse(JSON.stringify(worldState));
-        
-        const worldUpdatePayload = {
-            gameId: activeGameId,
-            playerAction: { characterName: activeCharacter.name, action: playerInput },
-            gmResponse: storyResponse.narrativeResult,
-            currentWorldState: serializableWorldState,
-            campaignStructure: campaignStructure,
-            updates: {
-                messages: finalChatMessages,
-                storyMessages: newStoryMessages,
-                activeCharacterId: gameData?.playMode === 'remote' ? foundNextCharacter.id : activeCharacter.id,
-            },
-        };
-        
-        await updateWorldState(worldUpdatePayload);
-
-        if (gameData?.playMode === 'local') {
-          setShowHandoff(true);
-        } else {
-          setActiveCharacter(foundNextCharacter);
-        }
-  
-      } else {
-        // QUESTION intent
-        const response = await getAnswerToQuestion({
-          question: playerInput,
-          worldState,
-          character: actingCharacter,
-          settingCategory: worldState.settingCategory || 'generic',
-          gameId: activeGameId,
-        });
-  
-        const assistantMessage: Message = {
-          id: `assistant-ans-${Date.now()}`,
-          role: 'assistant',
-          content: response.answer,
-        };
-  
-        await updateWorldState({
-          gameId: activeGameId,
-          updates: {
-            messages: [...newMessages, assistantMessage],
-          },
-        });
-      }
-    } catch (error) {
-      const err = error as Error;
-      console.error("Failed to process input:", err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message || 'An unknown error occurred.',
-      });
-      setMessages(messagesWithoutRecap);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const handleHandoffConfirm = async () => {
-    if (!activeGameId || !nextCharacter || !worldState) return;
-
-    setShowHandoff(false);
-
-    await updateWorldState({
-      gameId: activeGameId,
-      updates: { activeCharacterId: nextCharacter.id },
-    });
-
-    setActiveCharacter(nextCharacter);
-    setNextCharacter(null);
-  };
-
   const onRegenerateStoryline = useCallback(async () => {
     if (!activeGameId || !gameData) return;
 
@@ -895,6 +653,262 @@ The stage is set. What do you do?
       setIsLoading(false);
     }
   }, [activeGameId, gameData, toast]);
+  
+  const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
+    if (!activeGameId || !gameData) return;
+    try {
+        const result = await regenerateField({
+            request: gameData.originalRequest || gameData.name,
+            fieldName,
+            currentValue: gameData[fieldName],
+        }, activeGameId);
+        toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
+    }
+  }, [activeGameId, gameData, toast]);
+  
+  if (step === 'loading') {
+    return (
+      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+        <BrandedLoadingSpinner className="w-48 h-48" />
+        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+
+      if (warningMessage) {
+        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
+      }
+
+      router.push(`/play?game=${gameId}`);
+      setActiveGameId(gameId);
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to start new game:', err);
+      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
+      setStep('create');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
+    if (!worldState || !activeGameId || !user || !campaignStructure) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'A character and game state are required to proceed.',
+      });
+      return;
+    }
+  
+    const messagesWithoutRecap = messages.filter((m) => m.id && !m.id.startsWith('recap-'));
+  
+    const actingCharacter = gameData?.playMode === 'remote'
+      ? characters.find(c => c.playerId === user.uid)
+      : activeCharacter;
+
+    if (!actingCharacter) {
+      toast({
+        variant: 'destructive',
+        title: 'No Character',
+        description: "You don't have a character in this game to act with.",
+      });
+      return;
+    }
+    
+    const authorName = actingCharacter.playerName || (user.isAnonymous ? 'Guest' : user.email?.split('@')[0]) || 'Player';
+
+    const newUserMessage: Message = {
+      id: `${user.uid}-${Date.now()}`,
+      role: 'user',
+      content: playerInput,
+      authorName,
+    };
+    
+    setMessages((prev) => [...prev, newUserMessage]);
+    setIsLoading(true);
+  
+    try {
+      const { output: intentClassification } = await unifiedClassify({ playerInput }, activeGameId);
+      
+      const newMessages = [...messagesWithoutRecap, newUserMessage];
+  
+      if (intentClassification?.intentClassification?.intent === 'Action') {
+        if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
+            toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
+            setMessages(messagesWithoutRecap);
+            setIsLoading(false);
+            return;
+        }
+
+        if (!activeCharacter) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No active character set to perform an action.' });
+            setIsLoading(false);
+            setMessages(messagesWithoutRecap);
+            return;
+        }
+
+        if (sessionStatus !== 'active') {
+          toast({ variant: 'destructive', title: 'Session Paused', description: 'Please resume the session to perform actions.' });
+          setMessages(messagesWithoutRecap);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!confirmed) {
+            const { output: consequenceResult } = await checkConsequences({
+                actionDescription: playerInput,
+                worldState,
+                character: {
+                    ...activeCharacter,
+                    stats: activeCharacter.stats || { skills: [], stunts: [] },
+                    id: activeCharacter.id || '',
+                },
+            }, activeGameId);
+
+            if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
+                setConfirmation({
+                    message: consequenceResult.confirmationMessage,
+                    onConfirm: () => {
+                        setConfirmation(null);
+                        handleSendMessage(playerInput, true);
+                    },
+                });
+                setMessages(messagesWithoutRecap);
+                setIsLoading(false);
+                return;
+            }
+        }
+        
+        const { output: acknowledgement } = await narratePlayerActions({
+            playerAction: playerInput,
+            gameState: worldState.summary,
+            character: activeCharacter,
+        }, activeGameId);
+
+        const acknowledgementMessage: Message = {
+            id: `assistant-ack-${Date.now()}`,
+            role: 'assistant',
+            content: acknowledgement.narration,
+        };
+        
+        const finalChatMessages = [...newMessages, acknowledgementMessage];
+
+        const { output: storyResponse } = await continueStory({
+            actionDescription: playerInput,
+            characterId: actingCharacter.id,
+            worldState,
+            ruleAdapter: "FateCore",
+            mechanicsVisibility: mechanicsVisibility,
+            settingCategory: worldState.settingCategory || 'generic',
+            gameId: activeGameId,
+        });
+
+        const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
+  
+        const currentIndex = characters.findIndex((c) => c.id === activeCharacter.id);
+        const nextIndex = (currentIndex + 1) % characters.length;
+        const foundNextCharacter = characters[nextIndex];
+        setNextCharacter(foundNextCharacter);
+  
+        const serializableWorldState = JSON.parse(JSON.stringify(worldState));
+        
+        const worldUpdatePayload = {
+            gameId: activeGameId,
+            playerAction: { characterName: activeCharacter.name, action: playerInput },
+            gmResponse: storyResponse.narrativeResult,
+            currentWorldState: serializableWorldState,
+            campaignStructure: campaignStructure,
+            updates: {
+                messages: finalChatMessages,
+                storyMessages: newStoryMessages,
+                activeCharacterId: gameData?.playMode === 'remote' ? foundNextCharacter.id : activeCharacter.id,
+            },
+        };
+        
+        await updateWorldState(worldUpdatePayload);
+
+        if (gameData?.playMode === 'local') {
+          setShowHandoff(true);
+        } else {
+          setActiveCharacter(foundNextCharacter);
+        }
+  
+      } else {
+        // QUESTION intent
+        const { output: response } = await getAnswerToQuestion({
+          question: playerInput,
+          worldState,
+          character: actingCharacter,
+          settingCategory: worldState.settingCategory || 'generic',
+          gameId: activeGameId,
+        });
+  
+        const assistantMessage: Message = {
+          id: `assistant-ans-${Date.now()}`,
+          role: 'assistant',
+          content: response.answer,
+        };
+  
+        await updateWorldState({
+          gameId: activeGameId,
+          updates: {
+            messages: [...newMessages, assistantMessage],
+          },
+        });
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error("Failed to process input:", err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err.message || 'An unknown error occurred.',
+      });
+      setMessages(messagesWithoutRecap);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (status: SessionStatus) => {
+    if (!activeGameId) return;
+    const result = await updateSessionStatus(activeGameId, status);
+    if (result.success) {
+      toast({ title: `Session ${status}`, description: `The game session has been marked as ${status}.`});
+    } else {
+      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+    if (endCampaignConfirmation) setEndCampaignConfirmation(false);
+  };
+
+  const handleHandoffConfirm = async () => {
+    if (!activeGameId || !nextCharacter || !worldState) return;
+
+    setShowHandoff(false);
+
+    await updateWorldState({
+      gameId: activeGameId,
+      updates: { activeCharacterId: nextCharacter.id },
+    });
+
+    setActiveCharacter(nextCharacter);
+    setNextCharacter(null);
+  };
 
   const handleDeleteGame = async () => {
     if (!deleteConfirmation) return;
@@ -947,23 +961,12 @@ The stage is set. What do you do?
     }
   };
   
-  const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
-    if (!activeGameId || !gameData) return;
-    setIsLoading(true);
-    try {
-        const result = await regenerateField({
-            request: gameData.originalRequest || gameData.name,
-            fieldName,
-            currentValue: gameData[fieldName],
-        }, activeGameId);
-        toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
-    } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [activeGameId, gameData]);
-
+  const ttsProps = {
+    isSpeaking, isPaused, isAutoPlayEnabled, isTTSSupported: supported,
+    onPlay: handlePlayAll, onPause: pause, onStop: cancel,
+    onSetAutoPlay: setIsAutoPlayEnabled, voices, selectedVoice, onSelectVoice,
+    ttsVolume, onCycleTtsVolume,
+  };
 
   const renderContent = () => {
     if (generationProgress) {
