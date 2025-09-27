@@ -1,3 +1,4 @@
+
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
 
@@ -91,11 +92,12 @@ export const CampaignCoreSchema = z.object({
 });
 export type CampaignCore = z.infer<typeof CampaignCoreSchema>;
 
-const SubFlowInputBaseSchema = GenerateCampaignStructureInputSchema.extend({
+export const GenerateCampaignCoreInputSchema = GenerateCampaignStructureInputSchema.extend({
     settingCategory: z.string(),
 });
+export type GenerateCampaignCoreInput = z.infer<typeof GenerateCampaignCoreInputSchema>;
 
-export const GenerateFactionsInputSchema = SubFlowInputBaseSchema.merge(CampaignCoreSchema);
+export const GenerateFactionsInputSchema = GenerateCampaignCoreInputSchema.merge(CampaignCoreSchema);
 export type GenerateFactionsInput = z.infer<typeof GenerateFactionsInputSchema>;
 
 export const GenerateNodesInputSchema = GenerateFactionsInputSchema.extend({

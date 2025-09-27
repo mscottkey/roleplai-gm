@@ -18,7 +18,7 @@ import {
   GenerateFactionsInputSchema,
   GenerateNodesInputSchema,
   NodeSchema,
-  GenerateCampaignStructureInputSchema,
+  type GenerateCampaignCoreInput,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { MODEL_GENERATION } from '../models';
 import {z} from 'genkit';
@@ -29,11 +29,6 @@ import {
 } from '../prompts/generate-campaign-pieces-prompts';
 import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 import { randomUUID } from 'crypto';
-
-const GenerateCampaignCoreInputSchema = GenerateCampaignStructureInputSchema.extend({
-  settingCategory: z.string(),
-});
-export type GenerateCampaignCoreInput = z.infer<typeof GenerateCampaignCoreInputSchema>;
 
 
 // Step 1: Generate Core Concepts
