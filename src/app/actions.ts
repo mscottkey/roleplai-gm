@@ -110,6 +110,7 @@ export async function startNewGame(input: GenerateNewGameInput): Promise<{ gameI
       factions: [],
       nodeStates: {},
       resolution: undefined,
+      turn: 0,
       currentScene: {
         nodeId: "start",
         name: "Unknown",

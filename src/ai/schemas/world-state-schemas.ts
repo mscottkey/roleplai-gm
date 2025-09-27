@@ -41,6 +41,7 @@ export const WorldStateSchema = z.object({
   nodeStates: z.record(z.string(), NodeStateSchema).optional().describe('A map of nodeId to its current dynamic state (discovery level, known secrets).'),
   resolution: CampaignResolutionSchema.optional().describe('The dynamic state of the campaign\'s endgame.'),
   factions: z.array(FactionSchema).optional().describe('The dynamic state of the campaign\'s factions and their clocks.'),
+  turn: z.number().int().default(0).describe("The current turn number, incremented after each player action."),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 

@@ -59,6 +59,7 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.nodeStates = updatedOutput.nodeStates || input.worldState.nodeStates || {};
     updatedOutput.resolution = updatedOutput.resolution || input.worldState.resolution || undefined;
     updatedOutput.factions = updatedOutput.factions || input.worldState.factions || [];
+    updatedOutput.turn = updatedOutput.turn || input.worldState.turn || 0;
     
     if (!updatedOutput.currentScene) {
         updatedOutput.currentScene = input.worldState.currentScene || { nodeId: 'unknown', name: 'Unknown', description: 'The area has not been described.', presentCharacters: [], presentNPCs: [], environmentalFactors: [], connections: [] };
