@@ -12,7 +12,7 @@ import { estimateCost as estimateCostFlow } from "@/ai/flows/estimate-cost";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
-import { regenerateGameField as regenerateGameFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
+import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput } from "@/ai/flows/narrate-player-actions";
 import { unifiedClassify } from "@/ai/flows/unified-classify";
 import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
@@ -523,9 +523,9 @@ export async function regenerateGameConcept(gameId: string, request: string): Pr
     }
 }
 
-export async function regenerateGameField(gameId: string, input: RegenerateFieldInput): Promise<{ success: boolean; message?: string }> {
+export async function regenerateField(gameId: string, input: RegenerateFieldInput): Promise<{ success: boolean; message?: string }> {
     try {
-        const { newValue } = await regenerateGameFieldFlow(input);
+        const { newValue } = await regenerateFieldFlow(input);
 
         const app = await getServerApp();
         const db = getFirestore(app);
@@ -537,7 +537,7 @@ export async function regenerateGameField(gameId: string, input: RegenerateField
 
         return { success: true };
     } catch (error) {
-        console.error(`Error in regenerateGameField action for field ${input.fieldName}:`, error);
+        console.error(`Error in regenerateField action for field ${input.fieldName}:`, error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message };
     }
@@ -563,3 +563,5 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
 }
 
 export { classifyIntent, unifiedClassify };
+
+    
