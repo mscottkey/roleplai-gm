@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -41,7 +42,7 @@ export function GenerationProgress({ current, total, step }: GenerationProgressP
     pickRandomMessage();
 
     // Set up the interval to rotate messages
-    const intervalId = setInterval(pickRandomMessage, 2000);
+    const intervalId = setInterval(pickRandomMessage, 5000);
 
     // Cleanup function to clear the interval when the component unmounts or the step changes
     return () => {
