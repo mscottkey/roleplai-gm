@@ -14,18 +14,19 @@ import { promptsByGenre } from '@/lib/prompts';
 import { cn } from '@/lib/utils';
 
 type CreateGameFormProps = {
-  onSubmit: (request: string, playMode: 'local' | 'remote') => void;
+  onSubmit: (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => void;
   isLoading: boolean;
 };
 
 export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
   const [request, setRequest] = useState('');
   const [playMode, setPlayMode] = useState<'local' | 'remote'>('remote');
+  const [source, setSource] = useState<'manual' | 'genre'>('manual');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (request.trim()) {
-      onSubmit(request.trim(), playMode);
+      onSubmit(request.trim(), playMode, source);
     }
   };
 
@@ -33,6 +34,7 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
     const prompts = promptsByGenre[genre];
     const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
     setRequest(randomPrompt);
+    setSource('genre');
   };
   
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -40,6 +42,7 @@ export function CreateGameForm({ onSubmit, isLoading }: CreateGameFormProps) {
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
     setRequest(textarea.value);
+    setSource('manual');
   };
 
 

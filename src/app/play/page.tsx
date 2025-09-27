@@ -32,9 +32,9 @@ import {
   generateCampaignFactionsAction,
   generateCampaignNodesAction,
   generateCampaignResolutionAction,
+  createCharacter,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
-import { createCharacter } from '@/app/actions';
 import { CreateGameForm } from '@/components/create-game-form';
 import { CharacterCreationForm } from '@/components/character-creation-form';
 import { GameView } from '@/components/game-view';
@@ -68,7 +68,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
-import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
+import type { AICharacter, GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -666,6 +666,11 @@ The stage is set. What do you do?
   const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
     try {
+        gtag.event({
+            action: 'regenerate_field',
+            category: 'game_setup',
+            label: fieldName,
+        });
         const result = await regenerateField({
             request: gameData.originalRequest || gameData.name,
             fieldName,
@@ -688,7 +693,7 @@ The stage is set. What do you do?
 
   if (!user) return null;
 
-  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
+  const handleCreateGame = async (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => {
     if (!user) {
       toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
       return;
@@ -696,6 +701,12 @@ The stage is set. What do you do?
 
     setIsLoading(true);
     try {
+      gtag.event({
+        action: 'create_game',
+        category: 'game_setup',
+        label: source,
+        value: playMode === 'local' ? 1 : 2,
+      });
       const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
 
       if (warningMessage) {
@@ -712,6 +723,20 @@ The stage is set. What do you do?
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGenerateCharacters = (input: GenerateCharacterInput) => {
+    if (!activeGameId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No active game selected.' });
+        return Promise.reject(new Error('No active game selected.'));
+    }
+    gtag.event({
+        action: 'generate_characters',
+        category: 'game_setup',
+        label: gameData?.playMode || 'local',
+        value: input.characterSlots.length,
+    });
+    return createCharacter(input, activeGameId);
   };
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
@@ -1014,7 +1039,7 @@ The stage is set. What do you do?
             gameData={gameData}
             initialCharacters={characters}
             onCharactersFinalized={handleCharactersFinalized}
-            generateCharacterSuggestions={(input) => createCharacter(input, activeGameId)}
+            generateCharacterSuggestions={handleGenerateCharacters}
             isLoading={isLoading}
             currentUser={user}
             activeGameId={activeGameId}
@@ -1048,7 +1073,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
