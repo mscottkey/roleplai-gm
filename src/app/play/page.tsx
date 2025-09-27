@@ -27,7 +27,7 @@ import {
   regenerateGameConcept,
   regenerateGameField,
   narratePlayerActions,
-  classifyIntent,
+  unifiedClassify,
   getAnswerToQuestion,
   updateSessionStatus,
 } from '@/app/actions';
@@ -336,7 +336,6 @@ export default function RoleplAIGMPage() {
       if (docSnap.exists()) {
         const game = docSnap.data() as GameSession;
 
-        game.gameData.userId = game.userId;
         setGameData(game.gameData);
 
         setWorldState(game.worldState);
@@ -368,12 +367,33 @@ export default function RoleplAIGMPage() {
 
             if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
               setIsLoading(true);
-              generateRecap({ recentEvents: game.worldState.recentEvents })
+              generateRecap({ 
+                  recentEvents: game.worldState.recentEvents,
+                  storyOutline: game.worldState.storyOutline,
+                  characters: game.worldState.characters,
+                  factions: game.worldState.factions,
+              })
                 .then((recapResult) => {
+                  let recapContent = `### Previously On...\n\n${recapResult.recap}`;
+
+                  if (recapResult.characterReminders && Object.keys(recapResult.characterReminders).length > 0) {
+                      recapContent += `\n\n---\n\n### Reminders for the Party\n`;
+                      for (const [charName, reminder] of Object.entries(recapResult.characterReminders)) {
+                          recapContent += `*   **${charName}:** ${reminder}\n`;
+                      }
+                  }
+
+                  if (recapResult.urgentSituations && recapResult.urgentSituations.length > 0) {
+                      recapContent += `\n\n---\n\n### Urgent Situations\n`;
+                      recapResult.urgentSituations.forEach(situation => {
+                          recapContent += `*   ${situation}\n`;
+                      });
+                  }
+
                   const recapMessage: Message = {
                     id: `recap-${Date.now()}`,
                     role: 'system',
-                    content: `### Previously On...\n\n${recapResult.recap}`,
+                    content: recapContent,
                   };
                   setMessages((prev) => [recapMessage, ...prev]);
                 })
@@ -621,15 +641,6 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.nodeStates': initialNodeStates,
           'worldState.resolution': campaignStructure.resolution,
           'worldState.factions': campaignStructure.factions,
-          'worldState.currentScene': {
-            nodeId: startingNode.id,
-            name: startingNode.title,
-            description: startingNode.description,
-            presentCharacters: plainCharacters.map(c => c.id),
-            presentNPCs: startingNode.faces.map(f => f.name),
-            environmentalFactors: [],
-            connections: startingNode.leads,
-          },
           'worldState.settingCategory': settingCategory,
           previousWorldState: null,
           step: 'play',
@@ -1087,7 +1098,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             isSpeaking={isSpeaking}
             isPaused={isPaused}
