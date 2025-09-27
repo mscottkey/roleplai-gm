@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -25,7 +24,7 @@ import {
   updateUserProfile,
   saveCampaignStructure,
   regenerateGameConcept,
-  regenerateGameField,
+  regenerateField,
   narratePlayerActions,
   unifiedClassify,
   getAnswerToQuestion,
@@ -982,7 +981,7 @@ The stage is set. What do you do?
     }
   };
 
-  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string }) => {
+  const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string; }) => {
     if (!user) return;
     const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
     if (result.success) {
@@ -1012,7 +1011,7 @@ The stage is set. What do you do?
   const handleRegenerateField = async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
     setIsLoading(true);
-    const result = await regenerateGameField(activeGameId, {
+    const result = await regenerateField(activeGameId, {
       request: gameData.originalRequest || gameData.name,
       fieldName,
       currentValue: gameData[fieldName],
@@ -1098,7 +1097,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             isSpeaking={isSpeaking}
             isPaused={isPaused}
