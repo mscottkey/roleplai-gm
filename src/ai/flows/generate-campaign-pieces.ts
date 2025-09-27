@@ -106,7 +106,7 @@ export const generateCampaignNodes = ai.defineFlow(
       },
       output: {
         format: 'json',
-        schema: z.array(z.Omit(NodeSchema.shape, ['id'])),
+        schema: z.array(NodeSchema.omit({ id: true })),
       },
     });
 
