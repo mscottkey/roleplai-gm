@@ -21,7 +21,7 @@ Return a NEW, UPDATED world state object based on the rules below, processed in 
 - Examine the `secrets` for that node.
 - Does the `gmResponse` satisfy the `trigger` for a secret that has NOT already been revealed (check `worldState.nodeStates[worldState.currentScene.nodeId].revealedSecrets`)?
 - If YES:
-    - Add the secret's ID to the `revealedSecrets` array for the current node in the new `nodeStates` map.
+    - Add the secret's ID to the `revealedSecrets` array for the current node in the `nodeStates` map.
     - Add a summary of the `revelation` to the top of the `recentEvents` list (e.g., "SECRET REVEALED: The strange altar is actually a teleportation device.").
     - Consider if the `impact` of the secret creates a new `storyAspect`.
 
@@ -31,6 +31,7 @@ Return a NEW, UPDATED world state object based on the rules below, processed in 
     - You MUST update the `currentState` property in the `nodeStates` map for the current node. The `currentState` should describe the new status (e.g., "The leader has been replaced", "The bridge is destroyed").
     - You MUST also update the `currentScene.description` to reflect the new state of the evolved node.
     - You MUST also add a summary of this change to the `recentEvents` list.
+    - **CASCADE EFFECT**: Immediately check if this change triggers an evolution on any *other* node in the campaign. If so, update that node's state as well and note it in `recentEvents`.
 
 ### 3. Background Progression (Faction Clocks)
 - Review the current state of all `worldState.factions` and their project clocks.
