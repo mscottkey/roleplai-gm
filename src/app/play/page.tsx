@@ -466,43 +466,6 @@ export default function RoleplAIGMPage() {
     if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
 
-  if (step === 'loading') {
-    return (
-      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
-        <BrandedLoadingSpinner className="w-48 h-48" />
-        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
-
-      if (warningMessage) {
-        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
-      }
-
-      router.push(`/play?game=${gameId}`);
-      setActiveGameId(gameId);
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to start new game:', err);
-      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
-      setStep('create');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
   
@@ -618,6 +581,43 @@ ${startingNode ? startingNode.description : gameData.setting}
       setStep('play');
     }
   }, [activeGameId, gameData, toast]);
+
+  if (step === 'loading') {
+    return (
+      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
+        <BrandedLoadingSpinner className="w-48 h-48" />
+        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const handleCreateGame = async (request: string, playMode: 'local' | 'remote') => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+
+      if (warningMessage) {
+        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
+      }
+
+      router.push(`/play?game=${gameId}`);
+      setActiveGameId(gameId);
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to start new game:', err);
+      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
+      setStep('create');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user || !campaignStructure) {
@@ -1080,7 +1080,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             isSpeaking={isSpeaking}
             isPaused={isPaused}
