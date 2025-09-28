@@ -76,13 +76,13 @@ export const StoryBeatSchema = z.object({
 });
 
 export const SessionProgressSchema = z.object({
-    currentSession: z.number().int().min(1).default(1).describe('Which session number, starts at 1.'),
-    currentBeat: z.number().int().min(0).default(0).describe('Current beat within the session.'),
-    beatsCompleted: z.number().int().min(0).default(0).describe('Number of beats finished this session.'),
-    beatsPlanned: z.number().int().min(0).default(0).describe('Number of beats originally planned for this session.'),
-    sessionComplete: z.boolean().default(false).describe('True if the session reached a natural conclusion.'),
-    interruptedMidBeat: z.boolean().default(false).describe('True if the session ended unexpectedly in the middle of a beat.'),
-    readyForNextSession: z.boolean().default(false).describe('True if the system is ready to generate beats for the next session.'),
+    currentSession: z.number().int().min(1).default(1).describe('The current session number, starting at 1.'),
+    currentBeat: z.number().int().min(0).default(0).describe('The current beat number within the session.'),
+    beatsCompleted: z.number().int().min(0).default(0).describe('The number of beats completed in the current session.'),
+    beatsPlanned: z.number().int().min(0).default(0).describe('The number of beats originally planned for the current session.'),
+    sessionComplete: z.boolean().default(false).describe('Whether the current session has reached a natural conclusion.'),
+    interruptedMidBeat: z.boolean().default(false).describe('Whether the session ended unexpectedly in the middle of a beat.'),
+    readyForNextSession: z.boolean().default(false).describe('Whether the system is ready to generate beats for the next session.'),
 });
 export type SessionProgress = z.infer<typeof SessionProgressSchema>;
 
@@ -140,3 +140,10 @@ export const GenerateResolutionInputSchema = GenerateNodesInputSchema.extend({
 });
 export type GenerateResolutionInput = z.infer<typeof GenerateResolutionInputSchema>;
 
+import { WorldStateSchema } from './world-state-schemas';
+
+export const GenerateSessionBeatsInputSchema = GenerateResolutionInputSchema.extend({
+    currentWorldState: WorldStateSchema.describe("The current dynamic state of the game world."),
+    sessionNumber: z.number().int().min(1).describe("The session number for which to generate beats (e.g., 1 for the first session)."),
+});
+export type GenerateSessionBeatsInput = z.infer<typeof GenerateSessionBeatsInputSchema>;

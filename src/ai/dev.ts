@@ -23,6 +23,7 @@ import '@/ai/flows/generate-recap.ts';
 import '@/ai/flows/regenerate-field.ts';
 import '@/ai/flows/classify-input.ts';
 import '@/ai/flows/classify-setting.ts';
+import '@/ai/flows/generate-session-beats.ts';
 import '@/ai/schemas/assess-consequences-schemas.ts';
 import '@/ai/schemas/generate-recap-schemas.ts';
 import '@/ai/models.ts';
@@ -40,6 +41,7 @@ import '@/ai/prompts/update-world-state-prompt.ts';
 import '@/ai/prompts/regenerate-field-prompt.ts';
 import '@/ai/prompts/classify-input-prompt.ts';
 import '@/ai/prompts/classify-setting-prompt.ts';
+import '@/ai/prompts/generate-session-beats-prompt.ts';
 import '@/ai/schemas/classify-schemas.ts';
 
 
