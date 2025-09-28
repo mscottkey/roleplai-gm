@@ -1,6 +1,4 @@
 
-
-      
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -10,9 +8,8 @@ import type {
   MechanicsVisibility,
   Character,
   GameSession,
-  PlayerSlot,
-  SessionStatus,
   Player,
+  SessionStatus,
 } from '@/app/lib/types';
 import {
   startNewGame,
@@ -39,6 +36,7 @@ import {
   generateSessionBeatsAction,
   endCurrentSessionAction,
   startNextSessionAction,
+  kickPlayerAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -76,21 +74,21 @@ import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
 import type { GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Bot, ScrollText } from 'lucide-react';
+import { ArrowRight, Bot, ScrollText, Play, Wand2, PartyPopper } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure, StoryBeat } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure, StoryBeat } from '@/ai/schemas/world-state-schemas';
 import * as gtag from '@/lib/gtag';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { ClassifySettingOutput } from '@/ai/schemas/classify-schemas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SETTING_CATEGORIES } from '@/lib/setting-examples';
-import { differenceInMinutes } from 'date-fns';
+import { differenceInMinutes, formatDistanceToNow } from 'date-fns';
 
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
@@ -404,9 +402,9 @@ export default function RoleplAIGMPage() {
           duration: 60000,
         });
         if (activeGameId) {
-          await updateDoc(doc(getFirestore(), 'games', activeGameId), {
+          await updateWorldState({gameId: activeGameId, updates: {
             'worldState.idleWarningShown': true
-          });
+          }});
         }
       }
     };
@@ -511,7 +509,7 @@ export default function RoleplAIGMPage() {
               }).then(result => {
                   setLastClassification(result);
                   if (game.worldState.settingCategory !== result.category) {
-                      updateDoc(doc(db, 'games', activeGameId), { 'worldState.settingCategory': result.category });
+                      updateWorldState({gameId: activeGameId, updates: { 'worldState.settingCategory': result.category }});
                   }
               }).catch(err => {
                   console.error("Failed to classify setting on summary load:", err);
@@ -684,7 +682,7 @@ The stage is set. What do you do?
 
       const plainCharacters: Character[] = finalCharacters.map(c => ({
         id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
-        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
+        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId, isMobile: c.isMobile,
       }));
 
       setGenerationProgress({ current: 1, total: 5, step: 'Considering the threads of fate...' });
@@ -763,8 +761,9 @@ ${startingNode ? startingNode.description : gameData.setting}
         readyForNextSession: false,
       };
 
-      await updateDoc(gameDocRef, {
-        'gameData.characters': plainCharacters,
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: {
         'worldState.characters': plainCharacters,
         'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
         'worldState.storyOutline': nodes.map(n => n.title),
@@ -782,7 +781,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         storyMessages: [{ content: storyboardContent }],
         previousWorldState: null,
         step: 'play',
-      });
+      }});
 
     } catch (error) {
       const err = error as Error;
@@ -1039,7 +1038,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         
         const worldUpdatePayload = {
             gameId: activeGameId,
-            playerAction: { characterName: activeCharacter.name, action: playerInput, playerId: activeCharacter.playerId },
+            playerAction: { characterName: activeCharacter.name, action: playerInput },
             gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
             campaignStructure: campaignStructure,
@@ -1202,6 +1201,21 @@ ${startingNode ? startingNode.description : gameData.setting}
     }
   };
   
+  const handleKickPlayer = async (playerId: string) => {
+    if (!activeGameId || !user || user.uid !== gameData?.userId) return;
+    try {
+      const result = await kickPlayerAction(activeGameId, playerId);
+      if (result.success) {
+        toast({ title: "Player Kicked", description: "The player has been removed from the session." });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      const err = error as Error;
+      toast({ variant: 'destructive', title: 'Kick Failed', description: err.message });
+    }
+  }
+
   const ttsProps = {
     isSpeaking, isPaused, isAutoPlayEnabled, isTTSSupported: supported,
     onPlay: handlePlayAll, onPause: pause, onStop: cancel,
@@ -1247,7 +1261,6 @@ ${startingNode ? startingNode.description : gameData.setting}
         return (
           <MemoizedCharacterCreationForm
             gameData={gameData}
-            initialCharacters={characters}
             onCharactersFinalized={handleCharactersFinalized}
             generateCharacterSuggestions={handleGenerateCharacters}
             isLoading={isLoading}
@@ -1255,6 +1268,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             activeGameId={activeGameId}
             userPreferences={userPreferences}
             players={players}
+            onKickPlayer={handleKickPlayer}
           />
         );
       case 'play':
