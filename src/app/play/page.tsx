@@ -440,7 +440,7 @@ export default function RoleplAIGMPage() {
       let resolution: CampaignResolution;
   
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } }, activeGameId);
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } });
       settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
@@ -571,7 +571,7 @@ The stage is set. What do you do?
       const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } }, activeGameId);
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } });
       settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
@@ -810,7 +810,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      const intentClassification = await unifiedClassify({ playerInput, originalRequest: gameData?.originalRequest }, activeGameId);
+      const intentClassification = await unifiedClassify({ playerInput, originalRequest: gameData?.originalRequest });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
@@ -922,8 +922,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           worldState,
           character: actingCharacter,
           settingCategory: worldState.settingCategory || 'generic',
-          gameId: activeGameId,
-        });
+        }, activeGameId);
   
         const assistantMessage: Message = {
           id: `assistant-ans-${Date.now()}`,

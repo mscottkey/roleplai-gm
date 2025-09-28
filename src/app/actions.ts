@@ -45,13 +45,14 @@ import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-sche
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion, onSnapshot, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion, writeBatch, initializeFirestore } from 'firebase/firestore';
 
 
 import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { GenerationUsage } from "genkit";
+import * as gtag from '@/lib/gtag';
 
 // Helper for user-friendly error messages
 function handleAIError(error: Error, defaultMessage: string): Error {
@@ -77,7 +78,9 @@ export async function getServerApp() {
     throw new Error('getServerApp should not be called on the client');
   }
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  getFirestore(app);
+  initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
+  });
   return app;
 }
 
@@ -104,6 +107,16 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   try {
     const { output: newGame }: { output: GenerateNewGameOutput } = await generateNewGameFlow(generateGameInput);
     
+    // Step 3: Classify the new game to get its category
+    const classification = await unifiedClassify({
+      setting: newGame.setting,
+      tone: newGame.tone,
+      originalRequest: ipCheck.sanitizedRequest,
+      gameContext: { isFirstClassification: true }
+    });
+    const settingCategory = classification.settingClassification?.category || 'generic';
+    
+    // Step 4: Create the document in Firestore
     const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(collection(db, 'games'));
@@ -130,7 +143,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         environmentalFactors: [],
         connections: [],
       },
-      settingCategory: null,
+      settingCategory: settingCategory,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
@@ -281,9 +294,9 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
     }
 }
 
-export async function unifiedClassify(input: UnifiedClassifyInput, gameId: string): Promise<UnifiedClassifyOutput> {
+export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyOutput> {
     try {
-        const response = await unifiedClassifyFlow(input);
+        const response: UnifiedClassifyResponse = await unifiedClassifyFlow(input);
         return response.output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to classify input');
