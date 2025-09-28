@@ -25,11 +25,12 @@ export const CharacterSchema = z.object({
     name: z.string().describe('The full name of the character.'),
     description: z.string().describe('A brief, engaging one-sentence description of the character.'),
     aspect: z.string().describe('A key concept or catch-phrase for the character, like "A knight with a mysterious past."'),
-    pronouns: z.string().optional().describe("The character's pronouns (e.g., 'She/Her', 'They/Them')."),
-    age: z.string().optional().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
-    archetype: z.string().optional().describe("The character's archetype or role in the party."),
-    stats: CharacterStatsSchema.optional(),
-    playerName: z.string().optional().describe("The name of the player controlling this character."),
+    pronouns: z.string().describe("The character's pronouns (e.g., 'She/Her', 'They/Them')."),
+    age: z.string().describe("The character's age (e.g., 'Young Adult', 'Veteran')."),
+    archetype: z.string().describe("The character's archetype or role in the party."),
+    stats: CharacterStatsSchema.describe("The character's game statistics, including skills and stunts."),
+    playerName: z.string().describe("The name of the player controlling this character."),
+    playerId: z.string().describe("The unique ID of the player user."),
 });
 export type AICharacter = z.infer<typeof CharacterSchema>;
 
@@ -37,6 +38,7 @@ export type AICharacter = z.infer<typeof CharacterSchema>;
 const CharacterSlotSchema = z.object({
   id: z.string().describe("A unique identifier for this character slot."),
   playerName: z.string().optional().describe("The name of the player for this slot."),
+  playerId: z.string().optional().describe("The unique ID of the player user for this slot."),
   name: z.string().optional().describe("A preferred name for the character."),
   vision: z.string().optional().describe("A player-provided vision or concept for the character."),
   pronouns: z.string().optional().describe('Preferred pronouns for the character (e.g., "She/Her", "They/Them").'),
