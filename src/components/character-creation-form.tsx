@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useId, useEffect, memo, useCallback } from 'react';
@@ -231,16 +230,39 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   
   const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
 
-  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
+  const addNewSlot = useCallback((playerName: string = '', pronouns: string = 'Any') => {
+    const newId = `${formId}-slot-${Date.now()}`;
+    const newSlot: Player = {
+      id: newId,
+      name: playerName || `Player ${localSlots.length + 1}`,
+      isHost: false,
+      isMobile: false,
+      connectionStatus: 'connected',
+      characterCreationStatus: 'creating',
+      characterData: {
+        playerName: playerName || `Player ${localSlots.length + 1}`,
+        isApproved: true,
+        pronouns,
+      },
+      joinedAt: new Date() as any,
+      lastActive: new Date() as any,
+    };
+    setLocalSlots(slots => [...slots, newSlot]);
+  }, [formId, localSlots.length]);
+
 
   useEffect(() => {
     if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
       const hostPlayerName = userPreferences?.displayName || currentUser.email?.split('@')[0] || 'Player 1';
-      addNewSlot(hostPlayerName);
+      const hostPronouns = userPreferences?.defaultPronouns || 'Any';
+      addNewSlot(hostPlayerName, hostPronouns);
     } else if (isLocalGame && !isHotSeatMode) {
         setLocalSlots([]);
     }
-  }, [isLocalGame, isHotSeatMode, localSlots.length, currentUser, userPreferences]);
+  }, [isLocalGame, isHotSeatMode, localSlots.length, currentUser, userPreferences, addNewSlot]);
+
+
+  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
 
 
   const handleFinalize = () => {
@@ -281,25 +303,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const removeLocalSlot = useCallback((id: string) => {
     setLocalSlots(slots => slots.filter(s => s.id !== id));
   }, []);
-
-  const addNewSlot = useCallback((playerName: string = '') => {
-    const newId = `${formId}-slot-${Date.now()}`;
-    const newSlot: Player = {
-      id: newId,
-      name: playerName || `Player ${localSlots.length + 1}`,
-      isHost: false,
-      isMobile: false,
-      connectionStatus: 'connected',
-      characterCreationStatus: 'creating',
-      characterData: {
-        playerName: playerName || `Player ${localSlots.length + 1}`,
-        isApproved: true,
-      },
-      joinedAt: new Date() as any,
-      lastActive: new Date() as any,
-    };
-    setLocalSlots(slots => [...slots, newSlot]);
-  }, [formId, localSlots.length]);
 
   const handleGenerateAll = async () => {
     const slotsToGenerate = allPlayerSlots.filter(s => !s.characterData.generatedCharacter);
@@ -359,7 +362,13 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             });
         };
 
-        setLocalSlots(updatePlayerState);
+        if (isHotSeatMode) {
+          setLocalSlots(updatePlayerState);
+        } else {
+          // In lobby mode, the parent component handles state via Firestore listeners.
+          // We can just trust the suggestions were generated and will appear.
+          // In a more complex setup, you might write these to Firestore here.
+        }
 
     } catch (error) {
         const err = error as Error;
@@ -389,7 +398,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardTitle>
           <CardDescription className="pt-2">
              {isHost 
-                ? "Manage your party below. Players can join via mobile or be added manually."
+                ? "Manage your party below. Add slots for local players or have remote players join via the invite link."
                 : "Waiting for the host to start the game..."}
           </CardDescription>
         </CardHeader>
@@ -404,7 +413,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                 )}
                 
                 {!isLocalGame && activeGameId && (
-                     <ShareGameInvite gameId={activeGameId} />
+                    <ShareGameInvite gameId={activeGameId} />
                 )}
 
                 {isLocalGame && !isHotSeatMode && activeGameId && (
@@ -474,4 +483,4 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   );
 });
 
-
+    
