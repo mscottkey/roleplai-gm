@@ -81,9 +81,7 @@ const prompt = ai.definePrompt({
   output: { schema: GenerateNewGameOutputSchema, format: 'json' },
   model: MODEL_GENERATION,
   prompt: generateNewGamePromptText,
-  config: {
-    retries: 2,
-  },
+  retries: 2,
 });
 
 // This flow is now only for the Genkit developer UI and is not called directly by application code.
