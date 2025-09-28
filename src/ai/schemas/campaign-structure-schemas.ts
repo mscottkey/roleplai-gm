@@ -98,12 +98,19 @@ export const GenerateCampaignCoreInputSchema = GenerateCampaignStructureInputSch
 });
 export type GenerateCampaignCoreInput = z.infer<typeof GenerateCampaignCoreInputSchema>;
 
-export const GenerateFactionsInputSchema = GenerateCampaignCoreInputSchema.merge(CampaignCoreSchema);
-export type GenerateFactionsInput = z.infer<typeof GenerateFactionsInputSchema>;
-
+export const GenerateFactionsInputSchema = GenerateCampaignCoreInputSchema.merge(CampaignCoreSchema).extend({
+    genreDescription: z.string().optional(),
+    genreCampaignIssues: z.array(z.string()).optional(),
+    genreCampaignAspects: z.array(z.string()).optional(),
+});
+  
 export const GenerateNodesInputSchema = GenerateFactionsInputSchema.extend({
     factions: z.array(FactionSchema),
+    genreDescription: z.string().optional(),
+    genreCampaignIssues: z.array(z.string()).optional(),
+    genreCampaignAspects: z.array(z.string()).optional(),
 });
+  
 export type GenerateNodesInput = z.infer<typeof GenerateNodesInputSchema>;
 
 export const GenerateResolutionInputSchema = GenerateNodesInputSchema.extend({

@@ -67,7 +67,12 @@ export async function generateNewGame(input: GenerateNewGameInput): Promise<Gene
     setting: cleanMarkdown(result.output!.setting),
     tone: cleanMarkdown(result.output!.tone),
   };
-  return { ...result, output: cleanedOutput };
+  
+  return { 
+    output: cleanedOutput,
+    usage: result.usage,
+    model: result.model || MODEL_GENERATION,
+  };
 }
 
 const prompt = ai.definePrompt({
@@ -76,7 +81,9 @@ const prompt = ai.definePrompt({
   output: { schema: GenerateNewGameOutputSchema, format: 'json' },
   model: MODEL_GENERATION,
   prompt: generateNewGamePromptText,
-  retries: 2,
+  config: {
+    retries: 2,
+  },
 });
 
 // This flow is now only for the Genkit developer UI and is not called directly by application code.
