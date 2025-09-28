@@ -47,7 +47,6 @@ const prompt = ai.definePrompt({
   output: {schema: UpdateWorldStateOutputSchema},
   model: MODEL_GAMEPLAY,
   prompt: updateWorldStatePromptText,
-  retries: 2,
 });
 
 const updateWorldStateFlow = ai.defineFlow(

@@ -5,7 +5,7 @@
  * @fileOverview Flow for assessing the consequences of a player's action.
  *
  * - assessConsequences - A function that assesses the potential impact of an action.
- * - AssessConsequencesInput - The input type for the assessConsequences function.
+ * - AssessConsequencesInput - The input type for the assessConsequences functionthemed
  * - AssessConsequencesOutput - The return type for the assessConsequences function.
  */
 
@@ -38,10 +38,9 @@ const prompt = ai.definePrompt({
   output: {schema: AssessConsequencesOutputSchema},
   model: MODEL_ANALYSIS,
   prompt: assessConsequencesPromptText,
-  retries: 2,
 });
 
-const assessConsequencesFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'assessConsequencesFlow',
     inputSchema: AssessConsequencesInputSchema,

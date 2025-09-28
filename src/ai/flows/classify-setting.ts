@@ -61,7 +61,6 @@ const classifySettingPrompt = ai.definePrompt({
     output: { schema: ClassifySettingOutputSchema },
     model: MODEL_CLASSIFICATION,
     prompt: classifySettingPromptText,
-    retries: 2,
 });
 
 

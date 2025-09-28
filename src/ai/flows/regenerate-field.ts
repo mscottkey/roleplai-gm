@@ -46,10 +46,9 @@ const prompt = ai.definePrompt({
   output: { schema: RegenerateFieldOutputSchema, format: 'json' },
   model: MODEL_GENERATION,
   prompt: regenerateFieldPromptText,
-  retries: 2,
 });
 
-const regenerateFieldFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'regenerateFieldFlow',
     inputSchema: RegenerateFieldInputSchema,
@@ -60,4 +59,3 @@ const regenerateFieldFlow = ai.defineFlow(
     return output!;
   }
 );
-

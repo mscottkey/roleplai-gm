@@ -51,10 +51,9 @@ const narratePlayerActionsPrompt = ai.definePrompt({
   output: {schema: NarratePlayerActionsOutputSchema},
   model: MODEL_GAMEPLAY,
   prompt: narratePlayerActionsPromptText,
-  retries: 2,
 });
 
-const narratePlayerActionsFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'narratePlayerActionsFlow',
     inputSchema: NarratePlayerActionsInputSchema,
@@ -65,4 +64,3 @@ const narratePlayerActionsFlow = ai.defineFlow(
     return output!;
   }
 );
-

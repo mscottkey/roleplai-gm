@@ -53,10 +53,9 @@ const askQuestionPrompt = ai.definePrompt({
   output: {schema: AskQuestionOutputSchema},
   model: MODEL_GAMEPLAY,
   prompt: askQuestionPromptText,
-  retries: 2,
 });
 
-const askQuestionFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'askQuestionFlow',
     inputSchema: AskQuestionInputSchema,

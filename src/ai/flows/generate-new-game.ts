@@ -61,7 +61,6 @@ function cleanMarkdown(text: string): string {
 export async function generateNewGame(input: GenerateNewGameInput): Promise<GenerateNewGameResponse> {
   const result = await prompt(input);
   
-  // Clean up the markdown formatting in the response
   const cleanedOutput = {
     ...result.output!,
     setting: cleanMarkdown(result.output!.setting),
@@ -81,11 +80,10 @@ const prompt = ai.definePrompt({
   output: { schema: GenerateNewGameOutputSchema, format: 'json' },
   model: MODEL_GENERATION,
   prompt: generateNewGamePromptText,
-  retries: 2,
 });
 
 // This flow is now only for the Genkit developer UI and is not called directly by application code.
-const generateNewGameFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'generateNewGameFlow',
     inputSchema: GenerateNewGameInputSchema,

@@ -51,7 +51,6 @@ const classifyInputPrompt = ai.definePrompt({
   output: { schema: ClassifyInputOutputSchema },
   model: MODEL_CLASSIFICATION,
   prompt: classifyInputPromptText,
-  retries: 1,
 });
 
 export async function classifyInput(input: ClassifyInput): Promise<ClassifyInputResponse> {
