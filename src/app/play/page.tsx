@@ -39,7 +39,6 @@ import {
   generateSessionBeatsAction,
   endCurrentSessionAction,
   startNextSessionAction,
-  trackSessionActivityAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -385,32 +384,36 @@ export default function RoleplAIGMPage() {
 
   // Effect for handling session idle warnings
   useEffect(() => {
-    if (step !== 'play' || sessionStatus !== 'active' || !worldState?.autoEndEnabled) {
+    if (step !== 'play' || sessionStatus !== 'active' || !worldState?.autoEndEnabled || !worldState?.lastActivity) {
       return;
     }
-
-    const checkIdle = () => {
-      if (!worldState?.lastActivity) return;
-
-      const lastActivityDate = new Date(worldState.lastActivity);
+  
+    const checkIdle = async () => {
+      const lastActivityDate = new Date(worldState.lastActivity!);
       const minutesSince = differenceInMinutes(new Date(), lastActivityDate);
       const timeoutMinutes = worldState.idleTimeoutMinutes || 120;
-      const warningThreshold = timeoutMinutes - 30; // Warn 30 minutes before timeout
-
-      if (minutesSince >= warningThreshold && minutesSince < timeoutMinutes) {
+      const warningThreshold = timeoutMinutes - 30;
+  
+      if (minutesSince >= warningThreshold && minutesSince < timeoutMinutes && !worldState.idleWarningShown) {
         toast({
           title: 'Session Idle Warning',
-          description: `This session will automatically pause in about ${Math.round(timeoutMinutes - minutesSince)} minutes due to inactivity. Take an action to reset the timer.`,
+          description: `This session will automatically pause in about ${Math.round(timeoutMinutes - minutesSince)} minutes due to inactivity. Take an action to keep it alive.`,
           duration: 60000,
         });
+        // Mark warning as shown
+        if (activeGameId) {
+          await updateDoc(doc(getFirestore(), 'games', activeGameId), {
+            'worldState.idleWarningShown': true
+          });
+        }
       }
     };
-
+  
     const interval = setInterval(checkIdle, 5 * 60 * 1000); // Check every 5 mins
     checkIdle(); // Initial check
-
+  
     return () => clearInterval(interval);
-  }, [step, sessionStatus, worldState?.lastActivity, worldState?.autoEndEnabled, worldState?.idleTimeoutMinutes, toast]);
+  }, [step, sessionStatus, worldState, activeGameId, toast]);
 
   useEffect(() => {
     if (!activeGameId) {
@@ -727,7 +730,7 @@ The stage is set. What do you do?
         setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, factions, nodes, resolution,
         currentWorldState: tempWorldStateForBeats,
         sessionNumber: 1,
-      }, activeGameId);
+      });
       campaignData.currentSessionBeats = beats;
 
       await saveCampaignStructure(activeGameId, campaignData);
@@ -962,7 +965,6 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      await trackSessionActivityAction(activeGameId);
       const intentClassification = await classifyInput({ playerInput });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];

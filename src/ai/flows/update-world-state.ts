@@ -71,7 +71,9 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.resolution = updatedOutput.resolution || input.worldState.resolution || null;
     updatedOutput.factions = updatedOutput.factions || input.worldState.factions || [];
     updatedOutput.turn = updatedOutput.turn || input.worldState.turn || 0;
-    updatedOutput.storyProgression = updatedOutput.storyProgression || input.worldState.storyProgression || null;
+    updatedOutput.sessionProgress = updatedOutput.sessionProgress || input.worldState.sessionProgress || null;
+    updatedOutput.idleWarningShown = false; // Always reset warning on action
+    updatedOutput.lastActivity = new Date().toISOString(); // Always update activity timestamp
     
     if (!updatedOutput.currentScene) {
         updatedOutput.currentScene = input.worldState.currentScene || { nodeId: 'unknown', name: 'Unknown', description: 'The area has not been described.', presentCharacters: [], presentNPCs: [], environmentalFactors: [], connections: [] };

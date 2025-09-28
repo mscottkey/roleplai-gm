@@ -13,6 +13,7 @@ import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
 import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
 import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
+import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
@@ -28,7 +29,7 @@ import {
     generateCampaignNodes 
 } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
-import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
+
 
 import type { 
     CampaignCore, 
@@ -153,6 +154,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       lastActivity: new Date().toISOString(),
       idleTimeoutMinutes: 120,
       autoEndEnabled: true,
+      idleWarningShown: false,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
@@ -670,25 +672,6 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
     } catch (error) {
         console.error("Error starting next session:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
-        return { success: false, message };
-    }
-}
-
-export async function trackSessionActivityAction(gameId: string): Promise<{ success: boolean; message?: string }> {
-    if (!gameId) {
-        return { success: false, message: 'Game ID is required.' };
-    }
-    try {
-        const app = await getServerApp();
-        const db = getFirestore(app);
-        const gameRef = doc(db, 'games', gameId);
-        await updateDoc(gameRef, {
-            'worldState.lastActivity': new Date().toISOString(),
-        });
-        return { success: true };
-    } catch (error) {
-        console.error('Error tracking session activity:', error);
-        const message = error instanceof Error ? error.message : 'An unknown error occurred.';
         return { success: false, message };
     }
 }

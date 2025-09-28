@@ -47,6 +47,7 @@ export const WorldStateSchema = z.object({
   lastActivity: z.string().datetime().optional().describe("The timestamp of the last player action."),
   idleTimeoutMinutes: z.number().int().default(120).describe("The number of minutes of inactivity before a session is automatically ended."),
   autoEndEnabled: z.boolean().default(true).describe("Whether to automatically end the session after a period of inactivity."),
+  idleWarningShown: z.boolean().default(false).describe("True if the idle warning has been shown to the user."),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 
@@ -66,4 +67,5 @@ export type UpdateWorldStateInput = z.infer<typeof UpdateWorldStateInputSchema>;
 
 export const UpdateWorldStateOutputSchema = WorldStateSchema;
 export type UpdateWorldStateOutput = z.infer<typeof UpdateWorldStateOutputSchema>;
+
 
