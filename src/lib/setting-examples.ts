@@ -221,6 +221,8 @@ export const SETTING_EXAMPLES: Record<SettingCategory, SettingExamples> = {
   }
 };
 
+export const SETTING_CATEGORIES = Object.keys(SETTING_EXAMPLES) as SettingCategory[];
+
 // Classification keywords for each category
 export const SETTING_KEYWORDS: Record<SettingCategory, string[]> = {
   fantasy_medieval: [

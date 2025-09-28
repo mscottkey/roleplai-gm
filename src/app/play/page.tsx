@@ -83,6 +83,9 @@ import * as gtag from '@/lib/gtag';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { ClassifySettingOutput } from '@/ai/schemas/classify-schemas';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SETTING_CATEGORIES } from '@/lib/setting-examples';
+
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
@@ -92,17 +95,38 @@ const SummaryReview = ({
     isLoading,
     onContinue,
     onRegenerateField,
+    onUpdateCategory,
+    allCategories,
   }: {
     gameData: GameData;
     classification: ClassifySettingOutput | null;
     isLoading: boolean;
     onContinue: () => void;
     onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
+    onUpdateCategory: (newCategory: string) => Promise<void>;
+    allCategories: string[];
   }) => {
     
     const [newRequest, setNewRequest] = useState(gameData.originalRequest || '');
     const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<string>(classification?.category || '');
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    useEffect(() => {
+        if (classification) {
+            setSelectedCategory(classification.category);
+        }
+    }, [classification]);
+
+    const handleUpdateCategory = async () => {
+        setIsUpdating(true);
+        try {
+            await onUpdateCategory(selectedCategory);
+        } finally {
+            setIsUpdating(false);
+        }
+    }
 
     const handleRegenField = async (fieldName: 'setting' | 'tone') => {
         setIsSubmitting(true);
@@ -136,7 +160,7 @@ const SummaryReview = ({
                     <CardContent className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
                             <span className="font-semibold">Selected Genre:</span>
-                            <Badge variant="secondary">{classification.category.replace(/_/g, ' ')}</Badge>
+                            <Badge variant="secondary" className="capitalize">{classification.category.replace(/_/g, ' ')}</Badge>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="font-semibold">Confidence:</span>
@@ -146,6 +170,27 @@ const SummaryReview = ({
                         </div>
                          <p><span className="font-semibold">Reasoning:</span> <em className="text-muted-foreground">"{classification.reasoning}"</em></p>
                     </CardContent>
+                    <CardFooter className="flex-col sm:flex-row gap-4 items-start pt-6">
+                        <div className="w-full sm:w-auto flex-1 space-y-2">
+                            <Label htmlFor="category-override">Re-classify Genre</Label>
+                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                <SelectTrigger id="category-override">
+                                    <SelectValue placeholder="Select a genre..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allCategories.map(cat => (
+                                        <SelectItem key={cat} value={cat} className="capitalize">
+                                            {cat.replace(/_/g, ' ')}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button onClick={handleUpdateCategory} disabled={isUpdating || selectedCategory === classification?.category} className="w-full sm:w-auto self-end">
+                            {isUpdating && <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />}
+                            Update Category
+                        </Button>
+                    </CardFooter>
                 </Card>
              )}
              <Separator />
@@ -765,6 +810,28 @@ ${startingNode ? startingNode.description : gameData.setting}
     }
   }, [activeGameId, gameData, toast]);
 
+  const handleUpdateCategory = useCallback(async (newCategory: string) => {
+    if (!activeGameId || !worldState) return;
+
+    if (worldState.settingCategory === newCategory) {
+        toast({ title: 'No Change', description: 'The selected category is already set.' });
+        return;
+    }
+
+    try {
+        await updateWorldState({
+            gameId: activeGameId,
+            updates: { 'worldState.settingCategory': newCategory }
+        });
+        toast({ title: 'Category Updated', description: `Game genre has been set to ${newCategory.replace(/_/g, ' ')}.` });
+        // The onSnapshot listener will handle the state update, which will re-render SummaryReview with the new classification.
+    } catch (error) {
+        const err = error as Error;
+        console.error('Failed to update category:', err);
+        toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
+    }
+  }, [activeGameId, worldState, toast]);
+
   if (step === 'loading') {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
@@ -1111,6 +1178,8 @@ ${startingNode ? startingNode.description : gameData.setting}
               }
             }}
             onRegenerateField={handleRegenerateField}
+            onUpdateCategory={handleUpdateCategory}
+            allCategories={SETTING_CATEGORIES}
           />
         );
       case 'characters':
@@ -1156,7 +1225,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
