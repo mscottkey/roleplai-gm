@@ -175,6 +175,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
         preferences: {
           playerName: char.playerName,
           pronouns: char.pronouns,
+          playerId: char.playerId,
         }
       }));
     }
@@ -186,6 +187,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
       character: null,
       preferences: {
         playerName: hostPlayerName,
+        playerId: gameData.playMode === 'remote' ? currentUser?.uid : undefined,
       }
     }];
   });
@@ -363,11 +365,11 @@ const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; o
             {isCreating ? (
                 <div className="w-full space-y-4 text-left p-4">
                     <Label>Character Vision</Label>
-                    <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} disabled={!isHost} />
+                    <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} disabled={isGenerating} />
                     <Label>Character Name (Optional)</Label>
-                    <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} disabled={!isHost} />
+                    <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} disabled={isGenerating} />
                     <Label>Pronouns</Label>
-                    <Select value={pronouns} onValueChange={setPronouns} disabled={!isHost}>
+                    <Select value={pronouns} onValueChange={setPronouns} disabled={isGenerating}>
                         <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Any">Any</SelectItem>

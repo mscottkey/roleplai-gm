@@ -66,5 +66,6 @@ export type PlayerSlot = {
         name?: string;
         vision?: string;
         pronouns?: string;
+        playerId?: string;
     }
 }
