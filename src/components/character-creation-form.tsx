@@ -231,7 +231,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   
   const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
 
-  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : [...players, ...localSlots.filter(p => !players.find(remote => remote.id === p.id))];
+  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
 
   useEffect(() => {
     if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
@@ -286,20 +286,20 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     const newId = `${formId}-slot-${Date.now()}`;
     const newSlot: Player = {
       id: newId,
-      name: playerName || `Player ${allPlayerSlots.length + 1}`,
+      name: playerName || `Player ${localSlots.length + 1}`,
       isHost: false,
       isMobile: false,
       connectionStatus: 'connected',
       characterCreationStatus: 'creating',
       characterData: {
-        playerName: playerName || `Player ${allPlayerSlots.length + 1}`,
+        playerName: playerName || `Player ${localSlots.length + 1}`,
         isApproved: true,
       },
       joinedAt: new Date() as any,
       lastActive: new Date() as any,
     };
     setLocalSlots(slots => [...slots, newSlot]);
-  }, [formId, allPlayerSlots.length]);
+  }, [formId, localSlots.length]);
 
   const handleGenerateAll = async () => {
     const slotsToGenerate = allPlayerSlots.filter(s => !s.characterData.generatedCharacter);
@@ -408,7 +408,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                 )}
 
                 {isLocalGame && !isHotSeatMode && activeGameId && (
-                    <QRCodeDisplay 
+                    <QRCodeDisplay
                         gameId={activeGameId}
                         gameName={gameData.name}
                         playerCount={allPlayerSlots.length}
@@ -473,4 +473,5 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     </div>
   );
 });
+
 
