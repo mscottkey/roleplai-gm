@@ -27,23 +27,15 @@ import {
   generateCampaignFactionsPromptText, 
   generateCampaignNodesPromptText 
 } from '../prompts/generate-campaign-pieces-prompts';
-import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 import { randomUUID } from 'crypto';
 
 
 // Step 1: Generate Core Concepts
 export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
-    const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
-    
     const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignCorePromptText,
-      input: {
-        ...input,
-        genreDescription: examples.description,
-        genreCampaignIssues: examples.campaignIssues,
-        genreCampaignAspects: examples.campaignAspects,
-      },
+      input: input,
       output: {
         format: 'json',
         schema: CampaignCoreSchema,
@@ -59,15 +51,10 @@ export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
 
 // Step 2: Generate Factions
 export async function generateCampaignFactions(input: z.infer<typeof GenerateFactionsInputSchema>) {
-    const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
-
     const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignFactionsPromptText,
-      input: {
-        ...input,
-        genreDescription: examples.description,
-      },
+      input: input,
       output: {
         format: 'json',
         schema: z.array(FactionSchema),
@@ -83,17 +70,12 @@ export async function generateCampaignFactions(input: z.infer<typeof GenerateFac
 
 // Step 3: Generate Nodes
 export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesInputSchema>) {
-    const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
-    
     const NodeGenerationSchema = NodeSchema.omit({ id: true });
     
     const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignNodesPromptText,
-      input: {
-        ...input,
-        genreDescription: examples.description,
-      },
+      input: input,
       output: {
         format: 'json',
         schema: z.array(NodeGenerationSchema),
