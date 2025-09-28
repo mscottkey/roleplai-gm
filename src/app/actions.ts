@@ -12,10 +12,11 @@ import { assessConsequences as assessConsequencesFlow, type AssessConsequencesRe
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
-import { classifyInput as classifyInputFlow, type ClassifyInput, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
-import { classifySetting as classifySettingFlow, type ClassifySettingInput, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
+import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
+import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
+import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 import { updateUserPreferences } from './actions/user-preferences';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
@@ -109,7 +110,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     const { output: newGame }: { output: GenerateNewGameOutput } = await generateNewGameFlow(generateGameInput);
     
     // Step 3: Classify the new game to get its category
-    const { output: classification } = await classifySetting({
+    const classification = await classifySetting({
       setting: newGame.setting,
       tone: newGame.tone,
       originalRequest: ipCheck.sanitizedRequest,
@@ -539,5 +540,7 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
         return { success: false, message };
     }
 }
+
+    
 
     
