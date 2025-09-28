@@ -262,14 +262,10 @@ export function StoryDrawer({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-6 pt-2">
-                    {playMode === 'remote' && gameId && (
-                      <>
-                        <ShareGameInvite gameId={gameId} />
-                        <Separator />
-                      </>
-                    )}
-                    {playMode === 'local' && gameId && (
+                    {gameId && (
                         <>
+                         <ShareGameInvite gameId={gameId} />
+                         <Separator />
                          <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h4 className="font-medium text-foreground flex items-center gap-2"><QrCode className="h-4 w-4" /> QR Code Join</h4>
@@ -279,7 +275,7 @@ export function StoryDrawer({
                                 <QRCodeDisplay
                                     gameId={gameId}
                                     gameName={gameData.name}
-                                    playerCount={characters?.length || 0}
+                                    playerCount={worldState?.characters?.length || 0}
                                 />
                             )}
                          </div>
