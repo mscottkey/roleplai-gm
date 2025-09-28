@@ -16,7 +16,7 @@ import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type Cl
 import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
 import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
 
-import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
+import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
 import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 import { updateUserPreferences } from './actions/user-preferences';
@@ -32,24 +32,10 @@ import {
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
 
 
-import type { 
-    CampaignCore, 
-    Faction, 
-    Node, 
-    CampaignResolution, 
-    GenerateFactionsInput, 
-    GenerateNodesInput, 
-    GenerateResolutionInput,
-    GenerateCampaignCoreInput,
-    StoryBeat,
-    GenerateSessionBeatsInput,
-    SessionProgress,
-} from '@/ai/schemas/campaign-structure-schemas';
 import type { Character as AICharacter } from "@/ai/schemas/generate-character-schemas";
 
 
 import { z } from 'genkit';
-import { WorldStateSchema, type WorldState } from "@/ai/schemas/world-state-schemas";
 
 // Import Firebase client SDK with proper initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -58,7 +44,6 @@ import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getD
 
 import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/types";
 
-import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { GenerationUsage } from "genkit";
 import * as gtag from '@/lib/gtag';
 
@@ -633,25 +618,27 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
         }
         
         const nextSessionNumber = (worldState.sessionProgress.currentSession || 0) + 1;
-        const generationInput: GenerateSessionBeatsInput = {
+        
+        const beatsInput: GenerateSessionBeatsInput = {
             setting: gameData.gameData.setting,
             tone: gameData.gameData.tone,
             characters: worldState.characters,
+            campaignIssues: campaignStructure.campaignIssues,
+            campaignAspects: campaignStructure.campaignAspects,
             factions: campaignStructure.factions,
             nodes: campaignStructure.nodes,
             resolution: campaignStructure.resolution,
             currentWorldState: worldState,
             sessionNumber: nextSessionNumber,
         };
+        const { output: nextSessionBeats } = await generateSessionBeats(beatsInput);
 
-        const { output: nextStep } = await generateNextSessionBeats(generationInput);
+        const shouldConclude = nextSessionBeats.length === 0;
 
-        if (nextStep.shouldConclude) {
+        if (shouldConclude) {
             await updateDoc(gameRef, { sessionStatus: 'finished' });
             return { success: true, message: "Campaign has reached its natural conclusion!" };
         }
-        
-        const nextSessionBeats = nextStep.beats;
 
         const newSessionProgress: SessionProgress = {
             currentSession: nextSessionNumber,
@@ -689,5 +676,3 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
         return { success: false, message };
     }
 }
-
-    

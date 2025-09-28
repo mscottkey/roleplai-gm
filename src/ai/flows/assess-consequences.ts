@@ -14,6 +14,7 @@ import { AssessConsequencesInputSchema, AssessConsequencesOutputSchema, type Ass
 import { MODEL_ANALYSIS } from '../models';
 import { assessConsequencesPromptText } from '../prompts/assess-consequences-prompt';
 import type { GenerationUsage } from 'genkit';
+import { WorldStateSchema } from '../schemas/world-state-schemas';
 
 export type { AssessConsequencesInput, AssessConsequencesOutput };
 

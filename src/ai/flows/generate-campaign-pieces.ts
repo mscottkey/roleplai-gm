@@ -19,7 +19,7 @@ import {
   NodeSchema,
   type GenerateCampaignCoreInput,
   GenerateCampaignCoreInputSchema,
-} from '@/ai/schemas/campaign-structure-schemas';
+} from '@/ai/schemas/world-state-schemas';
 import { MODEL_GENERATION } from '../models';
 import {z} from 'genkit';
 import { 

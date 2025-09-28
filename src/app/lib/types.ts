@@ -1,9 +1,8 @@
 
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
-import type { WorldState } from "@/ai/schemas/world-state-schemas";
+import type { WorldState, CampaignStructure } from "@/ai/schemas/world-state-schemas";
 import type { Timestamp } from "firebase/firestore";
 import type { CharacterStats } from "@/ai/schemas/generate-character-schemas";
-import type { CampaignStructure } from "@/ai/schemas/campaign-structure-schemas";
 
 export type Message = {
   id: string;
@@ -38,8 +37,8 @@ export type Player = {
     characterCreationStatus: 'joining' | 'creating' | 'generated' | 'ready';
     characterData: {
         playerName: string;
-        name?: string;
-        vision?: string;
+        name?: string; // optional character name
+        vision?: string; // character concept
         pronouns?: "Any" | "She/Her" | "He/Him" | "They/Them" | "Ze/Zir" | "It/Its";
         generatedCharacter?: Character;
         isApproved: boolean;
@@ -90,5 +89,3 @@ export type PlayerSlot = {
         playerId?: string;
     }
 }
-
-    

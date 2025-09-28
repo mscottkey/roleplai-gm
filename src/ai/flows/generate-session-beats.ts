@@ -14,7 +14,7 @@ import {
   GenerateSessionBeatsInputSchema,
   StoryBeatSchema,
   type GenerateSessionBeatsInput,
-} from '@/ai/schemas/campaign-structure-schemas';
+} from '@/ai/schemas/world-state-schemas';
 import { generateSessionBeatsPromptText } from '../prompts/generate-session-beats-prompt';
 import { MODEL_GENERATION } from '../models';
 import type { WorldState } from '../schemas/world-state-schemas';

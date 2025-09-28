@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {
   CampaignResolutionSchema,
   GenerateResolutionInputSchema,
-} from '@/ai/schemas/campaign-structure-schemas';
+} from '@/ai/schemas/world-state-schemas';
 import { MODEL_GENERATION } from '../models';
 import { generateCampaignResolutionPromptText } from '../prompts/generate-campaign-resolution-prompt';
 import { z } from 'genkit';

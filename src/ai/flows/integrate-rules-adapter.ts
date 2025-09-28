@@ -11,8 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { CharacterSchema } from '../schemas/generate-character-schemas';
-import { WorldStateSchema } from '../schemas/world-state-schemas';
+import { CharacterSchema, WorldStateSchema } from '../schemas/world-state-schemas';
 import { MODEL_GAMEPLAY } from '../models';
 import { resolveActionPromptText } from '../prompts/integrate-rules-adapter-prompt';
 import type { GenerationUsage } from 'genkit';

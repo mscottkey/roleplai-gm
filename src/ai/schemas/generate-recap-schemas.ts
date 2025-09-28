@@ -1,7 +1,7 @@
 
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
-import { FactionSchema } from './campaign-structure-schemas';
+import { FactionSchema } from './world-state-schemas';
 
 export const GenerateRecapInputSchema = z.object({
   recentEvents: z.array(z.string()).describe("A list of the last few significant events to maintain short-term context."),

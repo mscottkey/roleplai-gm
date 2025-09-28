@@ -14,6 +14,7 @@ import { GenerateRecapInputSchema, GenerateRecapOutputSchema, type GenerateRecap
 import { MODEL_GAMEPLAY } from '../models';
 import { generateRecapPromptText } from '../prompts/generate-recap-prompt';
 import type { GenerationUsage } from 'genkit';
+import { FactionSchema } from '../schemas/world-state-schemas';
 
 export type { GenerateRecapInput, GenerateRecapOutput };
 
