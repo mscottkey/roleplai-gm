@@ -15,6 +15,8 @@ import { MODEL_ANALYSIS } from '../models';
 import { assessConsequencesPromptText } from '../prompts/assess-consequences-prompt';
 import type { GenerationUsage } from 'genkit';
 
+export type { AssessConsequencesInput, AssessConsequencesOutput };
+
 export type AssessConsequencesResponse = {
   output: AssessConsequencesOutput;
   usage: GenerationUsage;

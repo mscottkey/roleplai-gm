@@ -1,23 +1,24 @@
 
+
 'use server';
 
-import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
+import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
 import { resolveAction as resolveActionFlow, type ResolveActionOutput, type ResolveActionResponse } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse, type GenerateCharacterInput, type GenerateCharacterOutput } from "@/ai/flows/generate-character";
 import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse } from "@/ai/flows/update-world-state";
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
-import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse } from "@/ai/flows/assess-consequences";
+import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse, type AssessConsequencesInput, type AssessConsequencesOutput } from "@/ai/flows/assess-consequences";
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
 import { unifiedClassify as unifiedClassifyFlow, type UnifiedClassifyResponse, type UnifiedClassifyInput, type UnifiedClassifyOutput } from "@/ai/flows/unified-classify";
-import type { AssessConsequencesInput, AssessConsequencesOutput } from "@/ai/schemas/assess-consequences-schemas";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 
 import { updateUserPreferences } from './actions/user-preferences';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
+import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 
 // Imports for granular campaign generation
 import { 
@@ -34,7 +35,7 @@ import type {
     GenerateFactionsInput, 
     GenerateNodesInput, 
     GenerateResolutionInput,
-    GenerateCampaignCoreInput as CampaignCoreInput
+    GenerateCampaignCoreInput
 } from '@/ai/schemas/campaign-structure-schemas';
 import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 
@@ -118,7 +119,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       knownFactions: [],
       factions: [],
       nodeStates: {},
-      resolution: undefined,
+      resolution: null,
       turn: 0,
       currentScene: {
         nodeId: "start",
@@ -129,6 +130,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         environmentalFactors: [],
         connections: [],
       },
+      settingCategory: null,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
@@ -226,13 +228,12 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
   }
 }
 
-export async function getAnswerToQuestion(input: AskQuestionInput & { gameId: string }): Promise<AskQuestionOutput> {
-  const { gameId, ...flowInput } = input;
+export async function getAnswerToQuestion(input: AskQuestionInput, gameId: string): Promise<AskQuestionOutput> {
   try {
-    const character = flowInput.worldState.characters.find(c => c.id === flowInput.character.id);
+    const character = input.worldState.characters.find(c => c.id === input.character.id);
     if (!character) throw new Error("Character asking question not found in world state.");
     
-    const { output }: AskQuestionResponse = await askQuestionFlow({ ...flowInput, character });
+    const { output }: AskQuestionResponse = await askQuestionFlow({ ...input, character });
     return output;
   } catch (e: any) {
     throw handleAIError(e, 'Failed to get an answer from the GM');
@@ -241,7 +242,7 @@ export async function getAnswerToQuestion(input: AskQuestionInput & { gameId: st
 
 export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string): Promise<NarratePlayerActionsOutput> {
     try {
-        const { output }: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
+        const output: NarratePlayerActionsOutput = await narratePlayerActionsFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to get GM acknowledgement');
@@ -250,7 +251,7 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
     try {
-        const { output }: AssessConsequencesResponse = await assessConsequencesFlow(input);
+        const output: AssessConsequencesOutput = await assessConsequencesFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to assess consequences');
@@ -259,7 +260,7 @@ export async function checkConsequences(input: AssessConsequencesInput, gameId: 
 
 export async function generateRecap(input: GenerateRecapInput, gameId: string): Promise<GenerateRecapOutput> {
     try {
-        const { output }: GenerateRecapResponse = await generateRecapFlow(input);
+        const output: GenerateRecapOutput = await generateRecapFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to generate recap');
@@ -282,7 +283,7 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
 
 export async function unifiedClassify(input: UnifiedClassifyInput, gameId: string): Promise<UnifiedClassifyOutput> {
     try {
-        const { output }: UnifiedClassifyResponse = await unifiedClassifyFlow(input);
+        const output: UnifiedClassifyOutput = await unifiedClassifyFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to classify input');
@@ -290,7 +291,7 @@ export async function unifiedClassify(input: UnifiedClassifyInput, gameId: strin
 }
 
 // Granular actions for client-side orchestration
-export async function generateCampaignCoreAction(input: CampaignCoreInput, gameId: string): Promise<CampaignCore> {
+export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string): Promise<CampaignCore> {
     try {
         const { output } = await generateCampaignCore(input);
         return output;
@@ -515,7 +516,3 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
         return { success: false, message };
     }
 }
-
-    
-
-    

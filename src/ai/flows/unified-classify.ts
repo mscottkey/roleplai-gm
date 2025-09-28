@@ -173,18 +173,14 @@ Return only a valid JSON object with your classifications.`;
 
 export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyResponse> {
   const result = await unifiedClassifyFlow(input);
-  return {
-    output: result,
-    usage: result.usage,
-    model: result.model,
-  };
+  return result;
 }
 
 export const unifiedClassifyFlow = ai.defineFlow(
   {
     name: 'unifiedClassify',
     inputSchema: UnifiedClassifyInputSchema,
-    outputSchema: UnifiedClassifyOutputSchema,
+    outputSchema: UnifiedClassifyResponseSchema,
   },
   async (input) => {
     try {
@@ -201,6 +197,8 @@ export const unifiedClassifyFlow = ai.defineFlow(
       });
 
       let finalOutput = result.output || {};
+      const usage = result.usage;
+      const model = result.model;
 
       // Fallback to keyword-based classification if AI confidence is low or failed
       const keywordSource = input.originalRequest ? `${input.originalRequest} ${input.setting} ${input.tone || ''}` : `${input.setting} ${input.tone || ''}`;
@@ -222,7 +220,7 @@ export const unifiedClassifyFlow = ai.defineFlow(
         };
       }
 
-      return { ...result, output: finalOutput };
+      return { output: finalOutput, usage, model };
 
     } catch (error) {
       // Pure keyword fallback if AI fails completely
@@ -256,5 +254,3 @@ export const unifiedClassifyFlow = ai.defineFlow(
     }
   }
 );
-
-    

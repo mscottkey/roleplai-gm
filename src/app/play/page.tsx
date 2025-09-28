@@ -810,7 +810,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      const intentClassification = await unifiedClassify({ playerInput }, activeGameId);
+      const intentClassification = await unifiedClassify({ playerInput, originalRequest: gameData?.originalRequest }, activeGameId);
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   

@@ -2,7 +2,7 @@
 // /lib/firebase.ts
 import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app'
 import { getAuth, setPersistence, browserLocalPersistence, Auth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, initializeFirestore } from 'firebase/firestore'
 import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 
 
@@ -12,11 +12,14 @@ const firebaseConfig: FirebaseOptions = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREbase_APP_ID!,
 }
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+});
+
 
 // Initialize analytics and performance if on the client side and supported
 if (typeof window !== 'undefined') {
@@ -50,5 +53,3 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
 }
 
 export { app, db }
-
-  

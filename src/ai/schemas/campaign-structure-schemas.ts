@@ -1,4 +1,5 @@
 
+
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
 
@@ -69,7 +70,7 @@ export const CampaignStructureSchema = z.object({
     campaignAspects: z.array(z.string()).min(3).max(5).describe('3-5 overarching Fate Aspects for the campaign world.'),
     factions: z.array(FactionSchema).min(2).max(3).describe('2-3 key factions or looming threats.'),
     nodes: z.array(NodeSchema).min(5).max(7).describe('A web of 5-7 interconnected situation nodes.'),
-    resolution: CampaignResolutionSchema.optional().describe("The overarching endgame structure and victory conditions."),
+    resolution: CampaignResolutionSchema.optional().nullable().describe("The overarching endgame structure and victory conditions."),
 });
 export type CampaignStructure = z.infer<typeof CampaignStructureSchema>;
 

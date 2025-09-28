@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -68,7 +69,7 @@ const updateWorldStateFlow = ai.defineFlow(
     updatedOutput.knownPlaces = updatedOutput.knownPlaces || [];
     updatedOutput.knownFactions = updatedOutput.knownFactions || [];
     updatedOutput.nodeStates = updatedOutput.nodeStates || input.worldState.nodeStates || {};
-    updatedOutput.resolution = updatedOutput.resolution || input.worldState.resolution || undefined;
+    updatedOutput.resolution = updatedOutput.resolution || input.worldState.resolution || null;
     updatedOutput.factions = updatedOutput.factions || input.worldState.factions || [];
     updatedOutput.turn = updatedOutput.turn || input.worldState.turn || 0;
     
@@ -83,6 +84,3 @@ const updateWorldStateFlow = ai.defineFlow(
     return { ...result, output: updatedOutput };
   }
 );
-
-
-    
