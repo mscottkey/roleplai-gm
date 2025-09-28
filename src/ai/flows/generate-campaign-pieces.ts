@@ -35,11 +35,13 @@ const generateCampaignCorePrompt = ai.definePrompt({
     name: 'generateCampaignCorePrompt',
     model: MODEL_GENERATION,
     prompt: generateCampaignCorePromptText,
-    inputSchema: GenerateCampaignCoreInputSchema.extend({
-        genreDescription: z.string(),
-        genreCampaignIssues: z.array(z.string()),
-        genreCampaignAspects: z.array(z.string()),
-    }),
+    input: {
+        schema: GenerateCampaignCoreInputSchema.extend({
+            genreDescription: z.string(),
+            genreCampaignIssues: z.array(z.string()),
+            genreCampaignAspects: z.array(z.string()),
+        }),
+    },
     output: {
         format: 'json',
         schema: CampaignCoreSchema,
@@ -69,11 +71,13 @@ const generateCampaignFactionsPrompt = ai.definePrompt({
     name: 'generateCampaignFactionsPrompt',
     model: MODEL_GENERATION,
     prompt: generateCampaignFactionsPromptText,
-    inputSchema: GenerateFactionsInputSchema.extend({
-        genreDescription: z.string(),
-        genreCampaignIssues: z.array(z.string()),
-        genreCampaignAspects: z.array(z.string()),
-    }),
+    input: {
+        schema: GenerateFactionsInputSchema.extend({
+            genreDescription: z.string(),
+            genreCampaignIssues: z.array(z.string()),
+            genreCampaignAspects: z.array(z.string()),
+        }),
+    },
     output: {
         format: 'json',
         schema: z.array(FactionSchema),
@@ -104,11 +108,13 @@ const generateCampaignNodesPrompt = ai.definePrompt({
     name: 'generateCampaignNodesPrompt',
     model: MODEL_GENERATION,
     prompt: generateCampaignNodesPromptText,
-    inputSchema: GenerateNodesInputSchema.extend({
-        genreDescription: z.string(),
-        genreCampaignIssues: z.array(z.string()),
-        genreCampaignAspects: z.array(z.string()),
-    }),
+    input: {
+        schema: GenerateNodesInputSchema.extend({
+            genreDescription: z.string(),
+            genreCampaignIssues: z.array(z.string()),
+            genreCampaignAspects: z.array(z.string()),
+        }),
+    },
     output: {
         format: 'json',
         schema: z.array(NodeGenerationSchema),

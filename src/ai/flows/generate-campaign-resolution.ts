@@ -20,7 +20,9 @@ const generateCampaignResolutionPrompt = ai.definePrompt({
     name: 'generateCampaignResolutionPrompt',
     model: MODEL_GENERATION,
     prompt: generateCampaignResolutionPromptText,
-    inputSchema: GenerateResolutionInputSchema,
+    input: {
+      schema: GenerateResolutionInputSchema
+    },
     output: {
         format: 'json',
         schema: CampaignResolutionSchema,
