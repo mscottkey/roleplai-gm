@@ -18,6 +18,7 @@ import {
   GenerateNodesInputSchema,
   NodeSchema,
   type GenerateCampaignCoreInput,
+  GenerateCampaignCoreInputSchema,
 } from '@/ai/schemas/campaign-structure-schemas';
 import { MODEL_GENERATION } from '../models';
 import {z} from 'genkit';
@@ -29,25 +30,31 @@ import {
 import { randomUUID } from 'crypto';
 import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 
+// Step 1: Define Prompt & Flow for Core Concepts
+const generateCampaignCorePrompt = ai.definePrompt({
+    name: 'generateCampaignCorePrompt',
+    model: MODEL_GENERATION,
+    prompt: generateCampaignCorePromptText,
+    inputSchema: GenerateCampaignCoreInputSchema.extend({
+        genreDescription: z.string(),
+        genreCampaignIssues: z.array(z.string()),
+        genreCampaignAspects: z.array(z.string()),
+    }),
+    output: {
+        format: 'json',
+        schema: CampaignCoreSchema,
+    },
+    retries: 2,
+});
 
-// Step 1: Generate Core Concepts
 export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
     const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
     
-    const result = await ai.generate({
-      model: MODEL_GENERATION,
-      prompt: generateCampaignCorePromptText,
-      input: {
+    const result = await generateCampaignCorePrompt({
         ...input,
         genreDescription: examples.description,
         genreCampaignIssues: examples.campaignIssues,
         genreCampaignAspects: examples.campaignAspects,
-      },
-      output: {
-        format: 'json',
-        schema: CampaignCoreSchema,
-      },
-      retries: 2,
     });
     
     if (!result.output) {
@@ -56,18 +63,33 @@ export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
     return result;
 }
 
-// Step 2: Generate Factions
-export async function generateCampaignFactions(input: z.infer<typeof GenerateFactionsInputSchema>) {
-    const result = await ai.generate({
-      model: MODEL_GENERATION,
-      prompt: generateCampaignFactionsPromptText,
-      input: input,
-      output: {
+
+// Step 2: Define Prompt & Flow for Factions
+const generateCampaignFactionsPrompt = ai.definePrompt({
+    name: 'generateCampaignFactionsPrompt',
+    model: MODEL_GENERATION,
+    prompt: generateCampaignFactionsPromptText,
+    inputSchema: GenerateFactionsInputSchema.extend({
+        genreDescription: z.string(),
+        genreCampaignIssues: z.array(z.string()),
+        genreCampaignAspects: z.array(z.string()),
+    }),
+    output: {
         format: 'json',
         schema: z.array(FactionSchema),
-      },
-      retries: 2,
-    });
+    },
+    retries: 2,
+});
+
+export async function generateCampaignFactions(input: z.infer<typeof GenerateFactionsInputSchema>) {
+  const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;  
+  
+  const result = await generateCampaignFactionsPrompt({
+    ...input,
+    genreDescription: examples.description,
+    genreCampaignIssues: examples.campaignIssues,
+    genreCampaignAspects: examples.campaignAspects,
+  });
 
     if (!result.output || result.output.length === 0) {
       throw new Error('AI failed to generate campaign factions.');
@@ -75,19 +97,33 @@ export async function generateCampaignFactions(input: z.infer<typeof GenerateFac
     return result;
 }
 
-// Step 3: Generate Nodes
-export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesInputSchema>) {
-    const NodeGenerationSchema = NodeSchema.omit({ id: true });
-    
-    const result = await ai.generate({
-      model: MODEL_GENERATION,
-      prompt: generateCampaignNodesPromptText,
-      input: input,
-      output: {
+
+// Step 3: Define Prompt & Flow for Nodes
+const NodeGenerationSchema = NodeSchema.omit({ id: true });
+const generateCampaignNodesPrompt = ai.definePrompt({
+    name: 'generateCampaignNodesPrompt',
+    model: MODEL_GENERATION,
+    prompt: generateCampaignNodesPromptText,
+    inputSchema: GenerateNodesInputSchema.extend({
+        genreDescription: z.string(),
+        genreCampaignIssues: z.array(z.string()),
+        genreCampaignAspects: z.array(z.string()),
+    }),
+    output: {
         format: 'json',
         schema: z.array(NodeGenerationSchema),
-      },
-      retries: 2,
+    },
+    retries: 2,
+});
+
+export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesInputSchema>) {
+    const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
+    
+    const result = await generateCampaignNodesPrompt({
+        ...input,
+        genreDescription: examples.description,
+        genreCampaignIssues: examples.campaignIssues,
+        genreCampaignAspects: examples.campaignAspects,
     });
 
     const output = result.output;
@@ -96,7 +132,7 @@ export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesI
       throw new Error('The AI failed to generate any campaign nodes. The campaign structure could not be built.');
     }
 
-    const nodesWithIds = output.map(node => ({
+    const nodesWithIds = output.map((node: z.infer<typeof NodeGenerationSchema>) => ({
       ...node,
       id: randomUUID(),
     }));
