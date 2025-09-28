@@ -66,7 +66,7 @@ const GenerationUsageSchema = z.object({
   inputTokens: z.number(),
   outputTokens: z.number(),
   totalTokens: z.number(),
-});
+}).passthrough();
 
 const UnifiedClassifyResponseSchema = z.object({
   output: UnifiedClassifyOutputSchema,
@@ -141,46 +141,47 @@ function classifyIntentByKeywords(input: string): { intent: 'Action' | 'Question
   }
 }
 
-const unifiedClassifyPromptText = `You are a classification expert for tabletop RPGs. You can classify both game settings and player intentions.
+const unifiedClassifyPromptText = `You are an expert classification system for a tabletop RPG tool. You may be given one or two independent tasks.
 
 {{#if setting}}
-## Setting Classification Task
-Your primary goal is to determine the genre of the game.
+## Task 1: Classify Game Setting
+Your goal is to classify the provided game concept into one of the predefined genres.
 
-### Source of Truth
-The user's original request is the most important piece of information. Use it to determine the core genre.
-- **Original Request:** "{{{originalRequest}}}"
+### How to Classify for Task 1
+1.  Start with the **Original Request**. This is the user's core idea.
+2.  Use the detailed **Setting** and **Tone** descriptions to understand the world's specifics and mood. This detailed context is more important than the original request if they seem to conflict.
+3.  Choose the single best-fitting category from the list below.
 
-### Additional Context
-Use the following detailed descriptions to refine your classification.
-- **Setting:** {{{setting}}}
+### Information for Task 1
+- **Original Request:** \`{{{originalRequest}}}\`
+- **Setting Description:** \`{{{setting}}}\`
 {{#if tone}}
-- **Tone:** {{{tone}}}
+- **Tone Description:** \`{{{tone}}}\`
 {{/if}}
 
-### Available Categories
+### Available Categories for Task 1
 ${generateCategoryDescriptions()}
 {{/if}}
 
 {{#if playerInput}}
-## Intent Classification Task
-Classify this player input as either an Action or Question:
+## Task 2: Classify Player Intent
+Your goal is to classify the raw player input as either an "Action" or a "Question".
 
-**Player Input:** "{{{playerInput}}}"
+### Information for Task 2
+- **Player Input:** \`{{{playerInput}}}\`
 
-- **Action**: Player describes what their character does, says, or attempts to do. Examples: "I attack the goblin", "I try to pick the lock", "I ask the bartender for rumors"
-- **Question**: Player asks for information about the game world, rules, or possibilities. Examples: "Are there guards?", "What does the inscription say?", "Can I see the ceiling?"
+### Definitions for Task 2
+- **Action**: The player describes what their character does, says, or attempts to do. Examples: "I attack the goblin", "I try to pick the lock".
+- **Question**: The player asks for information about the game world, rules, or possibilities. Examples: "Are there guards?", "What does the inscription say?".
+
+### How to Classify for Task 2
+- Analyze ONLY the **Player Input** for this task. Do not use information from Task 1.
 {{/if}}
 
-## Instructions
-{{#if setting}}
-1.  **For setting classification:** Based primarily on the **Original Request**, choose the best matching category. Provide your confidence (0-1) and explain your reasoning.
-{{/if}}
-{{#if playerInput}}
-{{#if setting}}2.{{else}}1.{{/if}} For intent classification: Determine if this is an Action or Question, provide confidence (0-1), and explain your reasoning.
-{{/if}}
-
-Return only a valid JSON object with your classifications.`;
+## Your Response
+You must provide a valid JSON response. For each task you were given, provide the classification, a confidence score (0.0 to 1.0), and a brief reasoning.
+- The reasoning for the **Intent Classification** (Task 2) should be based *only* on the player's input text provided for that task.
+`;
 
 export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyResponse> {
   const result = await unifiedClassifyFlow(input);
@@ -193,7 +194,7 @@ export const unifiedClassifyFlow = ai.defineFlow(
     inputSchema: UnifiedClassifyInputSchema,
     outputSchema: UnifiedClassifyResponseSchema,
   },
-  async (input) => {
+  async (input): Promise<UnifiedClassifyResponse> => {
     try {
       // Try AI classification first
       const result = await ai.generate({
@@ -208,8 +209,14 @@ export const unifiedClassifyFlow = ai.defineFlow(
       });
 
       let finalOutput = result.output || {};
-      const usage = result.usage;
-      const model = result.model;
+      
+      const usage = {
+        inputTokens: result.usage.inputTokens || 0,
+        outputTokens: result.usage.outputTokens || 0,
+        totalTokens: result.usage.totalTokens || (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0),
+      };
+      const model = result.model || MODEL_CLASSIFICATION;
+
 
       // Fallback to keyword-based classification if AI confidence is low or failed
       const keywordSource = input.originalRequest ? `${input.originalRequest} ${input.setting} ${input.tone || ''}` : `${input.setting} ${input.tone || ''}`;
@@ -243,7 +250,7 @@ export const unifiedClassifyFlow = ai.defineFlow(
         fallbackOutput.settingClassification = {
           category: keywordResult.category,
           confidence: keywordResult.score,
-          reasoning: `Classified using keyword analysis due to AI error: ${error}`
+          reasoning: `Classified using keyword analysis due to AI error: ${error instanceof Error ? error.message : String(error)}`
         };
       }
 
@@ -252,7 +259,7 @@ export const unifiedClassifyFlow = ai.defineFlow(
         fallbackOutput.intentClassification = {
           intent: keywordResult.intent,
           confidence: keywordResult.confidence,
-          reasoning: `Classified using keyword analysis due to AI error: ${error}`
+          reasoning: `Classified using keyword analysis due to AI error: ${error instanceof Error ? error.message : String(error)}`
         };
       }
       
