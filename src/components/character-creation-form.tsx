@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import type { GameSession, Character, PlayerSlot, Player } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, Star, GraduationCap, Sparkles as StuntIcon, Trash2 } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, Star, GraduationCap, Sparkles as StuntIcon, Trash2, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -19,6 +19,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { getFirestore, doc, runTransaction } from 'firebase/firestore';
+import { kickPlayerAction } from '@/app/actions';
+import { Badge } from './ui/badge';
 
 type CharacterCreationFormProps = {
   gameData: GameSession['gameData'];
@@ -193,7 +195,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   
   const isHost = currentUser?.uid === gameData.userId;
   const currentUserPlayerId = currentUser?.uid;
-  const userHasCharacter = players.some(p => p.id === currentUserPlayerId && p.characterCreationStatus === 'ready');
 
   useEffect(() => {
     if (gameData.playMode === 'local' && userPreferences && playerSlots.length > 0 && !playerSlots[0].character) {
@@ -274,7 +275,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                 name: prefs.name,
                 vision: prefs.vision,
                 pronouns: prefs.pronouns === 'Any' ? undefined : prefs.pronouns,
-                playerId: prefs.playerId || '',
+                playerId: prefs.playerId || currentUserPlayerId || '',
             };
         });
 
@@ -311,6 +312,21 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     }
   };
 
+  const handleKickPlayer = async (playerId: string) => {
+    if (!activeGameId || !isHost) return;
+    try {
+        const result = await kickPlayerAction(activeGameId, playerId);
+        if (result.success) {
+            toast({ title: "Player Kicked", description: "The player has been removed from the session." });
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Kick Failed', description: err.message });
+    }
+  }
+
 
 if (gameData.playMode === 'remote') {
     const allPlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready');
@@ -343,13 +359,21 @@ if (gameData.playMode === 'remote') {
                                    {player.characterData.generatedCharacter ? (
                                        <CharacterDisplay char={player.characterData.generatedCharacter} />
                                    ) : (
-                                       <div className="text-sm text-muted-foreground space-y-2">
+                                       <div className="text-sm text-muted-foreground space-y-2 p-4 border border-dashed rounded-md">
                                            <p><strong>Vision:</strong> {player.characterData.vision || '...'}</p>
                                            <p><strong>Name:</strong> {player.characterData.name || '...'}</p>
                                            <p><strong>Pronouns:</strong> {player.characterData.pronouns || '...'}</p>
+                                            <p className="text-xs pt-2 italic">Player is creating their character...</p>
                                        </div>
                                    )}
                                </CardContent>
+                               {isHost && player.id !== currentUser?.uid && (
+                                 <CardFooter>
+                                      <Button variant="destructive" size="sm" className="w-full" onClick={() => handleKickPlayer(player.id)}>
+                                          <UserX className="mr-2 h-4 w-4" /> Kick Player
+                                      </Button>
+                                 </CardFooter>
+                               )}
                            </Card>
                         ))}
                     </div>
@@ -432,3 +456,5 @@ if (gameData.playMode === 'remote') {
     </div>
   );
 });
+
+    

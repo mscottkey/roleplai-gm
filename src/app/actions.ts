@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
@@ -44,7 +45,7 @@ import type {
     GenerateSessionBeatsInput,
     SessionProgress,
 } from '@/ai/schemas/campaign-structure-schemas';
-import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
+import type { Character as AICharacter } from "@/ai/schemas/generate-character-schemas";
 
 
 import { z } from 'genkit';
@@ -363,8 +364,8 @@ export async function generateCampaignResolutionAction(input: GenerateResolution
 
 export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput): Promise<StoryBeat[]> {
     try {
-        const result = await generateSessionBeats(input);
-        return result;
+        const { output } = await generateSessionBeats(input);
+        return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to generate session beats');
     }
@@ -453,6 +454,19 @@ export async function deleteGame(gameId: string): Promise<{ success: boolean; me
         return { success: true };
     } catch (error) {
         console.error("Error in deleteGame action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
+
+export async function kickPlayerAction(gameId: string, playerId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        await deleteDoc(doc(db, "games", gameId, "players", playerId));
+        return { success: true };
+    } catch (error) {
+        console.error("Error in kickPlayerAction:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message };
     }
@@ -675,3 +689,5 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
         return { success: false, message };
     }
 }
+
+    
