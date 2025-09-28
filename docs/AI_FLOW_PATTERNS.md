@@ -1,7 +1,6 @@
-
 # AI Flow Design Patterns
 
-This document outlines the standard pattern for creating, managing, and invoking AI flows within the RoleplAI GM application. Following this pattern ensures consistency, type safety, and maintainability.
+This document outlines the standard pattern for creating, managing, and invoking AI flows within the application. Following this pattern ensures consistency, type safety, and maintainability.
 
 ## Core Principles
 
@@ -13,12 +12,12 @@ This document outlines the standard pattern for creating, managing, and invoking
 
 All AI-related code resides within the `src/ai/` directory:
 
-- `src/ai/flows/`: Contains the primary logic for each Genkit flow. (e.g., `generate-new-game.ts`)
-- `src/ai/prompts/`: Contains the text content of the prompts used by the flows. (e.g., `generate-new-game-prompt.ts`)
-- `src/ai/schemas/`: Contains the Zod schemas that define the data contracts for flow inputs and outputs. (e.g., `campaign-structure-schemas.ts`)
+- `src/ai/flows/`: Contains the primary logic for each Genkit flow. (e.g., `summarize-text.ts`)
+- `src/ai/prompts/`: Contains the text content of the prompts used by the flows. (e.g., `summarize-text-prompt.ts`)
+- `src/ai/schemas/`: Contains the Zod schemas that define the data contracts for flow inputs and outputs. (e.g., `summarize-text-schemas.ts`)
 - `src/ai/models.ts`: Centralized configuration for which AI models to use for different tasks.
 - `src/ai/genkit.ts`: Main Genkit configuration file.
-- `src/ai/dev.ts`: A file that imports all flows, prompts, and schemas to make them available to the Genkit developer UI.
+- `src/ai/dev.ts`: A file that imports all flows to make them available to the Genkit developer UI.
 
 ## How to Create a New AI Flow
 
@@ -90,14 +89,27 @@ import {
   type SummarizeTextInput,
   type SummarizeTextOutput,
 } from '../schemas/summarize-text-schemas';
+import type { GenerationUsage } from 'genkit';
+
+// Define a richer response type that includes usage data
+export type SummarizeTextResponse = {
+  output: SummarizeTextOutput;
+  usage: GenerationUsage;
+  model: string;
+};
 
 // The function we will export and call from our Server Action
-export async function summarizeText(input: SummarizeTextInput): Promise<SummarizeTextOutput> {
-  return summarizeTextFlow(input);
+export async function summarizeText(input: SummarizeTextInput): Promise<SummarizeTextResponse> {
+  const result = await summarizeTextFlow(input);
+  return {
+    output: result.output!,
+    usage: result.usage,
+    model: result.model!,
+  };
 }
 
 // 1. Define the prompt for Genkit
-const prompt = ai.definePrompt({
+const summarizeTextPrompt = ai.definePrompt({
   name: 'summarizeTextPrompt',
   input: {schema: SummarizeTextInputSchema},
   output: {schema: SummarizeTextOutputSchema},
@@ -113,9 +125,9 @@ const summarizeTextFlow = ai.defineFlow(
     outputSchema: SummarizeTextOutputSchema,
   },
   async input => {
-    // 3. Execute the prompt and return the output
-    const {output} = await prompt(input);
-    return output!;
+    // 3. Execute the prompt and return the structured output
+    const result = await summarizeTextPrompt(input);
+    return result.output!;
   }
 );
 ```
@@ -130,10 +142,9 @@ For the flow to be visible in the Genkit developer tools, you must import it in 
 // ... other imports
 
 // Add these new imports
-import '@/ai/flows/summarize-text.ts';
-import '@/ai/schemas/summarize-text-schemas.ts';
-import '@/ai/prompts/summarize-text-prompt.ts';
+import '@/ai/flows/summarize-text';
 ```
+*(Note: Schemas and prompts do not need to be individually imported into `dev.ts` as they are used by the flow file.)*
 
 ### Step 5: Expose as a Server Action
 
@@ -145,7 +156,7 @@ Finally, expose your new flow to the client-side application by creating a wrapp
 // ... other imports
 
 // 1. Import your new flow and its types
-import { summarizeText as summarizeTextFlow, type SummarizeTextInput, type SummarizeTextOutput } from "@/ai/flows/summarize-text";
+import { summarizeText as summarizeTextFlow, type SummarizeTextResponse, type SummarizeTextOutput } from "@/ai/flows/summarize-text";
 
 
 // ... other server actions
@@ -153,10 +164,12 @@ import { summarizeText as summarizeTextFlow, type SummarizeTextInput, type Summa
 // 2. Create the exported server action
 export async function summarizeText(input: SummarizeTextInput): Promise<SummarizeTextOutput> {
     try {
-        return await summarizeTextFlow(input);
+        const { output } = await summarizeTextFlow(input);
+        return output;
     } catch (error) {
         console.error("Error in summarizeText action:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        // In a real app, you might want a more user-friendly error handling object
         throw new Error(`Failed to summarize text: ${message}`);
     }
 }
