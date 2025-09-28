@@ -29,7 +29,7 @@ import {
     generateCampaignNodes 
 } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
-import { generateSessionBeats } from "@/ai/flows/generate-session-beats";
+import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
 
 import type { 
     CampaignCore, 
@@ -41,7 +41,8 @@ import type {
     GenerateResolutionInput,
     GenerateCampaignCoreInput,
     StoryBeat,
-    GenerateSessionBeatsInput
+    GenerateSessionBeatsInput,
+    SessionProgress,
 } from '@/ai/schemas/campaign-structure-schemas';
 import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 
@@ -365,7 +366,6 @@ export async function generateSessionBeatsAction(input: GenerateSessionBeatsInpu
     }
 }
 
-
 // NON-AI Actions below.
 export async function saveCampaignStructure(gameId: string, campaign: CampaignStructure): Promise<{ success: boolean; message?: string }> {
   try {
@@ -555,7 +555,7 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     }
 }
 
-export async function endCurrentSession(gameId: string, endType: 'natural' | 'interrupted'): Promise<{ success: boolean; message?: string }> {
+export async function endCurrentSessionAction(gameId: string, endType: 'natural' | 'early' | 'interrupted'): Promise<{ success: boolean; message?: string }> {
     if (!gameId) {
         return { success: false, message: "Game ID is required." };
     }
@@ -566,14 +566,11 @@ export async function endCurrentSession(gameId: string, endType: 'natural' | 'in
 
         const gameDoc = await getDoc(gameRef);
         if (!gameDoc.exists()) throw new Error("Game not found.");
-        const gameData = gameDoc.data() as GameSession;
-
-        const currentProgress = gameData.worldState.sessionProgress;
         
         const updates: Record<string, any> = {
             'worldState.sessionProgress.sessionComplete': true,
             'worldState.sessionProgress.readyForNextSession': true,
-            'worldState.sessionProgress.interruptedMidBeat': endType === 'interrupted',
+            'worldState.sessionProgress.interruptedMidBeat': endType === 'interrupted' || endType === 'early',
         };
 
         await updateDoc(gameRef, updates);
@@ -586,6 +583,87 @@ export async function endCurrentSession(gameId: string, endType: 'natural' | 'in
     }
 }
     
+export async function startNextSessionAction(gameId: string): Promise<{ success: boolean; message?: string }> {
+    if (!gameId) {
+        return { success: false, message: "Game ID is required." };
+    }
+
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const batch = writeBatch(db);
+
+    try {
+        const gameRef = doc(db, 'games', gameId);
+        const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
+
+        const [gameDoc, campaignDoc] = await Promise.all([getDoc(gameRef), getDoc(campaignRef)]);
+
+        if (!gameDoc.exists() || !campaignDoc.exists()) {
+            throw new Error("Game or campaign data not found.");
+        }
+
+        const gameData = gameDoc.data() as GameSession;
+        const campaignStructure = campaignDoc.data() as CampaignStructure;
+        const worldState = gameData.worldState;
+
+        if (!worldState.sessionProgress?.readyForNextSession) {
+            throw new Error("The previous session has not been marked as complete and ready for the next session.");
+        }
+
+        // Use the generateNextSessionBeats flow to determine if campaign should end and get new beats
+        const { output: nextStep } = await generateNextSessionBeats({
+            ...campaignStructure,
+            characters: worldState.characters,
+            currentWorldState: worldState,
+            sessionNumber: (worldState.sessionProgress.currentSession || 0) + 1,
+        });
+
+        if (nextStep.shouldConclude) {
+            await updateDoc(gameRef, { sessionStatus: 'finished' });
+            return { success: true, message: "Campaign has reached its natural conclusion!" };
+        }
+
+        const newBeats = nextStep.beats;
+        const nextSessionNumber = (worldState.sessionProgress.currentSession || 0) + 1;
+
+        const newSessionProgress: SessionProgress = {
+            currentSession: nextSessionNumber,
+            currentBeat: 0,
+            beatsCompleted: 0,
+            beatsPlanned: newBeats.length,
+            sessionComplete: false,
+            interruptedMidBeat: false,
+            readyForNextSession: false,
+        };
+
+        batch.update(campaignRef, {
+            currentSessionBeats: newBeats
+        });
+        
+        batch.update(gameRef, {
+            'worldState.sessionProgress': newSessionProgress
+        });
+
+        const systemMessage: Message = {
+            id: `session-start-${Date.now()}`,
+            role: 'system',
+            content: `**Session ${nextSessionNumber} has begun!** The story continues...`,
+        };
+        batch.update(gameRef, {
+            messages: arrayUnion(systemMessage)
+        });
+
+        await batch.commit();
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error starting next session:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
 
     
 
+
+```
