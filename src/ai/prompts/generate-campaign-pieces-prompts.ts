@@ -1,3 +1,4 @@
+
 // src/ai/prompts/generate-campaign-pieces-prompts.ts
 
 export const generateCampaignCorePromptText = `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign.
@@ -45,11 +46,11 @@ The following information is the absolute source of truth for the campaign. All 
 - **Genre Category:** {{{settingCategory}}}
 - **Campaign Issues:**
 {{#each campaignIssues}}
-  - {{{this}}}
+  - {{this}}
 {{/each}}
 - **Campaign Aspects:**
 {{#each campaignAspects}}
-  - "{{{this}}}"
+  - "{{this}}"
 {{/each}}
 - **Player Characters:**
 {{#each characters}}
@@ -92,11 +93,11 @@ The following information is the absolute source of truth for the campaign. All 
 - **Genre Category:** {{{settingCategory}}}
 - **Campaign Issues:**
 {{#each campaignIssues}}
-  - {{{this}}}
+  - {{this}}
 {{/each}}
 - **Campaign Aspects:**
 {{#each campaignAspects}}
-  - "{{{this}}}"
+  - "{{this}}"
 {{/each}}
 - **Factions:**
 {{#each factions}}

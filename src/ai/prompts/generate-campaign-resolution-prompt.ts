@@ -6,8 +6,14 @@ export const generateCampaignResolutionPromptText = `You are an expert game desi
 ### Core Concept
 - Setting: {{{setting}}}
 - Tone: {{{tone}}}
-- Campaign Issues: {{#each campaignIssues}}- {{{this}}}{{/each}}
-- Campaign Aspects: {{#each campaignAspects}}- "{{{this}}}"{{/each}}
+- Campaign Issues: 
+{{#each campaignIssues}}
+  - {{{this}}}
+{{/each}}
+- Campaign Aspects: 
+{{#each campaignAspects}}
+  - {{{this}}}
+{{/each}}
 
 ### Factions
 {{#each factions}}

@@ -2,10 +2,22 @@ export const askQuestionPromptText = `You are the Game Master for a tabletop RPG
 
 You have a complete memory of the game world. Use it to inform your answer.
 - World Summary: {{{worldState.summary}}}
-- Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
-- Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
-- Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
+- Story Outline:
+{{#each worldState.storyOutline}}
+  - {{{this}}}
+{{/each}}
+- Recent Events:
+{{#each worldState.recentEvents}}
+  - {{{this}}}
+{{/each}}
+- Characters:
+{{#each worldState.characters}}
+  - {{{this.name}}}: {{{this.description}}}
+{{/each}}
+- Story Aspects:
+{{#each worldState.storyAspects}}
+  - {{{this}}}
+{{/each}}
 - Current Scene: You are in {{{worldState.currentScene.name}}}. {{{worldState.currentScene.description}}}
 
 The character asking is: {{{character.name}}}

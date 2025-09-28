@@ -2,10 +2,22 @@ export const resolveActionPromptText = `You are the game master, and must resolv
 
 You have a complete memory of the game world. Use it to inform your narration.
 - World Summary: {{{worldState.summary}}}
-- Story Outline: {{#each worldState.storyOutline}}- {{{this}}}{{/each}}
-- Recent Events: {{#each worldState.recentEvents}}- {{{this}}}{{/each}}
-- Characters: {{#each worldState.characters}}- {{{this.name}}}: {{{this.description}}}{{/each}}
-- Story Aspects: {{#each worldState.storyAspects}}- {{{this}}}{{/each}}
+- Story Outline:
+{{#each worldState.storyOutline}}
+  - {{{this}}}
+{{/each}}
+- Recent Events:
+{{#each worldState.recentEvents}}
+  - {{{this}}}
+{{/each}}
+- Characters:
+{{#each worldState.characters}}
+  - {{{this.name}}}: {{{this.description}}}
+{{/each}}
+- Story Aspects:
+{{#each worldState.storyAspects}}
+  - {{{this}}}
+{{/each}}
 
 ## Current Scene Context
 - Location Name: {{{worldState.currentScene.name}}}
