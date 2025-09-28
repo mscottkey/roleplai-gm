@@ -43,8 +43,14 @@ The following information is the absolute source of truth for the campaign. All 
 - **Setting:** {{{setting}}}
 - **Tone:** {{{tone}}}
 - **Genre Category:** {{{settingCategory}}}
-- **Campaign Issues:** {{#each campaignIssues}}- {{{this}}}{{/each}}
-- **Campaign Aspects:** {{#each campaignAspects}}- "{{this}}}"{{/each}}
+- **Campaign Issues:**
+{{#each campaignIssues}}
+  - {{{this}}}
+{{/each}}
+- **Campaign Aspects:**
+{{#each campaignAspects}}
+  - "{{{this}}}"
+{{/each}}
 - **Player Characters:**
 {{#each characters}}
   - **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
@@ -84,8 +90,14 @@ The following information is the absolute source of truth for the campaign. All 
 - **Setting:** {{{setting}}} (Pay special attention to any "Notable Locations" mentioned here and use them as inspiration for your nodes.)
 - **Tone:** {{{tone}}}
 - **Genre Category:** {{{settingCategory}}}
-- **Campaign Issues:** {{#each campaignIssues}}- {{{this}}}{{/each}}
-- **Campaign Aspects:** {{#each campaignAspects}}- "{{this}}}"{{/each}}
+- **Campaign Issues:**
+{{#each campaignIssues}}
+  - {{{this}}}
+{{/each}}
+- **Campaign Aspects:**
+{{#each campaignAspects}}
+  - "{{{this}}}"
+{{/each}}
 - **Factions:**
 {{#each factions}}
   - **{{this.name}}**: {{this.description}} (Objective: {{this.clock.objective}})
