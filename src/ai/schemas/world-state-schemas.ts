@@ -43,7 +43,10 @@ export const WorldStateSchema = z.object({
   resolution: CampaignResolutionSchema.nullable().optional().describe('The dynamic state of the campaign\'s endgame.'),
   factions: z.array(FactionSchema).nullable().describe('The dynamic state of the campaign\'s factions and their clocks.'),
   turn: z.number().int().default(0).describe("The current turn number, incremented after each player action."),
-  storyProgression: SessionProgressSchema.nullable().optional().describe('The dynamic state of the story progression.'),
+  sessionProgress: SessionProgressSchema.nullable().optional().describe('The dynamic state of the session progression.'),
+  lastActivity: z.string().datetime().optional().describe("The timestamp of the last player action."),
+  idleTimeoutMinutes: z.number().int().default(120).describe("The number of minutes of inactivity before a session is automatically ended."),
+  autoEndEnabled: z.boolean().default(true).describe("Whether to automatically end the session after a period of inactivity."),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 

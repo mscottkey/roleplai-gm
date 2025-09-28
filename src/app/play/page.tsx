@@ -37,7 +37,9 @@ import {
   classifyInput,
   classifySetting,
   generateSessionBeatsAction,
-  endCurrentSession,
+  endCurrentSessionAction,
+  startNextSessionAction,
+  trackSessionActivityAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -82,13 +84,14 @@ import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
+import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure, StoryBeat } from '@/ai/schemas/campaign-structure-schemas';
 import * as gtag from '@/lib/gtag';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { ClassifySettingOutput } from '@/ai/schemas/classify-schemas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SETTING_CATEGORIES } from '@/lib/setting-examples';
+import { differenceInMinutes } from 'date-fns';
 
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
@@ -380,6 +383,38 @@ export default function RoleplAIGMPage() {
     return () => { if (supported) cancel(); };
   }, [searchParams, activeGameId, cancel, supported]);
 
+  // Effect for handling session idle warnings
+  useEffect(() => {
+    if (!worldState?.lastActivity || step !== 'play' || sessionStatus !== 'active') {
+      return;
+    }
+
+    const checkIdleStatus = () => {
+      const lastActivityDate = new Date(worldState.lastActivity!);
+      const minutesSinceLastActivity = differenceInMinutes(new Date(), lastActivityDate);
+      const warningThreshold = (worldState.idleTimeoutMinutes || 120) - 30; // 90 mins for a 120 min timeout
+
+      if (minutesSinceLastActivity >= warningThreshold && minutesSinceLastActivity < worldState.idleTimeoutMinutes!) {
+        toast({
+          title: 'Session Idle Warning',
+          description: `This session will automatically be paused in about ${Math.round(worldState.idleTimeoutMinutes! - minutesSinceLastActivity)} minutes due to inactivity.`,
+          duration: 60000,
+        });
+      } else if (worldState.sessionProgress?.interruptedMidBeat && worldState.sessionProgress?.sessionComplete) {
+         toast({
+          variant: 'destructive',
+          title: 'Session Auto-Ended',
+          description: `This session was automatically ended due to inactivity.`,
+        });
+      }
+    };
+
+    const interval = setInterval(checkIdleStatus, 5 * 60 * 1000); // Check every 5 minutes
+    checkIdleStatus(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [worldState?.lastActivity, worldState?.idleTimeoutMinutes, step, sessionStatus, toast]);
+
   useEffect(() => {
     if (!activeGameId) {
       setStep('create');
@@ -643,7 +678,7 @@ The stage is set. What do you do?
     setIsLoading(true);
 
     let campaignData: CampaignStructure;
-    let beats: any[];
+    let beats: StoryBeat[];
 
     try {
       const db = getFirestore();
@@ -677,7 +712,7 @@ The stage is set. What do you do?
       const initialNodeStates: Record<string, any> = {};
       nodes.forEach(node => { initialNodeStates[node.id] = { discoveryLevel: node.isStartingNode ? 'visited' : 'unknown', playerKnowledge: [], revealedSecrets: [] }; });
 
-      const tempWorldStateForBeats = {
+      const tempWorldStateForBeats: WorldState = {
         ...worldState,
         summary: `The adventure begins with the party facing the situation at '${nodes.find(n => n.isStartingNode)?.title || nodes[0].title}'.`,
         storyOutline: nodes.map(n => n.title),
@@ -691,7 +726,11 @@ The stage is set. What do you do?
       };
 
       setGenerationProgress({ current: 5, total: 5, step: 'Planning the first session...' });
-      beats = await generateSessionBeatsAction({ ...campaignData, currentWorldState: tempWorldStateForBeats, sessionNumber: 1 }, activeGameId);
+      beats = await generateSessionBeatsAction({
+        setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, factions, nodes, resolution,
+        currentWorldState: tempWorldStateForBeats,
+        sessionNumber: 1,
+      });
       campaignData.currentSessionBeats = beats;
 
       await saveCampaignStructure(activeGameId, campaignData);
@@ -926,6 +965,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
+      await trackSessionActivityAction(activeGameId);
       const intentClassification = await classifyInput({ playerInput });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
@@ -1081,7 +1121,7 @@ ${startingNode ? startingNode.description : gameData.setting}
   const handleEndSession = async (type: 'natural' | 'interrupted') => {
     if (!activeGameId) return;
     setSessionEnding(false);
-    const result = await endCurrentSession(gameId, type);
+    const result = await endCurrentSessionAction(activeGameId, type);
     if (result.success) {
       toast({ title: 'Session Ended', description: `Your session has been marked as complete.`});
     } else {
@@ -1415,5 +1455,3 @@ ${startingNode ? startingNode.description : gameData.setting}
     </>
   );
 }
-
-    

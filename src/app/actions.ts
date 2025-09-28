@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
@@ -151,6 +150,9 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       },
       settingCategory: settingCategory,
       sessionProgress: null,
+      lastActivity: new Date().toISOString(),
+      idleTimeoutMinutes: 120,
+      autoEndEnabled: true,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
@@ -357,10 +359,10 @@ export async function generateCampaignResolutionAction(input: GenerateResolution
     }
 }
 
-export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string): Promise<StoryBeat[]> {
+export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput): Promise<StoryBeat[]> {
     try {
-        const { output } = await generateSessionBeats(input);
-        return output;
+        const result = await generateSessionBeats(input);
+        return result;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to generate session beats');
     }
@@ -555,7 +557,7 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     }
 }
 
-export async function endCurrentSessionAction(gameId: string, endType: 'natural' | 'early' | 'interrupted'): Promise<{ success: boolean; message?: string }> {
+export async function endCurrentSessionAction(gameId: string, endType: 'natural' | 'early' | 'interrupted' | 'idle_timeout'): Promise<{ success: boolean; message?: string }> {
     if (!gameId) {
         return { success: false, message: "Game ID is required." };
     }
@@ -570,8 +572,12 @@ export async function endCurrentSessionAction(gameId: string, endType: 'natural'
         const updates: Record<string, any> = {
             'worldState.sessionProgress.sessionComplete': true,
             'worldState.sessionProgress.readyForNextSession': true,
-            'worldState.sessionProgress.interruptedMidBeat': endType === 'interrupted' || endType === 'early',
+            'worldState.sessionProgress.interruptedMidBeat': endType === 'interrupted' || endType === 'early' || endType === 'idle_timeout',
         };
+
+        if (endType === 'idle_timeout') {
+            updates.sessionStatus = 'paused';
+        }
 
         await updateDoc(gameRef, updates);
         return { success: true };
@@ -609,35 +615,40 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
         if (!worldState.sessionProgress?.readyForNextSession) {
             throw new Error("The previous session has not been marked as complete and ready for the next session.");
         }
-
-        // Use the generateNextSessionBeats flow to determine if campaign should end and get new beats
-        const { output: nextStep } = await generateNextSessionBeats({
-            ...campaignStructure,
+        
+        const nextSessionNumber = (worldState.sessionProgress.currentSession || 0) + 1;
+        const generationInput: GenerateSessionBeatsInput = {
+            setting: gameData.gameData.setting,
+            tone: gameData.gameData.tone,
             characters: worldState.characters,
+            factions: campaignStructure.factions,
+            nodes: campaignStructure.nodes,
+            resolution: campaignStructure.resolution,
             currentWorldState: worldState,
-            sessionNumber: (worldState.sessionProgress.currentSession || 0) + 1,
-        });
+            sessionNumber: nextSessionNumber,
+        };
+
+        const { output: nextStep } = await generateNextSessionBeats(generationInput);
 
         if (nextStep.shouldConclude) {
             await updateDoc(gameRef, { sessionStatus: 'finished' });
             return { success: true, message: "Campaign has reached its natural conclusion!" };
         }
-
-        const newBeats = nextStep.beats;
-        const nextSessionNumber = (worldState.sessionProgress.currentSession || 0) + 1;
+        
+        const nextSessionBeats = nextStep.beats;
 
         const newSessionProgress: SessionProgress = {
             currentSession: nextSessionNumber,
             currentBeat: 0,
             beatsCompleted: 0,
-            beatsPlanned: newBeats.length,
+            beatsPlanned: nextSessionBeats.length,
             sessionComplete: false,
             interruptedMidBeat: false,
             readyForNextSession: false,
         };
 
         batch.update(campaignRef, {
-            currentSessionBeats: newBeats
+            currentSessionBeats: nextSessionBeats
         });
         
         batch.update(gameRef, {
@@ -663,7 +674,21 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
     }
 }
 
-    
-
-
-```
+export async function trackSessionActivityAction(gameId: string): Promise<{ success: boolean; message?: string }> {
+    if (!gameId) {
+        return { success: false, message: 'Game ID is required.' };
+    }
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, {
+            'worldState.lastActivity': new Date().toISOString(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error tracking session activity:', error);
+        const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+        return { success: false, message };
+    }
+}
