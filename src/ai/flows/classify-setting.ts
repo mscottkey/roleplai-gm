@@ -111,7 +111,7 @@ export async function classifySetting(input: ClassifySettingInput): Promise<Clas
 }
 
 // Define the flow for the Genkit developer UI
-const classifySettingFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'classifySettingFlow',
     inputSchema: ClassifySettingInputSchema,

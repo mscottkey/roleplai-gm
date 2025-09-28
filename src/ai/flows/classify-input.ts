@@ -89,7 +89,7 @@ export async function classifyInput(input: ClassifyInput): Promise<ClassifyInput
 }
 
 // Define the flow for the Genkit developer UI
-const classifyInputFlow = ai.defineFlow(
+ai.defineFlow(
   {
     name: 'classifyInputFlow',
     inputSchema: ClassifyInputSchema,
