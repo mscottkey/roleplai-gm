@@ -85,6 +85,10 @@ The following information is the absolute source of truth for the campaign. All 
 ## Your Task
 Based **ONLY** on the SOURCE OF TRUTH above, create a web of 5 to 7 interconnected situation nodes.
 
-For each node, you must define all properties required by the JSON schema, a title and detailed description, and designate **exactly one** node as the \`isStartingNode\`.
+For each node, you must define all properties required by the JSON schema, including:
+-   A title and detailed description.
+-   Designate **exactly one** node as the \`isStartingNode\`.
+-   Stakes, challenges, NPC faces, node-specific aspects, and a hidden agenda or secret.
+-   A list of 2-3 other node titles this node provides \`leads\` to.
 
 Return the result as a single, valid JSON array of node objects that conforms to the schema. Do not include any extra text or explanations.`;
