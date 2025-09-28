@@ -16,6 +16,7 @@ import {
   type ClassifySettingInput,
   type ClassifySettingOutput,
 } from '../schemas/classify-schemas';
+import { z } from 'genkit';
 
 
 export type ClassifySettingResponse = {
@@ -54,18 +55,21 @@ function classifyByKeywords(text: string): ClassifySettingOutput {
   };
 }
 
+const classifySettingPrompt = ai.definePrompt({
+    name: 'classifySettingPrompt',
+    input: { schema: ClassifySettingInputSchema.extend({ availableCategories: z.string() }) },
+    output: { schema: ClassifySettingOutputSchema },
+    model: MODEL_CLASSIFICATION,
+    prompt: classifySettingPromptText,
+    retries: 2,
+});
+
 
 export async function classifySetting(input: ClassifySettingInput): Promise<ClassifySettingResponse> {
   try {
-    const result = await ai.generate({
-      model: MODEL_CLASSIFICATION,
-      prompt: classifySettingPromptText,
-      input: {
+    const result = await classifySettingPrompt({
         ...input,
         availableCategories: generateCategoryDescriptions(),
-      },
-      output: { schema: ClassifySettingOutputSchema },
-      retries: 2,
     });
     
     const output = result.output;

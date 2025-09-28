@@ -45,15 +45,18 @@ function classifyByKeywords(input: string): ClassifyInputOutput {
   };
 }
 
+const classifyInputPrompt = ai.definePrompt({
+  name: 'classifyInputPrompt',
+  input: { schema: ClassifyInputSchema },
+  output: { schema: ClassifyInputOutputSchema },
+  model: MODEL_CLASSIFICATION,
+  prompt: classifyInputPromptText,
+  retries: 1,
+});
+
 export async function classifyInput(input: ClassifyInput): Promise<ClassifyInputResponse> {
   try {
-    const result = await ai.generate({
-      model: MODEL_CLASSIFICATION,
-      prompt: classifyInputPromptText,
-      input,
-      output: { schema: ClassifyInputOutputSchema },
-      retries: 1,
-    });
+    const result = await classifyInputPrompt(input);
 
     const output = result.output;
     if (!output || output.confidence < 0.65) {
