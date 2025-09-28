@@ -276,7 +276,7 @@ export default function RoleplAIGMPage() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [endCampaignConfirmation, setEndCampaignConfirmation] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
-  const [sessionEndType, setSessionEndType] = useState<'natural' | 'interrupted' | null>(null);
+  const [sessionEndType, setSessionEndType] = useState<'natural' | 'interrupted' | 'early' | null>(null);
 
   const { toast } = useToast();
 
@@ -385,35 +385,32 @@ export default function RoleplAIGMPage() {
 
   // Effect for handling session idle warnings
   useEffect(() => {
-    if (!worldState?.lastActivity || step !== 'play' || sessionStatus !== 'active') {
+    if (step !== 'play' || sessionStatus !== 'active' || !worldState?.autoEndEnabled) {
       return;
     }
 
-    const checkIdleStatus = () => {
-      const lastActivityDate = new Date(worldState.lastActivity!);
-      const minutesSinceLastActivity = differenceInMinutes(new Date(), lastActivityDate);
-      const warningThreshold = (worldState.idleTimeoutMinutes || 120) - 30; // 90 mins for a 120 min timeout
+    const checkIdle = () => {
+      if (!worldState?.lastActivity) return;
 
-      if (minutesSinceLastActivity >= warningThreshold && minutesSinceLastActivity < worldState.idleTimeoutMinutes!) {
+      const lastActivityDate = new Date(worldState.lastActivity);
+      const minutesSince = differenceInMinutes(new Date(), lastActivityDate);
+      const timeoutMinutes = worldState.idleTimeoutMinutes || 120;
+      const warningThreshold = timeoutMinutes - 30; // Warn 30 minutes before timeout
+
+      if (minutesSince >= warningThreshold && minutesSince < timeoutMinutes) {
         toast({
           title: 'Session Idle Warning',
-          description: `This session will automatically be paused in about ${Math.round(worldState.idleTimeoutMinutes! - minutesSinceLastActivity)} minutes due to inactivity.`,
+          description: `This session will automatically pause in about ${Math.round(timeoutMinutes - minutesSince)} minutes due to inactivity. Take an action to reset the timer.`,
           duration: 60000,
-        });
-      } else if (worldState.sessionProgress?.interruptedMidBeat && worldState.sessionProgress?.sessionComplete) {
-         toast({
-          variant: 'destructive',
-          title: 'Session Auto-Ended',
-          description: `This session was automatically ended due to inactivity.`,
         });
       }
     };
 
-    const interval = setInterval(checkIdleStatus, 5 * 60 * 1000); // Check every 5 minutes
-    checkIdleStatus(); // Initial check
+    const interval = setInterval(checkIdle, 5 * 60 * 1000); // Check every 5 mins
+    checkIdle(); // Initial check
 
     return () => clearInterval(interval);
-  }, [worldState?.lastActivity, worldState?.idleTimeoutMinutes, step, sessionStatus, toast]);
+  }, [step, sessionStatus, worldState?.lastActivity, worldState?.autoEndEnabled, worldState?.idleTimeoutMinutes, toast]);
 
   useEffect(() => {
     if (!activeGameId) {
@@ -456,7 +453,9 @@ export default function RoleplAIGMPage() {
           if (sessionLoadedRef.current !== activeGameId) {
             sessionLoadedRef.current = activeGameId;
 
-            if (currentMessages.length > 1 && game.worldState?.recentEvents?.length > 1) {
+            let shouldShowRecap = game.worldState.sessionProgress && game.worldState.sessionProgress.currentSession > 1 && game.worldState.sessionProgress.currentBeat === 0;
+
+            if (shouldShowRecap) {
               setIsLoading(true);
               generateRecap({ 
                   recentEvents: game.worldState.recentEvents,
@@ -498,8 +497,6 @@ export default function RoleplAIGMPage() {
         }
         
         if (game.step === 'summary') {
-          // If we are on the summary step, and we don't have a classification result yet,
-          // or if the game data has changed, re-classify.
           if (!lastClassification || lastClassification.reasoning.includes('fallback') || gameData?.originalRequest !== gameData?.originalRequest) {
               classifySetting({
                   setting: game.gameData.setting,
@@ -730,7 +727,7 @@ The stage is set. What do you do?
         setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, factions, nodes, resolution,
         currentWorldState: tempWorldStateForBeats,
         sessionNumber: 1,
-      });
+      }, activeGameId);
       campaignData.currentSessionBeats = beats;
 
       await saveCampaignStructure(activeGameId, campaignData);
@@ -1118,7 +1115,7 @@ ${startingNode ? startingNode.description : gameData.setting}
     if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
 
-  const handleEndSession = async (type: 'natural' | 'interrupted') => {
+  const handleEndSession = async (type: 'natural' | 'interrupted' | 'early') => {
     if (!activeGameId) return;
     setSessionEnding(false);
     const result = await endCurrentSessionAction(activeGameId, type);
@@ -1192,6 +1189,26 @@ ${startingNode ? startingNode.description : gameData.setting}
       window.location.reload();
     } else {
       toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+  };
+  
+  const handleStartNewSession = async () => {
+    if (!activeGameId) return;
+    setIsLoading(true);
+    toast({ title: "Starting New Session...", description: "The GM is preparing the next chapter." });
+    try {
+        const result = await startNextSessionAction(activeGameId);
+        if (result.success) {
+            toast({ title: "New Session Started!", description: result.message || "The adventure continues." });
+        } else {
+            throw new Error(result.message || "Failed to start the new session.");
+        }
+    } catch (error) {
+        const err = error as Error;
+        console.error("Failed to start new session:", err);
+        toast({ variant: 'destructive', title: 'Error', description: err.message });
+    } finally {
+        setIsLoading(false);
     }
   };
   
@@ -1279,6 +1296,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             onConfirmEndSession={() => setSessionEnding(true)}
+            onStartNewSession={handleStartNewSession}
             {...ttsProps}
           />
         );

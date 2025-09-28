@@ -14,7 +14,7 @@ import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import type { CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, Play, Wand2, PartyPopper } from 'lucide-react';
 import { formatDialogue } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -26,8 +26,8 @@ import {
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { Voice } from '@/hooks/use-speech-synthesis';
 import { extractProseForTTS } from '@/lib/tts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Wand2, PartyPopper } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
+import { formatDistanceToNow } from 'date-fns';
 
 
 type GameViewProps = {
@@ -52,6 +52,7 @@ type GameViewProps = {
   onUpdateStatus: (status: SessionStatus) => void;
   onConfirmEndCampaign: () => void;
   onConfirmEndSession: () => void;
+  onStartNewSession: () => void;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -90,6 +91,7 @@ export function GameView({
   onUpdateStatus,
   onConfirmEndCampaign,
   onConfirmEndSession,
+  onStartNewSession,
   ...ttsProps
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
@@ -99,6 +101,8 @@ export function GameView({
   
   const [showSmartScroll, setShowSmartScroll] = useState(false);
   const needsNextSession = worldState?.sessionProgress?.readyForNextSession;
+  const isIdlePaused = sessionStatus === 'paused' && !needsNextSession;
+
 
   useEffect(() => {
     const viewport = storyRef.current?.querySelector('div');
@@ -278,11 +282,33 @@ export function GameView({
                 <p className="text-sm text-muted-foreground">The AI is ready to generate the next set of story beats for your campaign based on how this session concluded.</p>
               </CardContent>
               <CardFooter>
-                 <Button className="w-full">
+                 <Button className="w-full" onClick={onStartNewSession}>
                     <Wand2 className="mr-2 h-4 w-4"/>
                     Generate Next Session
                 </Button>
               </CardFooter>
+            </Card>
+          ) : isIdlePaused ? (
+            <Card className="m-4">
+                <CardHeader>
+                    <CardTitle>Session Paused</CardTitle>
+                    <CardDescription>
+                        This session was paused due to inactivity {worldState?.lastActivity ? `around ${formatDistanceToNow(new Date(worldState.lastActivity), { addSuffix: true })}` : ''}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm">Welcome back! You can resume where you left off, or start a fresh session if you want a new set of challenges.</p>
+                </CardContent>
+                <CardFooter className="flex-col gap-2">
+                    <Button className="w-full" onClick={() => onUpdateStatus('active')}>
+                        <Play className="mr-2 h-4 w-4"/>
+                        Resume Where We Left Off
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={onStartNewSession}>
+                        <Wand2 className="mr-2 h-4 w-4"/>
+                        Start a New Session
+                    </Button>
+                </CardFooter>
             </Card>
           ) : (
              <GameControls
