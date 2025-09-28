@@ -159,7 +159,7 @@ const PlayerSlotCard = memo(({
                     <Label>Character Name (Optional)</Label>
                     <Input placeholder="e.g. Kaito Tanaka" value={preferences?.name || ''} onChange={e => handleUpdate('name', e.target.value)} />
                     <Label>Pronouns</Label>
-                    <Select value={preferences?.pronouns || 'Any'} onValueChange={val => handleUpdate('pronouns', val)}>
+                    <Select value={characterData?.pronouns || 'Any'} onValueChange={val => handleUpdate('pronouns', val)}>
                         <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Any">Any</SelectItem>
@@ -253,8 +253,14 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
 
   useEffect(() => {
     if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
-      const hostPlayerName = userPreferences?.displayName || currentUser.email?.split('@')[0] || 'Player 1';
-      const hostPronouns = userPreferences?.defaultPronouns || 'Any';
+      const hostPlayerName = (userPreferences?.displayName && userPreferences.displayName.trim() !== '') 
+        ? userPreferences.displayName 
+        : currentUser.email?.split('@')[0] || 'Player 1';
+      
+      const hostPronouns = (userPreferences?.defaultPronouns && userPreferences.defaultPronouns.trim() !== '')
+        ? userPreferences.defaultPronouns
+        : 'Any';
+
       addNewSlot(hostPlayerName, hostPronouns);
     } else if (isLocalGame && !isHotSeatMode) {
         setLocalSlots([]);
@@ -385,7 +391,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const allRemotePlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready' || p.characterData.generatedCharacter);
 
   const readyToFinalize = (isLocalGame && isHotSeatMode && allCharactersGenerated) || 
-                          (!isHotSeatMode && allRemotePlayersReady);
+                          (!isLocalGame && allRemotePlayersReady);
 
 
   return (
@@ -398,7 +404,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardTitle>
           <CardDescription className="pt-2">
              {isHost 
-                ? "Manage your party below. Add slots for local players or have remote players join via the invite link."
+                ? "Manage your party below. Players can join via the invite link."
                 : "Waiting for the host to start the game..."}
           </CardDescription>
         </CardHeader>
@@ -412,16 +418,18 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                     </div>
                 )}
                 
+                {/* Show Invite URL for Remote Games */}
                 {!isLocalGame && activeGameId && (
-                    <ShareGameInvite gameId={activeGameId} />
+                  <ShareGameInvite gameId={activeGameId} />
                 )}
 
+                {/* Show QR Code for Local Lobby Games */}
                 {isLocalGame && !isHotSeatMode && activeGameId && (
-                    <QRCodeDisplay
-                        gameId={activeGameId}
-                        gameName={gameData.name}
-                        playerCount={allPlayerSlots.length}
-                    />
+                  <QRCodeDisplay 
+                    gameId={activeGameId} 
+                    gameName={gameData.name}
+                    playerCount={allPlayerSlots.length}
+                  />
                 )}
             </div>
           )}
