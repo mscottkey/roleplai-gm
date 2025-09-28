@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, setPersistence, browserLocalPersistence, getAdditionalUserInfo } from 'firebase/auth';
 import { getAuthWithPersistence } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import * as gtag from '@/lib/gtag';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 48 48" {...props}>
@@ -63,12 +64,14 @@ export default function LoginPage() {
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
+        gtag.event({ action: 'login', category: 'engagement', label: 'password' });
         // On success, the auth state listener will handle the redirect.
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             // If user doesn't exist, try creating a new account.
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
+                gtag.event({ action: 'sign_up', category: 'engagement', label: 'password' });
                 // On success, the auth state listener will handle the redirect.
             } catch (createError: any) {
                 console.error("Email sign-up failed:", createError);
@@ -101,6 +104,7 @@ export default function LoginPage() {
     try {
       const auth = getAuthWithPersistence();
       await signInAnonymously(auth);
+      gtag.event({ action: 'login', category: 'engagement', label: 'anonymous' });
       // The auth state listener will handle the redirect
     } catch (error: any) {
       console.error("Anonymous sign-in failed:", error);
@@ -127,7 +131,13 @@ export default function LoginPage() {
       
       // Try popup first for better UX
       try {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        const additionalInfo = getAdditionalUserInfo(result);
+        if (additionalInfo?.isNewUser) {
+            gtag.event({ action: 'sign_up', category: 'engagement', label: 'google' });
+        } else {
+            gtag.event({ action: 'login', category: 'engagement', label: 'google' });
+        }
         sessionStorage.removeItem('google_auth_redirect');
         // Success - auth state listener will redirect
       } catch (popupError: any) {

@@ -1,10 +1,12 @@
+
 'use client';
 
 import React, { useState, useEffect, useContext, createContext } from 'react';
-import { onAuthStateChanged, getRedirectResult, type User } from 'firebase/auth';
+import { onAuthStateChanged, getRedirectResult, type User, getAdditionalUserInfo } from 'firebase/auth';
 import { getAuthWithPersistence } from '@/lib/firebase';
 import { useToast } from './use-toast';
 import { useRouter } from 'next/navigation';
+import * as gtag from '@/lib/gtag';
 
 type AuthContextType = {
   user: User | null;
@@ -39,10 +41,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('[auth] getRedirectResult =>', result);
         
         if (result && result.user) {
-          // We got a user from redirect
           const wasGoogleRedirect = sessionStorage.getItem('google_auth_redirect') === 'true';
           if (wasGoogleRedirect) {
             sessionStorage.removeItem('google_auth_redirect');
+            
+            const additionalInfo = getAdditionalUserInfo(result);
+            if (additionalInfo?.isNewUser) {
+                gtag.event({ action: 'sign_up', category: 'engagement', label: 'google' });
+            } else {
+                gtag.event({ action: 'login', category: 'engagement', label: 'google' });
+            }
+
             toast({
               title: 'Signed In Successfully',
               description: `Welcome, ${result.user.displayName || result.user.email || 'friend'}!`,
