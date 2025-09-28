@@ -43,9 +43,9 @@ import {
     Mic,
     PlayCircle,
     PauseCircle,
-    Power,
     PowerOff,
     DoorClosed,
+    QrCode,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
@@ -53,6 +53,8 @@ import { Button } from './ui/button';
 import { LoadingSpinner } from './icons';
 import { ShareGameInvite } from './share-game-invite';
 import { VoiceSelector } from './ui/voice-selector';
+import { QRCodeDisplay } from './qr-code-display';
+import { Switch } from './ui/switch';
 
 
 import type { GameData, MechanicsVisibility, SessionStatus } from "@/app/lib/types";
@@ -115,6 +117,7 @@ export function StoryDrawer({
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const searchParams = useSearchParams();
     const gameId = searchParams.get('game');
+    const [showQrCode, setShowQrCode] = useState(false);
 
     const handleRegenerateClick = () => {
         onRegenerateStoryline();
@@ -264,6 +267,24 @@ export function StoryDrawer({
                         <ShareGameInvite gameId={gameId} />
                         <Separator />
                       </>
+                    )}
+                    {playMode === 'local' && gameId && (
+                        <>
+                         <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-foreground flex items-center gap-2"><QrCode className="h-4 w-4" /> QR Code Join</h4>
+                                <Switch checked={showQrCode} onCheckedChange={setShowQrCode} />
+                            </div>
+                            {showQrCode && (
+                                <QRCodeDisplay
+                                    gameId={gameId}
+                                    gameName={gameData.name}
+                                    playerCount={characters?.length || 0}
+                                />
+                            )}
+                         </div>
+                         <Separator />
+                        </>
                     )}
                      <div className="space-y-4">
                         <h4 className="font-medium text-foreground">Session Status</h4>

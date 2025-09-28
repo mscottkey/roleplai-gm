@@ -1,0 +1,11 @@
+
+@tailwindcss/typography
+@types/node
+@types/qrcode.react
+@types/react
+@types/react-dom
+genkit-cli
+postcss
+tailwindcss
+tsx
+typescript
