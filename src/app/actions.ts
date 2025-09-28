@@ -12,7 +12,8 @@ import { assessConsequences as assessConsequencesFlow, type AssessConsequencesRe
 import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
 import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
 import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
-import { unifiedClassify as unifiedClassifyFlow, type UnifiedClassifyResponse, type UnifiedClassifyInput, type UnifiedClassifyOutput } from "@/ai/flows/unified-classify";
+import { classifyInput as classifyInputFlow, type ClassifyInput, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
+import { classifySetting as classifySettingFlow, type ClassifySettingInput, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput } from "@/ai/schemas/world-state-schemas";
 
@@ -108,13 +109,12 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     const { output: newGame }: { output: GenerateNewGameOutput } = await generateNewGameFlow(generateGameInput);
     
     // Step 3: Classify the new game to get its category
-    const classification = await unifiedClassify({
+    const { output: classification } = await classifySetting({
       setting: newGame.setting,
       tone: newGame.tone,
       originalRequest: ipCheck.sanitizedRequest,
-      gameContext: { isFirstClassification: true }
     });
-    const settingCategory = classification.settingClassification?.category || 'generic';
+    const settingCategory = classification.category || 'generic';
     
     // Step 4: Create the document in Firestore
     const app = await getServerApp();
@@ -294,14 +294,24 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
     }
 }
 
-export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyOutput> {
+export async function classifyInput(input: ClassifyInput): Promise<ClassifyInputOutput> {
     try {
-        const response: UnifiedClassifyResponse = await unifiedClassifyFlow(input);
+        const response: ClassifyInputResponse = await classifyInputFlow(input);
         return response.output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to classify input');
     }
 }
+
+export async function classifySetting(input: ClassifySettingInput): Promise<ClassifySettingOutput> {
+    try {
+        const response: ClassifySettingResponse = await classifySettingFlow(input);
+        return response.output;
+    } catch (e: any) {
+        throw handleAIError(e, 'Failed to classify setting');
+    }
+}
+
 
 // Granular actions for client-side orchestration
 export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string): Promise<CampaignCore> {

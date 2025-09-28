@@ -25,7 +25,6 @@ import {
   saveCampaignStructure,
   regenerateField,
   narratePlayerActions,
-  unifiedClassify,
   getAnswerToQuestion,
   updateSessionStatus,
   generateCampaignCoreAction,
@@ -33,6 +32,8 @@ import {
   generateCampaignNodesAction,
   generateCampaignResolutionAction,
   createCharacter,
+  classifyInput,
+  classifySetting,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -440,8 +441,12 @@ export default function RoleplAIGMPage() {
       let resolution: CampaignResolution;
   
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } });
-      settingCategory = classification.settingClassification?.category || 'generic';
+      const classification = await classifySetting({
+        setting: gameData.setting,
+        tone: gameData.tone,
+        originalRequest: gameData.originalRequest,
+      });
+      settingCategory = classification.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
       coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
@@ -571,8 +576,12 @@ The stage is set. What do you do?
       const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } });
-      settingCategory = classification.settingClassification?.category || 'generic';
+      const classification = await classifySetting({
+        setting: gameData.setting,
+        tone: gameData.tone,
+        originalRequest: gameData.originalRequest,
+      });
+      settingCategory = classification.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
       coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
@@ -810,11 +819,11 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      const intentClassification = await unifiedClassify({ playerInput, originalRequest: gameData?.originalRequest });
+      const intentClassification = await classifyInput({ playerInput });
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
-      if (intentClassification?.intentClassification?.intent === 'Action') {
+      if (intentClassification?.intent === 'Action') {
         if (activeCharacter?.id !== actingCharacter.id && gameData?.playMode === 'remote') {
             toast({ variant: 'destructive', title: 'Not Your Turn', description: `It's currently ${activeCharacter?.name}'s turn to act.` });
             setMessages(messagesWithoutRecap);
@@ -1105,7 +1114,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
