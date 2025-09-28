@@ -46,7 +46,9 @@ const generateCampaignCorePrompt = ai.definePrompt({
         format: 'json',
         schema: CampaignCoreSchema,
     },
-    retries: 2,
+    config: {
+      retries: 2,
+    }
 });
 
 export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
@@ -82,7 +84,9 @@ const generateCampaignFactionsPrompt = ai.definePrompt({
         format: 'json',
         schema: z.array(FactionSchema),
     },
-    retries: 2,
+    config: {
+      retries: 2,
+    }
 });
 
 export async function generateCampaignFactions(input: z.infer<typeof GenerateFactionsInputSchema>) {
@@ -119,7 +123,9 @@ const generateCampaignNodesPrompt = ai.definePrompt({
         format: 'json',
         schema: z.array(NodeGenerationSchema),
     },
-    retries: 2,
+    config: {
+      retries: 2,
+    }
 });
 
 export async function generateCampaignNodes(input: z.infer<typeof GenerateNodesInputSchema>) {

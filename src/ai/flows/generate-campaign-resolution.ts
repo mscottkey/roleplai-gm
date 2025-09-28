@@ -27,7 +27,9 @@ const generateCampaignResolutionPrompt = ai.definePrompt({
         format: 'json',
         schema: CampaignResolutionSchema,
     },
-    retries: 2,
+    config: {
+      retries: 2,
+    }
 });
 
 export async function generateCampaignResolution(input: z.infer<typeof GenerateResolutionInputSchema>) {
