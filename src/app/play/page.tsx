@@ -243,6 +243,7 @@ export default function RoleplAIGMPage() {
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   
   const [gameData, setGameData] = useState<GameSession['gameData'] | null>(null);
+  const [hostId, setHostId] = useState<string | null>(null);
   const [campaignStructure, setCampaignStructure] = useState<CampaignStructure | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [previousWorldState, setPreviousWorldState] = useState<WorldState | null>(null);
@@ -367,6 +368,7 @@ export default function RoleplAIGMPage() {
     } else if (!gameId && activeGameId) {
       setActiveGameId(null);
       setGameData(null);
+      setHostId(null);
       setWorldState(null);
       setPreviousWorldState(null);
       setCampaignStructure(null);
@@ -429,6 +431,7 @@ export default function RoleplAIGMPage() {
         const game = docSnap.data() as GameSession;
 
         setGameData(game.gameData);
+        setHostId(game.userId);
 
         setWorldState(game.worldState);
         setPreviousWorldState(game.previousWorldState || null);
@@ -682,7 +685,7 @@ The stage is set. What do you do?
 
       const plainCharacters: Character[] = finalCharacters.map(c => ({
         id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
-        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId, isMobile: c.isMobile,
+        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
       }));
 
       setGenerationProgress({ current: 1, total: 5, step: 'Considering the threads of fate...' });
@@ -1202,7 +1205,7 @@ ${startingNode ? startingNode.description : gameData.setting}
   };
   
   const handleKickPlayer = async (playerId: string) => {
-    if (!activeGameId || !user || user.uid !== gameData?.userId) return;
+    if (!activeGameId || !user || user.uid !== hostId) return;
     try {
       const result = await kickPlayerAction(activeGameId, playerId);
       if (result.success) {
@@ -1255,7 +1258,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           />
         );
       case 'characters':
-        if (!gameData || !activeGameId) {
+        if (!gameData || !activeGameId || !hostId) {
             return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
         }
         return (
@@ -1269,6 +1272,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             userPreferences={userPreferences}
             players={players}
             onKickPlayer={handleKickPlayer}
+            hostId={hostId}
           />
         );
       case 'play':
@@ -1298,7 +1302,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             onConfirmEndSession={() => setSessionEnding(true)}
             onStartNewSession={handleStartNewSession}

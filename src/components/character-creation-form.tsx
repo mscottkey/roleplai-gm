@@ -31,6 +31,7 @@ type CharacterCreationFormProps = {
   userPreferences: UserPreferences | null;
   players: Player[];
   onKickPlayer: (playerId: string) => void;
+  hostId: string | null;
 };
 
 const getSkillDisplay = (rank: number) => {
@@ -216,6 +217,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   userPreferences,
   players,
   onKickPlayer,
+  hostId,
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [localSlots, setLocalSlots] = useState<Player[]>([]);
@@ -223,13 +225,13 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   
-  const isHost = currentUser?.uid === gameData.userId;
+  const isHost = currentUser?.uid === hostId;
   const isLocalGame = gameData.playMode === 'local';
   
   // New state for toggling local play style
   const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
 
-  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : [...players, ...localSlots];
+  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : [...players, ...localSlots.filter(p => !players.find(remote => remote.id === p.id))];
 
   useEffect(() => {
     // If we're in local mode and hot-seat is on, add a default slot for the host if none exist
