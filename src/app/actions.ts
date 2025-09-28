@@ -107,7 +107,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   // Step 2: Generate Game
   const generateGameInput: GenerateNewGameInput = { request: ipCheck.sanitizedRequest };
   try {
-    const { output: newGame }: { output: GenerateNewGameOutput } = await generateNewGameFlow(generateGameInput);
+    const { output: newGame }: GenerateNewGameResponse = await generateNewGameFlow(generateGameInput);
     
     // Step 3: Classify the new game to get its category
     const classification = await classifySetting({
@@ -145,6 +145,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         connections: [],
       },
       settingCategory: settingCategory,
+      storyProgression: null,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;

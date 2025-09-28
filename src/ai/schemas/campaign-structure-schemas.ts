@@ -65,12 +65,30 @@ export const CampaignResolutionSchema = z.object({
 });
 export type CampaignResolution = z.infer<typeof CampaignResolutionSchema>;
 
+export const StoryBeatSchema = z.object({
+    beat: z.number().int().min(1).max(15).describe('The beat number, 1-15.'),
+    trigger: z.string().describe('What causes this beat to advance.'),
+    beatType: z.enum(["exploration", "investigation", "confrontation", "revelation", "crisis"]).describe('The type of this story beat.'),
+    expectedFactionAdvancement: z.string().describe('Which faction clock should advance.'),
+    suggestedLocation: z.string().describe('Recommended node for this beat.'),
+    description: z.string().describe('What should happen during this beat.'),
+});
+
+export const StoryProgressionSchema = z.object({
+    currentBeat: z.number().int().min(0).default(0).describe('Current story beat, starts at 0.'),
+    actionsInBeat: z.number().int().min(0).default(0).describe('Actions taken in current beat.'),
+    beatType: z.string().describe('Current beat type.'),
+    intensity: z.number().int().min(1).max(5).describe('Story intensity level, from 1 to 5.'),
+});
+export type StoryProgression = z.infer<typeof StoryProgressionSchema>;
+
 export const CampaignStructureSchema = z.object({
     campaignIssues: z.array(z.string()).length(2).describe('Two high-level, unresolved tensions for the campaign.'),
     campaignAspects: z.array(z.string()).min(3).max(5).describe('3-5 overarching Fate Aspects for the campaign world.'),
     factions: z.array(FactionSchema).min(2).max(3).describe('2-3 key factions or looming threats.'),
     nodes: z.array(NodeSchema).min(5).max(7).describe('A web of 5-7 interconnected situation nodes.'),
     resolution: CampaignResolutionSchema.optional().nullable().describe("The overarching endgame structure and victory conditions."),
+    storyBeats: z.array(StoryBeatSchema).optional().describe("An array of narrative beats that form the story's spine."),
 });
 export type CampaignStructure = z.infer<typeof CampaignStructureSchema>;
 
@@ -117,3 +135,6 @@ export const GenerateResolutionInputSchema = GenerateNodesInputSchema.extend({
     nodes: z.array(NodeSchema),
 });
 export type GenerateResolutionInput = z.infer<typeof GenerateResolutionInputSchema>;
+
+export const GenerateStoryBeatsInputSchema = GenerateResolutionInputSchema.extend({});
+export type GenerateStoryBeatsInput = z.infer<typeof GenerateStoryBeatsInputSchema>;

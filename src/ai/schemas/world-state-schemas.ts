@@ -2,7 +2,7 @@
 
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
-import { CampaignStructureSchema, FactionSchema, NodeSchema, CampaignResolutionSchema } from './campaign-structure-schemas';
+import { CampaignStructureSchema, FactionSchema, NodeSchema, CampaignResolutionSchema, StoryProgressionSchema } from './campaign-structure-schemas';
 
 export const PlaceSchema = z.object({
     name: z.string().describe('The name of the location.'),
@@ -43,6 +43,7 @@ export const WorldStateSchema = z.object({
   resolution: CampaignResolutionSchema.nullable().optional().describe('The dynamic state of the campaign\'s endgame.'),
   factions: z.array(FactionSchema).nullable().describe('The dynamic state of the campaign\'s factions and their clocks.'),
   turn: z.number().int().default(0).describe("The current turn number, incremented after each player action."),
+  storyProgression: StoryProgressionSchema.nullable().optional().describe('The dynamic state of the story progression.'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 
