@@ -1,4 +1,5 @@
 
+      
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -1225,7 +1226,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
@@ -1381,3 +1382,5 @@ ${startingNode ? startingNode.description : gameData.setting}
     </>
   );
 }
+
+    
