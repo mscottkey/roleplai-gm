@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useId, useEffect, memo, useCallback } from 'react';
@@ -17,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
+import { QRCodeDisplay } from './qr-code-display';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
@@ -95,7 +97,6 @@ const CharacterDisplay = ({ char }: { char: Character }) => (
   </div>
 );
 
-// A unified component to show a player slot, whether local or remote
 const PlayerSlotCard = memo(({
     player,
     isHost,
@@ -144,7 +145,7 @@ const PlayerSlotCard = memo(({
     }
     
     if (isLocal && onUpdateSlot && onRemoveSlot) {
-        // Form for local player
+        // Form for local player (Hot-Seat Mode)
         return (
             <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
                 <div className="w-full space-y-4 text-left p-4">
@@ -176,7 +177,7 @@ const PlayerSlotCard = memo(({
         );
     }
 
-    // Status display for remote player
+    // Status display for remote or local lobby player
     return (
         <Card className="flex flex-col relative group transition-all">
             <CardHeader>
@@ -228,18 +229,15 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const isHost = currentUser?.uid === hostId;
   const isLocalGame = gameData.playMode === 'local';
   
-  // New state for toggling local play style
   const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
 
   const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : [...players, ...localSlots.filter(p => !players.find(remote => remote.id === p.id))];
 
   useEffect(() => {
-    // If we're in local mode and hot-seat is on, add a default slot for the host if none exist
     if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
       const hostPlayerName = userPreferences?.displayName || currentUser.email?.split('@')[0] || 'Player 1';
       addNewSlot(hostPlayerName);
     } else if (isLocalGame && !isHotSeatMode) {
-        // If we toggle hot-seat off, clear the manual local slots
         setLocalSlots([]);
     }
   }, [isLocalGame, isHotSeatMode, localSlots.length, currentUser, userPreferences]);
@@ -324,7 +322,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             name: p.characterData.name,
             vision: p.characterData.vision,
             pronouns: p.characterData.pronouns === 'Any' ? undefined : p.characterData.pronouns,
-            playerId: p.id, // Use player doc ID as unique ID
+            playerId: p.id,
         }));
         
         const existingCharacters = allPlayerSlots
@@ -371,12 +369,14 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     }
   };
   
-  const allSlotsHaveCharacters = allPlayerSlots.length > 0 && allPlayerSlots.every(p => p.characterData.generatedCharacter);
+  const allSlotsFilled = allPlayerSlots.length > 0;
+  const allCharactersGenerated = allSlotsFilled && allPlayerSlots.every(p => p.characterData.generatedCharacter);
   const slotsWithoutCharacters = allPlayerSlots.filter(p => !p.characterData.generatedCharacter).length;
   
   const allRemotePlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready' || p.characterData.generatedCharacter);
 
-  const readyToFinalize = (!isLocalGame && allRemotePlayersReady) || (isLocalGame && isHotSeatMode && allSlotsHaveCharacters) || (isLocalGame && !isHotSeatMode && allRemotePlayersReady);
+  const readyToFinalize = (isLocalGame && isHotSeatMode && allCharactersGenerated) || 
+                          (!isHotSeatMode && allRemotePlayersReady);
 
 
   return (
@@ -389,7 +389,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardTitle>
           <CardDescription className="pt-2">
              {isHost 
-                ? "Manage your party below. Players can join via the invite link."
+                ? "Manage your party below. Players can join via mobile or be added manually."
                 : "Waiting for the host to start the game..."}
           </CardDescription>
         </CardHeader>
@@ -402,8 +402,17 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                         <Label htmlFor="hotseat-mode">Enable Hot-Seat Mode (Manual Entry)</Label>
                     </div>
                 )}
-                {(!isLocalGame || (isLocalGame && !isHotSeatMode)) && activeGameId && (
+                
+                {!isLocalGame && activeGameId && (
                      <ShareGameInvite gameId={activeGameId} />
+                )}
+
+                {isLocalGame && !isHotSeatMode && activeGameId && (
+                    <QRCodeDisplay 
+                        gameId={activeGameId}
+                        gameName={gameData.name}
+                        playerCount={allPlayerSlots.length}
+                    />
                 )}
             </div>
           )}
@@ -416,8 +425,8 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                       player={player}
                       isHost={isHost}
                       onKickPlayer={onKickPlayer}
-                      onUpdateSlot={updateLocalSlot}
-                      onRemoveSlot={removeLocalSlot}
+                      onUpdateSlot={isHotSeatMode ? updateLocalSlot : undefined}
+                      onRemoveSlot={isHotSeatMode ? removeLocalSlot : undefined}
                       isLocal={isHotSeatMode && !player.isMobile}
                   />
               ))}
@@ -447,7 +456,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                 <Button
                   size="lg"
                   onClick={handleFinalize}
-                  disabled={isGenerating || isLoading || !allSlotsHaveCharacters}
+                  disabled={isGenerating || isLoading || !allCharactersGenerated}
                   className="font-headline text-xl"
                 >
                   {isLoading ? (
@@ -457,10 +466,11 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                   )}
                 </Button>
               </div>
-              {!allSlotsHaveCharacters && <p className="text-xs text-muted-foreground">Once concepts are filled in, click "Generate" then "Finalize Party".</p>}
+              {!allCharactersGenerated && <p className="text-xs text-muted-foreground">Once concepts are filled in, click "Generate" then "Finalize Party".</p>}
             </CardFooter>
         )}
       </Card>
     </div>
   );
 });
+
