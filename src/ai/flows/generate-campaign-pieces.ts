@@ -1,5 +1,4 @@
 
-
 'use server';
 
 /**
@@ -28,14 +27,22 @@ import {
   generateCampaignNodesPromptText 
 } from '../prompts/generate-campaign-pieces-prompts';
 import { randomUUID } from 'crypto';
+import { SETTING_EXAMPLES } from '@/lib/setting-examples';
 
 
 // Step 1: Generate Core Concepts
 export async function generateCampaignCore(input: GenerateCampaignCoreInput) {
+    const examples = SETTING_EXAMPLES[input.settingCategory as keyof typeof SETTING_EXAMPLES] || SETTING_EXAMPLES.generic;
+    
     const result = await ai.generate({
       model: MODEL_GENERATION,
       prompt: generateCampaignCorePromptText,
-      input: input,
+      input: {
+        ...input,
+        genreDescription: examples.description,
+        genreCampaignIssues: examples.campaignIssues,
+        genreCampaignAspects: examples.campaignAspects,
+      },
       output: {
         format: 'json',
         schema: CampaignCoreSchema,
