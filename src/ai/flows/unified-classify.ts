@@ -27,13 +27,13 @@ const UnifiedClassifyInputSchema = z.object({
   // For setting classification (only needed once per game)
   setting: z.string().optional().describe('The setting description to classify'),
   tone: z.string().optional().describe('The tone description (optional)'),
+  originalRequest: z.string().optional().describe("The user's original, one-sentence request for the game, which is the primary source of truth for the genre."),
   
   // For intent classification (needed per player input)
   playerInput: z.string().optional().describe('The player input to classify intent for'),
   
   // Context for better classification
   gameContext: z.object({
-    currentSettingCategory: z.string().optional().describe('Previously classified setting category'),
     isFirstClassification: z.boolean().default(false).describe('Whether this is the first time classifying this game'),
   }).optional()
 });
@@ -134,12 +134,20 @@ const unifiedClassifyPromptText = `You are a classification expert for tabletop 
 
 {{#if setting}}
 ## Setting Classification Task
-Classify this game setting into one of the predefined categories:
+Your primary goal is to determine the genre of the game.
 
-**Setting:** {{{setting}}}
-{{#if tone}}**Tone:** {{{tone}}}{{/if}}
+### Source of Truth
+The user's original request is the most important piece of information. Use it to determine the core genre.
+- **Original Request:** "{{{originalRequest}}}"
 
-### Available Categories:
+### Additional Context
+Use the following detailed descriptions to refine your classification.
+- **Setting:** {{{setting}}}
+{{#if tone}}
+- **Tone:** {{{tone}}}
+{{/if}}
+
+### Available Categories
 ${generateCategoryDescriptions()}
 {{/if}}
 
@@ -154,15 +162,19 @@ Classify this player input as either an Action or Question:
 {{/if}}
 
 ## Instructions
-{{#if setting}}1. For setting classification: Choose the best matching category, provide confidence (0-1), and explain your reasoning.{{/if}}
-{{#if playerInput}}{{#if setting}}2.{{else}}1.{{/if}} For intent classification: Determine if this is an Action or Question, provide confidence (0-1), and explain your reasoning.{{/if}}
+{{#if setting}}
+1.  **For setting classification:** Based primarily on the **Original Request**, choose the best matching category. Provide your confidence (0-1) and explain your reasoning.
+{{/if}}
+{{#if playerInput}}
+{{#if setting}}2.{{else}}1.{{/if}} For intent classification: Determine if this is an Action or Question, provide confidence (0-1), and explain your reasoning.
+{{/if}}
 
 Return only a valid JSON object with your classifications.`;
 
 export async function unifiedClassify(input: UnifiedClassifyInput): Promise<UnifiedClassifyResponse> {
   const result = await unifiedClassifyFlow(input);
   return {
-    output: result.output!,
+    output: result,
     usage: result.usage,
     model: result.model,
   };
@@ -191,8 +203,9 @@ export const unifiedClassifyFlow = ai.defineFlow(
       let finalOutput = result.output || {};
 
       // Fallback to keyword-based classification if AI confidence is low or failed
+      const keywordSource = input.originalRequest ? `${input.originalRequest} ${input.setting} ${input.tone || ''}` : `${input.setting} ${input.tone || ''}`;
       if (input.setting && (!finalOutput.settingClassification || finalOutput.settingClassification.confidence < 0.6)) {
-        const keywordResult = classifySettingByKeywords(input.setting + ' ' + (input.tone || ''));
+        const keywordResult = classifySettingByKeywords(keywordSource);
         finalOutput.settingClassification = {
           category: keywordResult.category,
           confidence: Math.max(keywordResult.score, finalOutput.settingClassification?.confidence || 0),
@@ -215,8 +228,9 @@ export const unifiedClassifyFlow = ai.defineFlow(
       // Pure keyword fallback if AI fails completely
       const fallbackOutput: UnifiedClassifyOutput = {};
       
+      const keywordSource = input.originalRequest ? `${input.originalRequest} ${input.setting} ${input.tone || ''}` : `${input.setting} ${input.tone || ''}`;
       if (input.setting) {
-        const keywordResult = classifySettingByKeywords(input.setting + ' ' + (input.tone || ''));
+        const keywordResult = classifySettingByKeywords(keywordSource);
         fallbackOutput.settingClassification = {
           category: keywordResult.category,
           confidence: keywordResult.score,
@@ -242,3 +256,5 @@ export const unifiedClassifyFlow = ai.defineFlow(
     }
   }
 );
+
+    

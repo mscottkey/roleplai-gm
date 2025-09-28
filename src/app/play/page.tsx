@@ -440,7 +440,7 @@ export default function RoleplAIGMPage() {
       let resolution: CampaignResolution;
   
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } }, activeGameId);
       settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
@@ -571,7 +571,7 @@ The stage is set. What do you do?
       const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
 
       setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, originalRequest: gameData.originalRequest, gameContext: { isFirstClassification: true } }, activeGameId);
       settingCategory = classification.settingClassification?.category || 'generic';
   
       setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
@@ -1262,7 +1262,5 @@ ${startingNode ? startingNode.description : gameData.setting}
     </>
   );
 }
-
-    
 
     
