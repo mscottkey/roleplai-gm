@@ -269,7 +269,7 @@ export default function RoleplAIGMPage() {
   const deletingGameId = useRef<string | null>(null);
 
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
-  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null | undefined>(undefined);
   const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number; step: string } | null>(null);
   
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
@@ -1178,7 +1178,8 @@ ${startingNode ? startingNode.description : gameData.setting}
     if (result.success) {
       toast({ title: 'Profile Updated', description: 'Your preferences have been saved.' });
       setIsAccountDialogOpen(false);
-      window.location.reload();
+      // No reload needed if state is managed properly
+      getUserPreferences(user.uid).then(setUserPreferences);
     } else {
       toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
     }

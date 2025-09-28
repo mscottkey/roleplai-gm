@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useId, useEffect, memo, useCallback } from 'react';
+import { useState, useId, useEffect, memo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,10 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { QRCodeDisplay } from './qr-code-display';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
+import { QRCodeDisplay } from './qr-code-display';
 import { ShareGameInvite } from './share-game-invite';
 
 const getSkillDisplay = (rank: number) => {
@@ -158,7 +158,7 @@ const PlayerSlotCard = memo(({
                         </SelectContent>
                     </Select>
                 </div>
-                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemoveSlot(id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                {isHost && <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => onRemoveSlot(id)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>}
             </Card>
         );
     }
@@ -201,7 +201,7 @@ type CharacterCreationFormProps = {
   isLoading: boolean;
   currentUser: FirebaseUser | null;
   activeGameId: string | null;
-  userPreferences: UserPreferences | null;
+  userPreferences: UserPreferences | null | undefined;
   players: Player[];
   onKickPlayer: (playerId: string) => void;
   hostId: string | null;
@@ -228,55 +228,60 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const { toast } = useToast();
   
   const isHost = currentUser?.uid === hostId;
-  
+  const hasInitializedHostSlot = useRef(false);
+
   const addNewSlot = useCallback((playerName: string = '', pronouns: string = 'Any') => {
-    // Use the updater function for setLocalSlots to get the latest state
-    // and avoid depending on `localSlots.length` in the dependency array.
-    setLocalSlots(currentSlots => {
-      const newId = `${formId}-slot-${Date.now()}-${currentSlots.length}`;
-      const newPlayerName = playerName || `Player ${currentSlots.length + 1}`;
-      const newSlot: Player = {
-        id: newId,
-        name: newPlayerName,
-        isHost: false,
-        isMobile: false,
-        connectionStatus: 'connected',
-        characterCreationStatus: 'creating',
-        characterData: {
-          playerName: newPlayerName,
-          isApproved: true,
-          pronouns: pronouns,
-        },
-        joinedAt: new Date() as any,
-        lastActive: new Date() as any,
-      };
-      return [...currentSlots, newSlot];
+    setLocalSlots(prevSlots => {
+        const newId = `${formId}-slot-${Date.now()}-${prevSlots.length}`;
+        const newPlayerName = playerName || `Player ${prevSlots.length + 1}`;
+        const newSlot: Player = {
+            id: newId,
+            name: newPlayerName,
+            isHost: false,
+            isMobile: false,
+            connectionStatus: 'connected',
+            characterCreationStatus: 'creating',
+            characterData: {
+                playerName: newPlayerName,
+                isApproved: true,
+                pronouns,
+            },
+            joinedAt: new Date() as any,
+            lastActive: new Date() as any,
+        };
+        return [...prevSlots, newSlot];
     });
   }, [formId]);
 
-  // Effect to manage the initial state of localSlots
   useEffect(() => {
-    // This effect should only add an initial slot, and only once.
-    if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
-      const hostPlayerName = (userPreferences?.displayName && userPreferences.displayName.trim() !== '') 
-        ? userPreferences.displayName 
-        : currentUser.email?.split('@')[0] || 'Player 1';
-      
-      const hostPronouns = (userPreferences?.defaultPronouns && userPreferences.defaultPronouns.trim() !== '')
-        ? userPreferences.defaultPronouns
-        : 'Any';
+    // Guard to prevent this from running more than once per component instance
+    if (isLocalGame && isHotSeatMode && currentUser && !hasInitializedHostSlot.current) {
+        
+        // Wait for userPreferences to be loaded (it's passed as undefined initially)
+        if (userPreferences === undefined) {
+            return;
+        }
 
-      addNewSlot(hostPlayerName, hostPronouns);
-    } 
-    // This effect should clear the local slots if we switch away from hot-seat mode.
-    else if (isLocalGame && !isHotSeatMode) {
+        const hostPlayerName = (userPreferences?.displayName && userPreferences.displayName.trim() !== '') 
+            ? userPreferences.displayName 
+            : currentUser.email?.split('@')[0] || 'Player 1';
+      
+        const hostPronouns = (userPreferences?.defaultPronouns && userPreferences.defaultPronouns.trim() !== '')
+            ? userPreferences.defaultPronouns
+            : 'Any';
+
+        addNewSlot(hostPlayerName, hostPronouns);
+        hasInitializedHostSlot.current = true; // Mark as initialized
+    }
+    
+    // This logic handles clearing the manual slots if we switch away from hot-seat mode
+    if (isLocalGame && !isHotSeatMode) {
         if (localSlots.length > 0) {
             setLocalSlots([]);
         }
+        hasInitializedHostSlot.current = false; // Reset if we switch off
     }
-  // The dependency array is crucial. We only want this to run when the modes or user change,
-  // NOT every time localSlots itself changes. This prevents the race condition.
-  }, [isLocalGame, isHotSeatMode, currentUser, userPreferences, addNewSlot]);
+  }, [isLocalGame, isHotSeatMode, currentUser, userPreferences, addNewSlot, localSlots.length]);
 
 
   const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
@@ -418,30 +423,28 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {isHost && (
-            <div className="flex flex-col items-center gap-4">
-                {isLocalGame && (
-                    <div className="flex items-center space-x-2">
-                        <Switch id="hotseat-mode" checked={isHotSeatMode} onCheckedChange={setIsHotSeatMode} />
-                        <Label htmlFor="hotseat-mode">Enable Hot-Seat Mode (Manual Entry)</Label>
-                    </div>
-                )}
-                
-                {/* Show Invite URL for Remote Games */}
-                {!isLocalGame && activeGameId && (
-                  <ShareGameInvite gameId={activeGameId} />
-                )}
+            {isHost && (
+              <div className="flex flex-col items-center gap-4">
+                  {isLocalGame && (
+                      <div className="flex items-center space-x-2">
+                          <Switch id="hotseat-mode" checked={isHotSeatMode} onCheckedChange={setIsHotSeatMode} />
+                          <Label htmlFor="hotseat-mode">Enable Hot-Seat Mode (Manual Entry)</Label>
+                      </div>
+                  )}
+                  
+                  {!isLocalGame && activeGameId && (
+                    <ShareGameInvite gameId={activeGameId} />
+                  )}
 
-                {/* Show QR Code for Local Lobby Games */}
-                {isLocalGame && !isHotSeatMode && activeGameId && (
-                  <QRCodeDisplay 
-                    gameId={activeGameId} 
-                    gameName={gameData.name}
-                    playerCount={allPlayerSlots.length}
-                  />
-                )}
-            </div>
-          )}
+                  {isLocalGame && !isHotSeatMode && activeGameId && (
+                    <QRCodeDisplay 
+                      gameId={activeGameId} 
+                      gameName={gameData.name}
+                      playerCount={allPlayerSlots.length}
+                    />
+                  )}
+              </div>
+            )}
           
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
