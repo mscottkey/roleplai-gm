@@ -6,22 +6,16 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
 import { MODEL_CLASSIFICATION } from '../models';
 import { classifyInputPromptText } from '../prompts/classify-input-prompt';
 import type { GenerationUsage } from 'genkit';
+import {
+  ClassifyInputSchema,
+  ClassifyInputOutputSchema,
+  type ClassifyInput,
+  type ClassifyInputOutput,
+} from '../schemas/classify-schemas';
 
-export const ClassifyInputSchema = z.object({
-  playerInput: z.string().describe('The text input from the player.'),
-});
-export type ClassifyInput = z.infer<typeof ClassifyInputSchema>;
-
-export const ClassifyInputOutputSchema = z.object({
-  intent: z.enum(['Action', 'Question']).describe('The classified intent of the player input.'),
-  confidence: z.number().min(0).max(1).describe('The confidence score of the classification.'),
-  reasoning: z.string().describe('A brief explanation for the classification choice.'),
-});
-export type ClassifyInputOutput = z.infer<typeof ClassifyInputOutputSchema>;
 
 export type ClassifyInputResponse = {
   output: ClassifyInputOutput;

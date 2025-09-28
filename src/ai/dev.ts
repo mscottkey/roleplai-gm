@@ -2,8 +2,14 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { classifyInput, ClassifyInputSchema, ClassifyInputOutputSchema } from '@/ai/flows/classify-input';
-import { classifySetting, ClassifySettingInputSchema, ClassifySettingOutputSchema } from '@/ai/flows/classify-setting';
+import { classifyInput } from '@/ai/flows/classify-input';
+import { classifySetting } from '@/ai/flows/classify-setting';
+import {
+  ClassifyInputSchema,
+  ClassifyInputOutputSchema,
+  ClassifySettingInputSchema,
+  ClassifySettingOutputSchema,
+} from '@/ai/schemas/classify-schemas';
 
 import '@/ai/flows/generate-new-game.ts';
 import '@/ai/flows/integrate-rules-adapter.ts';
@@ -34,6 +40,8 @@ import '@/ai/prompts/update-world-state-prompt.ts';
 import '@/ai/prompts/regenerate-field-prompt.ts';
 import '@/ai/prompts/classify-input-prompt.ts';
 import '@/ai/prompts/classify-setting-prompt.ts';
+import '@/ai/schemas/classify-schemas.ts';
+
 
 // Define the flows for the Genkit developer UI
 ai.defineFlow(
