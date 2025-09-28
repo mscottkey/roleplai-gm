@@ -22,19 +22,6 @@ import type { UserPreferences } from '@/app/actions/user-preferences';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 
-type CharacterCreationFormProps = {
-  gameData: GameSession['gameData'];
-  onCharactersFinalized: (characters: Character[]) => void;
-  generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
-  isLoading: boolean;
-  currentUser: FirebaseUser | null;
-  activeGameId: string | null;
-  userPreferences: UserPreferences | null;
-  players: Player[];
-  onKickPlayer: (playerId: string) => void;
-  hostId: string | null;
-};
-
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
         case 1: return 'Average';
@@ -206,6 +193,19 @@ const PlayerSlotCard = memo(({
     );
 });
 PlayerSlotCard.displayName = 'PlayerSlotCard';
+
+type CharacterCreationFormProps = {
+  gameData: GameSession['gameData'];
+  onCharactersFinalized: (characters: Character[]) => void;
+  generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
+  isLoading: boolean;
+  currentUser: FirebaseUser | null;
+  activeGameId: string | null;
+  userPreferences: UserPreferences | null;
+  players: Player[];
+  onKickPlayer: (playerId: string) => void;
+  hostId: string | null;
+};
 
 export const CharacterCreationForm = memo(function CharacterCreationForm({
   gameData,
@@ -490,5 +490,3 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     </div>
   );
 });
-
-    
