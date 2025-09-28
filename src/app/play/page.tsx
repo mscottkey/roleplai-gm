@@ -405,6 +405,126 @@ export default function RoleplAIGMPage() {
     };
   }, [activeGameId, router, toast]);
 
+  const onRegenerateStoryline = useCallback(async () => {
+    if (!activeGameId || !gameData) return;
+  
+    setIsLoading(true);
+    toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
+  
+    try {
+      const currentCharacters = gameData.characters || [];
+      if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
+  
+      const charactersForAI: AICharacter[] = currentCharacters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        aspect: c.aspect,
+        playerName: c.playerName,
+        archetype: c.archetype,
+        pronouns: c.pronouns,
+        age: c.age,
+        stats: c.stats,
+      }));
+  
+      const baseInput = {
+        setting: gameData.setting,
+        tone: gameData.tone,
+        characters: charactersForAI,
+      };
+      
+      let settingCategory = 'generic';
+      let coreConcepts: CampaignCore;
+      let factions: Faction[];
+      let nodes: Node[];
+      let resolution: CampaignResolution;
+  
+      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
+      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
+      settingCategory = classification.settingClassification?.category || 'generic';
+  
+      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
+      coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
+  
+      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
+      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
+  
+      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
+      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
+  
+      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
+      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
+        
+      const newCampaignStructure: CampaignStructure = {
+        campaignIssues: coreConcepts.campaignIssues,
+        campaignAspects: coreConcepts.campaignAspects,
+        factions,
+        nodes,
+        resolution,
+      };
+  
+      const saveResult = await saveCampaignStructure(activeGameId, newCampaignStructure);
+      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
+  
+      const startingNode = newCampaignStructure.nodes.find((n) => n.isStartingNode) || newCampaignStructure.nodes[0];
+      
+      const welcomeMessageForChat: Message = { 
+        id: `start-chat-regen-${Date.now()}`, 
+        role: 'system', 
+        content: `**The world has been reshaped!**\n\nThe story has been regenerated. The new opening scene is on the storyboard. What do you do?`
+      };
+  
+      const storyboardContent = `
+# Welcome to your (newly regenerated) adventure!
+
+## Setting
+${gameData.setting}
+
+## Tone
+${gameData.tone}
+
+---
+
+${startingNode.description}
+
+The stage is set. What do you do?
+`.trim();
+  
+    const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
+    newCampaignStructure.nodes.forEach(node => {
+        initialNodeStates[node.id] = {
+        discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
+        playerKnowledge: [],
+        revealedSecrets: [],
+        };
+    });
+  
+      await updateWorldState({
+        gameId: activeGameId,
+        updates: {
+          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+          'worldState.storyOutline': newCampaignStructure.nodes.map((n) => n.title),
+          'worldState.recentEvents': ['The adventure has just begun.'],
+          'worldState.storyAspects': newCampaignStructure.campaignAspects,
+          'worldState.nodeStates': initialNodeStates,
+          'worldState.settingCategory': settingCategory,
+          messages: [welcomeMessageForChat],
+          storyMessages: [{ content: storyboardContent }],
+          previousWorldState: null,
+        },
+      });
+  
+      toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to regenerate storyline:', err);
+      toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
+    } finally {
+      setGenerationProgress(null);
+      setIsLoading(false);
+    }
+  }, [activeGameId, gameData, toast]);
+
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData) return;
   
@@ -575,120 +695,6 @@ ${startingNode ? startingNode.description : gameData.setting}
       setIsLoading(false);
     }
   }, [activeGameId, previousWorldState, toast]);
-
-  const onRegenerateStoryline = useCallback(async () => {
-    if (!activeGameId || !gameData) return;
-
-    setIsLoading(true);
-    toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
-
-    try {
-      const currentCharacters = gameData.characters || [];
-      if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
-
-      const charactersForAI: AICharacter[] = currentCharacters.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        aspect: c.aspect,
-        playerName: c.playerName,
-        archetype: c.archetype,
-        pronouns: c.pronouns,
-        age: c.age,
-        stats: c.stats,
-      }));
-
-      const baseInput = {
-        setting: gameData.setting,
-        tone: gameData.tone,
-        characters: charactersForAI,
-      };
-
-      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await unifiedClassify({ setting: gameData.setting, tone: gameData.tone, gameContext: { isFirstClassification: true } }, activeGameId);
-      const settingCategory = classification.settingClassification?.category || 'generic';
-
-      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
-
-      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
-
-      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
-
-      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
-        
-      const newCampaignStructure: CampaignStructure = {
-        campaignIssues: coreConcepts.campaignIssues,
-        campaignAspects: coreConcepts.campaignAspects,
-        factions,
-        nodes,
-        resolution,
-      };
-
-      const saveResult = await saveCampaignStructure(activeGameId, newCampaignStructure);
-      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
-
-      const startingNode = newCampaignStructure.nodes.find((n) => n.isStartingNode) || newCampaignStructure.nodes[0];
-      
-      const welcomeMessageForChat: Message = { 
-        id: `start-chat-regen-${Date.now()}`, 
-        role: 'system', 
-        content: `**The world has been reshaped!**\n\nThe story has been regenerated. The new opening scene is on the storyboard. What do you do?`
-      };
-
-      const storyboardContent = `
-# Welcome to your (newly regenerated) adventure!
-
-## Setting
-${gameData.setting}
-
-## Tone
-${gameData.tone}
-
----
-
-${startingNode.description}
-
-The stage is set. What do you do?
-`.trim();
-
-    const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
-    newCampaignStructure.nodes.forEach(node => {
-        initialNodeStates[node.id] = {
-        discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
-        playerKnowledge: [],
-        revealedSecrets: [],
-        };
-    });
-
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: {
-          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-          'worldState.storyOutline': newCampaignStructure.nodes.map((n) => n.title),
-          'worldState.recentEvents': ['The adventure has just begun.'],
-          'worldState.storyAspects': newCampaignStructure.campaignAspects,
-          'worldState.nodeStates': initialNodeStates,
-          'worldState.settingCategory': settingCategory,
-          messages: [welcomeMessageForChat],
-          storyMessages: [{ content: storyboardContent }],
-          previousWorldState: null,
-        },
-      });
-
-      toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to regenerate storyline:', err);
-      toast({ variant: 'destructive', title: 'Regeneration Error', description: err.message });
-    } finally {
-      setGenerationProgress(null);
-      setIsLoading(false);
-    }
-  }, [activeGameId, gameData, toast]);
   
   const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData) return;
@@ -1100,7 +1106,7 @@ The stage is set. What do you do?
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
@@ -1256,5 +1262,7 @@ The stage is set. What do you do?
     </>
   );
 }
+
+    
 
     
