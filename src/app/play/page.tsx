@@ -6,13 +6,13 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
-  GameData,
   Message,
   MechanicsVisibility,
   Character,
   GameSession,
   PlayerSlot,
   SessionStatus,
+  Player,
 } from '@/app/lib/types';
 import {
   startNewGame,
@@ -74,7 +74,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
-import type { AICharacter, GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Bot, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -104,7 +104,7 @@ const SummaryReview = ({
     onUpdateCategory,
     allCategories,
   }: {
-    gameData: GameData;
+    gameData: GameSession['gameData'];
     classification: ClassifySettingOutput | null;
     isLoading: boolean;
     onContinue: () => void;
@@ -244,12 +244,13 @@ export default function RoleplAIGMPage() {
   const [games, setGames] = useState<GameSession[]>([]);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   
-  const [gameData, setGameData] = useState<GameData | null>(null);
+  const [gameData, setGameData] = useState<GameSession['gameData'] | null>(null);
   const [campaignStructure, setCampaignStructure] = useState<CampaignStructure | null>(null);
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [previousWorldState, setPreviousWorldState] = useState<WorldState | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [storyMessages, setStoryMessages] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mechanicsVisibility, setMechanicsVisibility] = useState<MechanicsVisibility>('Hidden');
   const [step, setStep] = useState<'create' | 'summary' | 'characters' | 'play' | 'loading'>('loading');
@@ -376,6 +377,7 @@ export default function RoleplAIGMPage() {
       setCharacters([]);
       setActiveCharacter(null);
       setSessionStatus('active');
+      setPlayers([]);
       setStep('create');
     }
 
@@ -389,6 +391,7 @@ export default function RoleplAIGMPage() {
     }
   
     const checkIdle = async () => {
+      if (!worldState?.lastActivity) return;
       const lastActivityDate = new Date(worldState.lastActivity!);
       const minutesSince = differenceInMinutes(new Date(), lastActivityDate);
       const timeoutMinutes = worldState.idleTimeoutMinutes || 120;
@@ -400,7 +403,6 @@ export default function RoleplAIGMPage() {
           description: `This session will automatically pause in about ${Math.round(timeoutMinutes - minutesSince)} minutes due to inactivity. Take an action to keep it alive.`,
           duration: 60000,
         });
-        // Mark warning as shown
         if (activeGameId) {
           await updateDoc(doc(getFirestore(), 'games', activeGameId), {
             'worldState.idleWarningShown': true
@@ -423,7 +425,8 @@ export default function RoleplAIGMPage() {
 
     setStep('loading');
     const db = getFirestore();
-    const unsub = onSnapshot(doc(db, 'games', activeGameId), (docSnap) => {
+    
+    const unsubGame = onSnapshot(doc(db, 'games', activeGameId), (docSnap) => {
       if (docSnap.exists()) {
         const game = docSnap.data() as GameSession;
 
@@ -499,8 +502,8 @@ export default function RoleplAIGMPage() {
           }
         }
         
-        if (game.step === 'summary') {
-          if (!lastClassification || lastClassification.reasoning.includes('fallback') || gameData?.originalRequest !== gameData?.originalRequest) {
+        if (game.step === 'summary' && gameData?.originalRequest !== game.gameData.originalRequest) {
+          if (!lastClassification || lastClassification.reasoning.includes('fallback')) {
               classifySetting({
                   setting: game.gameData.setting,
                   tone: game.gameData.tone,
@@ -536,9 +539,15 @@ export default function RoleplAIGMPage() {
         }
     });
 
+    const unsubPlayers = onSnapshot(collection(db, 'games', activeGameId, 'players'), (snapshot) => {
+        const playersData = snapshot.docs.map(doc => doc.data() as Player);
+        setPlayers(playersData);
+    });
+
     return () => {
-        unsub();
+        unsubGame();
         unsubCampaign();
+        unsubPlayers();
     };
   }, [activeGameId, router, toast]);
 
@@ -552,22 +561,10 @@ export default function RoleplAIGMPage() {
       const currentCharacters = worldState.characters || [];
       if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
   
-      const charactersForAI: AICharacter[] = currentCharacters.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        aspect: c.aspect,
-        playerName: c.playerName,
-        archetype: c.archetype,
-        pronouns: c.pronouns,
-        age: c.age,
-        stats: c.stats,
-      }));
-  
       const baseInput = {
         setting: gameData.setting,
         tone: gameData.tone,
-        characters: charactersForAI,
+        characters: currentCharacters,
         settingCategory: worldState.settingCategory || 'generic'
       };
       
@@ -690,22 +687,17 @@ The stage is set. What do you do?
         archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
       }));
 
-      const charactersForAI: AICharacter[] = plainCharacters.map(c => ({
-        id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName,
-        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats,
-      }));
-
       setGenerationProgress({ current: 1, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+      const coreConcepts = await generateCampaignCoreAction({ setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
 
       setGenerationProgress({ current: 2, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+      const factions = await generateCampaignFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
 
       setGenerationProgress({ current: 3, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+      const nodes = await generateCampaignNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
 
       setGenerationProgress({ current: 4, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...coreConcepts, factions, nodes, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+      const resolution = await generateCampaignResolutionAction({ ...coreConcepts, factions, nodes, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
 
       campaignData = { campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects, factions, nodes, resolution, currentSessionBeats: [] };
 
@@ -727,7 +719,7 @@ The stage is set. What do you do?
 
       setGenerationProgress({ current: 5, total: 5, step: 'Planning the first session...' });
       beats = await generateSessionBeatsAction({
-        setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, factions, nodes, resolution,
+        setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, factions, nodes, resolution,
         currentWorldState: tempWorldStateForBeats,
         sessionNumber: 1,
       });
@@ -995,11 +987,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             const consequenceResult = await checkConsequences({
                 actionDescription: playerInput,
                 worldState,
-                character: {
-                    ...activeCharacter,
-                    stats: activeCharacter.stats || { skills: [], stunts: [] },
-                    id: activeCharacter.id || '',
-                },
+                character: activeCharacter,
             }, activeGameId);
 
             if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
@@ -1051,7 +1039,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         
         const worldUpdatePayload = {
             gameId: activeGameId,
-            playerAction: { characterName: activeCharacter.name, action: playerInput },
+            playerAction: { characterName: activeCharacter.name, action: playerInput, playerId: activeCharacter.playerId },
             gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
             campaignStructure: campaignStructure,
@@ -1266,6 +1254,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             currentUser={user}
             activeGameId={activeGameId}
             userPreferences={userPreferences}
+            players={players}
           />
         );
       case 'play':

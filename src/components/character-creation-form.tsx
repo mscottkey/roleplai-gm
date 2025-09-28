@@ -7,18 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
-import type { GameData, Character, PlayerSlot } from '@/app/lib/types';
+import type { GameSession, Character, PlayerSlot, Player } from '@/app/lib/types';
 import type { GenerateCharacterOutput, GenerateCharacterInput } from '@/ai/schemas/generate-character-schemas';
-import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, ScrollText, Users, Star, GraduationCap, Sparkles as StuntIcon, Trash2 } from 'lucide-react';
+import { Wand2, Dices, RefreshCw, UserPlus, Cake, Shield, PersonStanding, Star, GraduationCap, Sparkles as StuntIcon, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
-import { Badge } from './ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
@@ -26,7 +21,7 @@ import type { UserPreferences } from '@/app/actions/user-preferences';
 import { getFirestore, doc, runTransaction } from 'firebase/firestore';
 
 type CharacterCreationFormProps = {
-  gameData: GameData;
+  gameData: GameSession['gameData'];
   initialCharacters?: Character[];
   onCharactersFinalized: (characters: Character[]) => void;
   generateCharacterSuggestions: (input: GenerateCharacterInput) => Promise<GenerateCharacterOutput>;
@@ -34,6 +29,7 @@ type CharacterCreationFormProps = {
   currentUser: FirebaseUser | null;
   activeGameId: string | null;
   userPreferences: UserPreferences | null;
+  players: Player[];
 };
 
 const getSkillDisplay = (rank: number) => {
@@ -97,7 +93,6 @@ const CharacterDisplay = ({ char }: { char: Character }) => (
   </div>
 );
 
-// Moved outside the main component to prevent re-creation on render
 const LocalPlayerSlot = memo(({ slot, onUpdate, onRemove }: { slot: PlayerSlot, onUpdate: (id: string, updates: any) => void, onRemove: (id: string) => void }) => {
     const { preferences } = slot;
 
@@ -165,6 +160,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   currentUser,
   activeGameId,
   userPreferences,
+  players,
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>(() => {
@@ -197,7 +193,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   
   const isHost = currentUser?.uid === gameData.userId;
   const currentUserPlayerId = currentUser?.uid;
-  const userHasCharacter = playerSlots.some(slot => slot.character?.playerId === currentUserPlayerId);
+  const userHasCharacter = players.some(p => p.id === currentUserPlayerId && p.characterCreationStatus === 'ready');
 
   useEffect(() => {
     if (gameData.playMode === 'local' && userPreferences && playerSlots.length > 0 && !playerSlots[0].character) {
@@ -212,312 +208,25 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     }
   }, [userPreferences, gameData.playMode, playerSlots]);
 
-  const updateCharacterInFirestore = async (slots: PlayerSlot[]) => {
-    if (!activeGameId) return;
-    const db = getFirestore();
-    const gameRef = doc(db, 'games', activeGameId);
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const gameDoc = await transaction.get(gameRef);
-            if (!gameDoc.exists()) {
-                throw "Game document does not exist!";
-            }
-            
-            const currentCharacters = (gameDoc.data().worldState?.characters || []) as Character[];
-            
-            const updatedCharacters = slots.map(slot => {
-                if (slot.character) return slot.character;
-                const existing = currentCharacters.find(c => c.id === slot.id);
-                return existing || null;
-            }).filter(Boolean) as Character[];
-
-            transaction.update(gameRef, {
-                'worldState.characters': updatedCharacters,
-                'gameData.characters': updatedCharacters,
-            });
-        });
-    } catch (e) {
-        console.error("Failed to update characters in transaction:", e);
-        toast({
-            variant: "destructive",
-            title: "Sync Error",
-            description: "Could not save character updates to the server."
-        });
-    }
-  };
-
-
-  const addPlayerSlot = useCallback(() => {
-    setPlayerSlots(slots => {
-      const newSlot: PlayerSlot = {
-        id: `${formId}-slot-${slots.length}`,
-        character: null,
-        preferences: { playerName: '' }
-      };
-      const newSlots = [...slots, newSlot];
-      if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-      return newSlots;
-    });
-  }, [playerSlots, formId, gameData.playMode]);
-
-
-  const removePlayerSlot = useCallback((slotId: string) => {
-    setPlayerSlots(slots => {
-      const newSlots = slots.filter(slot => slot.id !== slotId);
-      if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-      return newSlots;
-    });
-  }, [gameData.playMode]);
-
-  
-  const generateCharacterForSlot = async (slotId: string, preferences: { name?: string; vision?: string; pronouns?: string; playerName?: string }) => {
-    setIsGenerating(true);
-
-    const playerName = preferences.playerName || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Player';
-
-    try {
-        const result = await generateCharacterSuggestions({
-            setting: gameData.setting,
-            tone: gameData.tone,
-            characterSlots: [{
-                id: slotId,
-                playerName: playerName,
-                name: preferences.name,
-                vision: preferences.vision,
-                pronouns: preferences.pronouns === 'Any' ? undefined : preferences.pronouns,
-            }],
-        });
-        
-        const newCharData = result.characters[0];
-        
-        if (newCharData) {
-            const newCharacter: Character = {
-                ...newCharData,
-                id: slotId,
-                playerName: playerName,
-                isCustom: false,
-                playerId: currentUserPlayerId!,
-            };
-            const newSlots = playerSlots.map(s => s.id === slotId ? { ...s, character: newCharacter, preferences: {} } : s);
-            setPlayerSlots(newSlots);
-            if(gameData.playMode === 'remote') updateCharacterInFirestore(newSlots);
-        }
-        
-    } catch (error) {
-        const err = error as Error;
-        toast({ variant: 'destructive', title: 'Generation Failed', description: err.message });
-    } finally {
-        setIsGenerating(false);
-    }
-  }
-
   const handleFinalize = () => {
-    const finalCharacters = playerSlots.map(s => s.character).filter(Boolean) as Character[];
-    if (finalCharacters.length !== playerSlots.length) {
+    let finalCharacters: Character[];
+    if (gameData.playMode === 'remote') {
+        finalCharacters = players.map(p => p.characterData.generatedCharacter).filter(Boolean) as Character[];
+    } else {
+        finalCharacters = playerSlots.map(s => s.character).filter(Boolean) as Character[];
+    }
+
+    if (finalCharacters.length === 0) {
        toast({
+        variant: "destructive",
         title: "Incomplete Party",
-        description: "All player slots must have a character before starting.",
+        description: "You must have at least one character to begin.",
       });
       return;
     }
     
     onCharactersFinalized(finalCharacters);
   };
-  
-const CharacterSlotCard = ({ slot, onGenerate, onRemove }: { slot: PlayerSlot; onGenerate: (prefs: any) => void; onRemove: () => void; }) => {
-    const [charName, setCharName] = useState(slot.preferences?.name || '');
-    const [vision, setVision] = useState(slot.preferences?.vision || '');
-    const [pronouns, setPronouns] = useState(slot.preferences?.pronouns || 'Any');
-    const [isCreating, setIsCreating] = useState(false);
-
-    const canCreate = !userHasCharacter && !slot.character;
-
-    useEffect(() => {
-        setCharName(slot.preferences?.name || '');
-        setVision(slot.preferences?.vision || '');
-        setPronouns(slot.preferences?.pronouns || 'Any');
-    }, [slot.preferences]);
-
-    if (slot.character) {
-        return (
-            <Card className="flex flex-col relative group transition-all">
-                <CardHeader>
-                    <p className="text-center font-bold text-lg">Played by {slot.character.playerName}</p>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-4">
-                    <CharacterDisplay char={slot.character} />
-                </CardContent>
-                <CardFooter>
-                    {isHost && slot.character.playerId !== currentUserPlayerId && (
-                        <Button variant="destructive" size="sm" className="w-full" onClick={onRemove}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Kick Player
-                        </Button>
-                    )}
-                </CardFooter>
-            </Card>
-        );
-    }
-
-    // Empty Slot
-    return (
-        <Card className="flex flex-col relative group transition-all border-dashed p-4 justify-center items-center min-h-64">
-            {isCreating ? (
-                <div className="w-full space-y-4 text-left p-4">
-                    <Label>Character Vision</Label>
-                    <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={vision} onChange={e => setVision(e.target.value)} disabled={isGenerating} />
-                    <Label>Character Name (Optional)</Label>
-                    <Input placeholder="e.g. Kaito Tanaka" value={charName} onChange={e => setCharName(e.target.value)} disabled={isGenerating} />
-                    <Label>Pronouns</Label>
-                    <Select value={pronouns} onValueChange={setPronouns} disabled={isGenerating}>
-                        <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Any">Any</SelectItem>
-                            <SelectItem value="She/Her">She/Her</SelectItem>
-                            <SelectItem value="He/Him">He/Him</SelectItem>
-                            <SelectItem value="They/Them">They/Them</SelectItem>
-                            <SelectItem value="Ze/Zir">Ze/Zir</SelectItem>
-                            <SelectItem value="It/Its">It/Its</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button className="w-full" onClick={() => onGenerate({ name: charName, vision, pronouns: pronouns, playerName: slot.preferences?.playerName })} disabled={isGenerating}>
-                        <Wand2 className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
-                        Generate My Character
-                    </Button>
-                     <Button variant="ghost" size="sm" className="w-full" onClick={() => setIsCreating(false)}>Cancel</Button>
-                </div>
-            ) : (
-                <div className="text-center">
-                    <p className="text-muted-foreground mb-4">Empty Slot</p>
-                    {canCreate && (
-                        <Button onClick={() => setIsCreating(true)}>
-                            <UserPlus className="mr-2 h-4 w-4" /> Create Your Character
-                        </Button>
-                    )}
-                    {!canCreate && <p className="text-xs text-muted-foreground">{userHasCharacter ? "You already have a character." : "Waiting for player..."}</p>}
-                </div>
-            )}
-             {isHost && <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={onRemove}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>}
-        </Card>
-    );
-};
-
-
-if (gameData.playMode === 'remote') {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
-            <Card className="w-full max-w-7xl mx-auto shadow-2xl">
-                <CardHeader className="text-center">
-                    <CardTitle className="font-headline text-4xl text-primary flex items-center justify-center gap-4">
-                        <Users /> Multiplayer Lobby
-                    </CardTitle>
-                    <CardDescription className="pt-2">
-                        {isHost 
-                            ? "Add player slots and share the invite link. Wait for all players to create their characters, then start the game."
-                            : "Create your character to join the party. The host will start the game when everyone is ready."}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    {activeGameId && isHost && <ShareGameInvite gameId={activeGameId} />}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {playerSlots.map((slot) => (
-                            <CharacterSlotCard 
-                                key={slot.id} 
-                                slot={slot} 
-                                onGenerate={(prefs) => generateCharacterForSlot(slot.id, prefs)}
-                                onRemove={() => removePlayerSlot(slot.id)}
-                            />
-                        ))}
-
-                        {isHost && (
-                            <Button variant="outline" onClick={addPlayerSlot} className="w-full border-dashed h-full min-h-64">
-                                <UserPlus className="mr-2 h-4 w-4" /> Add Player Slot
-                            </Button>
-                        )}
-                    </div>
-                </CardContent>
-                {isHost && (
-                    <CardFooter className="flex-col gap-4 justify-center pt-6">
-                        <Button
-                            size="lg"
-                            onClick={handleFinalize}
-                            disabled={isGenerating || isLoading || playerSlots.some(s => !s.character)}
-                            className="font-headline text-xl"
-                        >
-                            {isLoading ? (
-                                <><LoadingSpinner className="mr-2 h-5 w-5 animate-spin" /> Building World...</>
-                            ) : (
-                                <><Dices className="mr-2 h-5 w-5" /> Finalize Party & Build World</>
-                            )}
-                        </Button>
-                        <p className="text-xs text-muted-foreground">All slots must be filled before starting.</p>
-                    </CardFooter>
-                )}
-            </Card>
-        </div>
-    );
-}
-
-// Local Play Mode
-
-const handleGenerateAll = async () => {
-    const slotsToGenerate = playerSlots.filter(s => !s.character);
-    if (slotsToGenerate.length === 0) {
-        toast({ title: 'All characters already generated.'});
-        return;
-    }
-
-    if (playerSlots.some(s => !s.preferences?.playerName)) {
-        toast({ variant: 'destructive', title: 'Player Names Required', description: 'Please enter a name for each player.' });
-        return;
-    }
-
-    setIsGenerating(true);
-    try {
-        const slotsForAI = playerSlots.map(s => {
-            const prefs = s.preferences || {};
-            return {
-                id: s.id,
-                playerName: prefs.playerName,
-                name: prefs.name,
-                vision: prefs.vision,
-                pronouns: prefs.pronouns === 'Any' ? undefined : prefs.pronouns,
-            };
-        });
-
-        const result = await generateCharacterSuggestions({
-            setting: gameData.setting,
-            tone: gameData.tone,
-            characterSlots: slotsForAI,
-            existingCharacters: []
-        });
-
-        const newSlots = playerSlots.map(slot => {
-            const newCharData = result.characters.find(c => c.slotId === slot.id);
-            if (newCharData) {
-                return {
-                    ...slot,
-                    character: {
-                        ...newCharData,
-                        id: slot.id,
-                        isCustom: false,
-                        playerId: currentUserPlayerId!,
-                        playerName: slot.preferences?.playerName || 'Unknown',
-                    }
-                };
-            }
-            return slot;
-        });
-        setPlayerSlots(newSlots);
-
-    } catch (error) {
-        const err = error as Error;
-        toast({ variant: 'destructive', title: 'Generation Failed', description: err.message });
-    } finally {
-        setIsGenerating(false);
-    }
-};
 
   const updateSlotPreferences = useCallback((id: string, updates: any) => {
     setPlayerSlots(slots => slots.map(slot => {
@@ -543,7 +252,131 @@ const handleGenerateAll = async () => {
     }]);
   }, [formId]);
 
+  const handleGenerateAll = async () => {
+    const slotsToGenerate = playerSlots.filter(s => !s.character);
+    if (slotsToGenerate.length === 0) {
+        toast({ title: 'All characters already generated.'});
+        return;
+    }
 
+    if (playerSlots.some(s => !s.preferences?.playerName)) {
+        toast({ variant: 'destructive', title: 'Player Names Required', description: 'Please enter a name for each player.' });
+        return;
+    }
+
+    setIsGenerating(true);
+    try {
+        const slotsForAI = playerSlots.map(s => {
+            const prefs = s.preferences || {};
+            return {
+                id: s.id,
+                playerName: prefs.playerName,
+                name: prefs.name,
+                vision: prefs.vision,
+                pronouns: prefs.pronouns === 'Any' ? undefined : prefs.pronouns,
+                playerId: prefs.playerId || '',
+            };
+        });
+
+        const result = await generateCharacterSuggestions({
+            setting: gameData.setting,
+            tone: gameData.tone,
+            characterSlots: slotsForAI,
+            existingCharacters: []
+        });
+
+        const newSlots = playerSlots.map(slot => {
+            const newCharData = result.characters.find(c => c.slotId === slot.id);
+            if (newCharData) {
+                return {
+                    ...slot,
+                    character: {
+                        ...newCharData,
+                        id: slot.id,
+                        isCustom: false,
+                        playerName: slot.preferences?.playerName || 'Unknown',
+                        playerId: slot.preferences?.playerId || currentUserPlayerId || '',
+                    }
+                };
+            }
+            return slot;
+        });
+        setPlayerSlots(newSlots);
+
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Generation Failed', description: err.message });
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
+
+if (gameData.playMode === 'remote') {
+    const allPlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready');
+    return (
+        <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
+            <Card className="w-full max-w-7xl mx-auto shadow-2xl">
+                <CardHeader className="text-center">
+                    <CardTitle className="font-headline text-4xl text-primary">Game Lobby</CardTitle>
+                    <CardDescription className="pt-2">
+                        {isHost 
+                            ? "Share the invite link. Wait for all players to create their characters, then start the game."
+                            : "Waiting for other players..."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    {activeGameId && isHost && <ShareGameInvite gameId={activeGameId} />}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {players.map((player) => (
+                           <Card key={player.id} className="flex flex-col relative group transition-all">
+                               <CardHeader>
+                                   <div className='flex justify-between items-start'>
+                                        <p className="text-center font-bold text-lg">{player.name}</p>
+                                        <Badge variant={player.characterCreationStatus === 'ready' ? 'default' : 'secondary'} className='capitalize'>
+                                            {player.characterCreationStatus}
+                                        </Badge>
+                                   </div>
+                               </CardHeader>
+                               <CardContent className="flex-1 space-y-4">
+                                   {player.characterData.generatedCharacter ? (
+                                       <CharacterDisplay char={player.characterData.generatedCharacter} />
+                                   ) : (
+                                       <div className="text-sm text-muted-foreground space-y-2">
+                                           <p><strong>Vision:</strong> {player.characterData.vision || '...'}</p>
+                                           <p><strong>Name:</strong> {player.characterData.name || '...'}</p>
+                                           <p><strong>Pronouns:</strong> {player.characterData.pronouns || '...'}</p>
+                                       </div>
+                                   )}
+                               </CardContent>
+                           </Card>
+                        ))}
+                    </div>
+                </CardContent>
+                {isHost && (
+                    <CardFooter className="flex-col gap-4 justify-center pt-6">
+                        <Button
+                            size="lg"
+                            onClick={handleFinalize}
+                            disabled={isGenerating || isLoading || !allPlayersReady}
+                            className="font-headline text-xl"
+                        >
+                            {isLoading ? (
+                                <><LoadingSpinner className="mr-2 h-5 w-5 animate-spin" /> Building World...</>
+                            ) : (
+                                <><Dices className="mr-2 h-5 w-5" /> Finalize Party & Build World</>
+                            )}
+                        </Button>
+                        {!allPlayersReady && <p className="text-xs text-muted-foreground">All players must be 'Ready' before starting.</p>}
+                    </CardFooter>
+                )}
+            </Card>
+        </div>
+    );
+}
+
+// Local Play Mode
   const hasGeneratedAll = playerSlots.length > 0 && playerSlots.every(slot => slot.character);
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">

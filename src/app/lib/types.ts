@@ -13,8 +13,7 @@ export type Message = {
   mechanics?: string;
 };
 
-// Represents a fully generated character, either from AI or custom creation.
-// This structure is used in the worldState and is the output of the generation process.
+// This is the canonical Character object structure, used by the AI and stored in the player subcollection.
 export type Character = {
   id: string; // The character's unique ID, often the same as the player slot ID.
   name: string;
@@ -23,27 +22,25 @@ export type Character = {
   pronouns: string;
   age: string;
   archetype: string;
-  playerName: string; // The name of the player controlling the character.
+  playerName: string;
   stats: CharacterStats;
   isCustom: boolean; // Was this character manually created?
   playerId: string; // User ID of the player who created/claimed this character
 };
 
-// This represents the data for a player in the session's subcollection.
-// It tracks their status and their character creation progress.
+// Represents a player document in the `games/{gameId}/players` subcollection.
 export type Player = {
     id: string; // The user's UID
     name: string; // The player's display name
     isHost: boolean;
     isMobile: boolean;
-    connectionStatus: 'connected' | 'disconnected' | 'creating_character';
-    characterCreationStatus: 'joined' | 'creating' | 'generated' | 'ready';
+    connectionStatus: 'connected' | 'disconnected';
+    characterCreationStatus: 'joining' | 'creating' | 'generated' | 'ready';
     characterData: {
         playerName: string;
         name?: string;
         vision?: string;
         pronouns?: "Any" | "She/Her" | "He/Him" | "They/Them" | "Ze/Zir" | "It/Its";
-        // This will be populated once the AI generates the character. It matches the `Character` type.
         generatedCharacter?: Character;
         isApproved: boolean;
     };
@@ -58,15 +55,19 @@ export type StoryMessage = {
   content: string;
 };
 
-export type SessionStatus = 'active' | 'paused' | 'finished' | 'archived' | 'waiting_for_players' | 'character_creation' | 'party_generation';
+export type SessionStatus = 'waiting_for_players' | 'character_creation' | 'party_generation' | 'active' | 'paused' | 'finished' | 'archived';
 
-// This is the old GameSession type, which will be phased out.
-// Kept for reference and potential migration.
+// This is the main game session document.
 export type GameSession = {
   id:string;
-  userId: string;
+  userId: string; // The user ID of the host
   createdAt: Timestamp;
-  gameData: GameData;
+  gameData: GenerateNewGameOutput & {
+      playMode?: 'local' | 'remote';
+      originalRequest?: string;
+      promptHistory?: string[];
+      campaignGenerated?: boolean;
+  };
   worldState: WorldState;
   previousWorldState: WorldState | null;
   messages: Message[];
@@ -76,18 +77,8 @@ export type GameSession = {
   sessionStatus: SessionStatus;
 };
 
-// Legacy type, to be phased out.
-export type GameData = GenerateNewGameOutput & {
-  userId?: string;
-  characters?: Character[];
-  campaignStructure?: CampaignStructure;
-  playMode?: 'local' | 'remote';
-  originalRequest?: string;
-  promptHistory?: string[];
-};
 
-
-// Legacy type for local play, may be adapted or replaced.
+// Legacy type for local play, still used by the CharacterCreationForm for its internal state.
 export type PlayerSlot = {
     id: string;
     character: Character | null;
