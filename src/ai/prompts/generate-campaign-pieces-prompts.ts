@@ -1,28 +1,20 @@
 
 // src/ai/prompts/generate-campaign-pieces-prompts.ts
 
-export const generateCampaignCorePromptText = `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign. Based on the provided setting, tone, and characters, generate the core narrative concepts.
+export const generateCampaignCorePromptText = `You are a master storyteller and game designer creating the foundation for a new tabletop RPG campaign.
 
-## CRITICAL INSTRUCTIONS
-- You MUST create campaign issues and aspects that are directly relevant to and consistent with the specific setting provided below
-- Use the examples as inspiration for the STYLE and SCOPE, but create original content that fits the actual setting
-- Do NOT copy the examples - they are just to show you the right type of content for this genre
+## SOURCE OF TRUTH
+The following setting and tone are the absolute source of truth. All generated content MUST be directly inspired by and consistent with them.
 
-## Game Concept
 - Setting: {{{setting}}}
 - Tone: {{{tone}}}
-
-## Player Characters
+- Player Characters:
 {{#each characters}}
-- **{{this.name}}** (Played by {{this.playerName}})
-  - Archetype: {{this.archetype}}
-  - Aspect: "{{this.aspect}}"
-  - Description: {{this.description}}
+  - **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
 {{/each}}
 
-## Genre Context: {{{genreDescription}}}
-
-## Examples for This Genre (DO NOT COPY - Use as inspiration only)
+## STYLE AND FORMATTING GUIDE
+The following examples are for a different campaign in the '{{{genreDescription}}}' genre. Use them ONLY to understand the desired style, scope, and format of your response. DO NOT use the content of these examples. Your response MUST be based on the SOURCE OF TRUTH above.
 
 ### Example Campaign Issues:
 {{#each genreCampaignIssues}}
@@ -35,73 +27,63 @@ export const generateCampaignCorePromptText = `You are a master storyteller and 
 {{/each}}
 
 ## Your Task
-Based SPECIFICALLY on the setting and tone above, create:
+Based **ONLY** on the SOURCE OF TRUTH (Setting, Tone, and Characters), create:
 
-1. **Campaign Issues (2):** Create two high-level, unresolved tensions for the campaign. These should be big problems that can't be easily solved and will drive long-term conflict. Draw inspiration from the examples above but make them specific to your setting.
-
-2. **Campaign Aspects (3-5):** Define 3 to 5 overarching Fate Aspects for the campaign world. These should be things you can compel to introduce complications. Make them evocative and relevant to the characters and setting. Follow the style of the examples but reflect the specific world described in the setting.
+1. **Campaign Issues (2):** Two high-level, unresolved tensions for the campaign. These should be big problems that can't be easily solved and will drive long-term conflict.
+2. **Campaign Aspects (3-5):** 3 to 5 overarching Fate Aspects for the campaign world. These should be things you can compel to introduce complications.
 
 Return the result as a single, valid JSON object that conforms to the schema. Do not include any extra text or explanations.`;
 
 
-export const generateCampaignFactionsPromptText = `You are a master storyteller and game designer. You are designing the active threats and factions for a tabletop RPG campaign.
+export const generateCampaignFactionsPromptText = `You are a master storyteller and game designer designing the active threats and factions for a tabletop RPG campaign.
 
-## CRITICAL INSTRUCTIONS
-- Create factions that fit the specific setting and campaign issues provided
-- Use the genre context as inspiration but make factions specific to the actual setting
-- Focus on threats and factions that would realistically exist in this world
+## SOURCE OF TRUTH
+The following campaign concept is the absolute source of truth. All factions MUST be directly related to it and exist logically within this specific world.
 
-## Game Concept
 - Setting: {{{setting}}}
 - Tone: {{{tone}}}
 - Campaign Issues: {{#each campaignIssues}}- {{{this}}}{{/each}}
-- Campaign Aspects: {{#each campaignAspects}}- {{{this}}}{{/each}}
-
-## Genre Context: {{{genreDescription}}}
-
-## Player Characters
+- Campaign Aspects: {{#each campaignAspects}}- "{{this}}}"{{/each}}
+- Player Characters:
 {{#each characters}}
-- **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
+  - **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
 {{/each}}
 
+## STYLE AND FORMATTING GUIDE
+The campaign genre is '{{{genreDescription}}}'. Keep this in mind for the tone and type of factions you create, but base their specific details on the SOURCE OF TRUTH.
+
 ## Your Task
-Design 2 or 3 key factions or looming threats that are directly related to the campaign issues and aspects, and that would realistically exist in the specific setting described above. For each faction:
+Based **ONLY** on the SOURCE OF TRUTH above, design 2 or 3 key factions or looming threats. For each faction:
 
-1. Provide a name and a one-sentence description that fits the setting
-2. Create a 4-step "Project Clock" with a clear objective. For each step of the clock (1-4), write a short sentence describing what happens if the players ignore this faction and their clock advances.
-
-The factions should feel like they belong in the specific world described in the setting, not generic threats.
+1.  Provide a name and a one-sentence description that fits the setting.
+2.  Create a 4-step "Project Clock" with a clear objective. For each step of the clock (1-4), write a short sentence describing what happens if the players ignore this faction and their clock advances.
 
 Return the result as a single, valid JSON array of faction objects that conforms to the schema. Do not include any extra text or explanations.`;
 
 
 export const generateCampaignNodesPromptText = `You are a master storyteller and game designer creating a web of interconnected situations for a tabletop RPG.
 
-## CRITICAL INSTRUCTIONS
-- Create nodes that directly reflect the specific setting, locations, and factions provided.
-- Use the Notable Locations from the setting as the basis for your nodes.
-- Make NPCs, challenges, and secrets that fit the established world.
+## SOURCE OF TRUTH
+The following campaign concept is the absolute source of truth. All nodes, NPCs, and secrets MUST be derived from it. Use the "Notable Locations" mentioned in the Setting as direct inspiration for your nodes.
 
-## Game Concept
 - Setting: {{{setting}}}
 - Tone: {{{tone}}}
 - Campaign Issues: {{#each campaignIssues}}- {{{this}}}{{/each}}
-- Campaign Aspects: {{#each campaignAspects}}- {{{this}}}{{/each}}
-
-## Genre Context: {{{genreDescription}}}
-
-## Factions
+- Campaign Aspects: {{#each campaignAspects}}- "{{this}}}"{{/each}}
+- Factions:
 {{#each factions}}
-- **{{this.name}}**: {{this.description}} (Objective: {{this.clock.objective}})
+  - **{{this.name}}**: {{this.description}} (Objective: {{this.clock.objective}})
+{{/each}}
+- Player Characters:
+{{#each characters}}
+  - **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
 {{/each}}
 
-## Player Characters
-{{#each characters}}
-- **{{this.name}}** (Played by {{this.playerName}}): {{this.description}}
-{{/each}}
+## STYLE AND FORMATTING GUIDE
+The campaign genre is '{{{genreDescription}}}'. Ensure the challenges, secrets, and NPC details are appropriate for this genre, but base their existence on the SOURCE OF TRUTH.
 
 ## Your Task
-Create a web of 5 to 7 interconnected situation nodes, using the Notable Locations from the setting as inspiration. Each node must have narrative depth.
+Based **ONLY** on the SOURCE OF TRUTH, create a web of 5 to 7 interconnected situation nodes.
 
 For each node:
 1.  **title:** A descriptive name for the situation or location.
@@ -114,8 +96,8 @@ For each node:
 8.  **aspects (2):** Provide two Fate Aspects specific to this node.
 9.  **hiddenAgenda:** A one-sentence description of the true nature of this location or situation, or what's really going on beneath the surface.
 10. **secrets (2-3):** An array of 2-3 secret objects. Each secret must have:
-    *   **id:** A short, unique identifier for the secret (e.g., "secret-1").
-    *   **trigger:** A clear condition for discovering the secret (e.g., "If a character inspects the strange altar," "If a character with high Lore succeeds on a check").
+    *   **id:** A short, unique identifier for the secret (e.g., "secret-altar").
+    *   **trigger:** A clear condition for discovering the secret (e.g., "If a character inspects the strange altar").
     *   **revelation:** The information that is learned when the secret is discovered.
     *   **impact:** How this revelation changes the story or opens up new possibilities.
 
