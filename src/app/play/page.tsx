@@ -71,7 +71,7 @@ import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
 import type { AICharacter, GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ScrollText } from 'lucide-react';
+import { ArrowRight, Bot, ScrollText } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
 import { getUserPreferences, type UserPreferences } from '../actions/user-preferences';
 import { GenerationProgress } from '@/components/generation-progress';
@@ -80,16 +80,21 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure } from '@/ai/schemas/campaign-structure-schemas';
 import * as gtag from '@/lib/gtag';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import type { ClassifySettingOutput } from '@/ai/schemas/classify-schemas';
 
 const MemoizedCharacterCreationForm = memo(CharacterCreationForm);
 
 const SummaryReview = ({
     gameData,
+    classification,
     isLoading,
     onContinue,
     onRegenerateField,
   }: {
     gameData: GameData;
+    classification: ClassifySettingOutput | null;
     isLoading: boolean;
     onContinue: () => void;
     onRegenerateField: (fieldName: 'setting' | 'tone') => Promise<void>;
@@ -121,6 +126,29 @@ const SummaryReview = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
+             {classification && (
+                <Card className="bg-muted/50">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2 font-sans">
+                            <Bot className="h-5 w-5" /> AI Genre Classification
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold">Selected Genre:</span>
+                            <Badge variant="secondary">{classification.category.replace(/_/g, ' ')}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold">Confidence:</span>
+                            <Badge variant={classification.confidence > 0.8 ? 'default' : 'destructive'}>
+                                {Math.round(classification.confidence * 100)}%
+                            </Badge>
+                        </div>
+                         <p><span className="font-semibold">Reasoning:</span> <em className="text-muted-foreground">"{classification.reasoning}"</em></p>
+                    </CardContent>
+                </Card>
+             )}
+             <Separator />
              <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
                 <section className="prose prose-sm dark:prose-invert max-w-none relative group p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
@@ -185,6 +213,7 @@ export default function RoleplAIGMPage() {
 
   const [showHandoff, setShowHandoff] = useState(false);
   const [nextCharacter, setNextCharacter] = useState<Character | null>(null);
+  const [lastClassification, setLastClassification] = useState<ClassifySettingOutput | null>(null);
 
   const deletingGameId = useRef<string | null>(null);
 
@@ -347,7 +376,7 @@ export default function RoleplAIGMPage() {
                   recentEvents: game.worldState.recentEvents,
                   storyOutline: game.worldState.storyOutline,
                   characters: game.worldState.characters,
-                  factions: game.worldState.factions,
+                  factions: game.worldState.factions || [],
               }, activeGameId)
                 .then((recapResult) => {
                   let recapContent = `### Previously On...\n\n${recapResult.recap}`;
@@ -381,6 +410,27 @@ export default function RoleplAIGMPage() {
             }
           }
         }
+        
+        if (game.step === 'summary') {
+          // If we are on the summary step, and we don't have a classification result yet,
+          // or if the game data has changed, re-classify.
+          if (!lastClassification || lastClassification.reasoning.includes('fallback') || gameData?.originalRequest !== gameData?.originalRequest) {
+              classifySetting({
+                  setting: game.gameData.setting,
+                  tone: game.gameData.tone,
+                  originalRequest: game.gameData.originalRequest,
+              }).then(result => {
+                  setLastClassification(result);
+                  if (game.worldState.settingCategory !== result.category) {
+                      updateDoc(doc(db, 'games', activeGameId), { 'worldState.settingCategory': result.category });
+                  }
+              }).catch(err => {
+                  console.error("Failed to classify setting on summary load:", err);
+                  toast({ variant: 'destructive', title: 'Classification Failed', description: err.message });
+              });
+          }
+        }
+
 
         setStep(game.step || 'summary');
       } else {
@@ -407,13 +457,13 @@ export default function RoleplAIGMPage() {
   }, [activeGameId, router, toast]);
 
   const onRegenerateStoryline = useCallback(async () => {
-    if (!activeGameId || !gameData) return;
+    if (!activeGameId || !gameData || !worldState) return;
   
     setIsLoading(true);
     toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
   
     try {
-      const currentCharacters = gameData.characters || [];
+      const currentCharacters = worldState.characters || [];
       if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
   
       const charactersForAI: AICharacter[] = currentCharacters.map((c) => ({
@@ -432,33 +482,25 @@ export default function RoleplAIGMPage() {
         setting: gameData.setting,
         tone: gameData.tone,
         characters: charactersForAI,
+        settingCategory: worldState.settingCategory || 'generic'
       };
       
-      let settingCategory = 'generic';
       let coreConcepts: CampaignCore;
       let factions: Faction[];
       let nodes: Node[];
       let resolution: CampaignResolution;
   
-      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await classifySetting({
-        setting: gameData.setting,
-        tone: gameData.tone,
-        originalRequest: gameData.originalRequest,
-      });
-      settingCategory = classification.category || 'generic';
+      setGenerationProgress({ current: 1, total: 4, step: 'Considering the threads of fate...' });
+      coreConcepts = await generateCampaignCoreAction(baseInput, activeGameId);
   
-      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 2, total: 4, step: 'Populating the world with friends and foes...' });
+      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts }, activeGameId);
   
-      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 3, total: 4, step: 'Erecting monoliths and digging dungeons...' });
+      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions }, activeGameId);
   
-      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
-  
-      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 4, total: 4, step: 'Plotting the ultimate conclusion...' });
+      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes }, activeGameId);
         
       const newCampaignStructure: CampaignStructure = {
         campaignIssues: coreConcepts.campaignIssues,
@@ -512,7 +554,8 @@ The stage is set. What do you do?
           'worldState.recentEvents': ['The adventure has just begun.'],
           'worldState.storyAspects': newCampaignStructure.campaignAspects,
           'worldState.nodeStates': initialNodeStates,
-          'worldState.settingCategory': settingCategory,
+          'worldState.factions': newCampaignStructure.factions,
+          'worldState.resolution': newCampaignStructure.resolution,
           messages: [welcomeMessageForChat],
           storyMessages: [{ content: storyboardContent }],
           previousWorldState: null,
@@ -528,10 +571,10 @@ The stage is set. What do you do?
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, toast]);
+  }, [activeGameId, gameData, worldState, toast]);
 
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
-    if (!activeGameId || !gameData) return;
+    if (!activeGameId || !gameData || !worldState) return;
   
     if (finalCharacters.length === 0) {
       toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.' });
@@ -555,7 +598,6 @@ The stage is set. What do you do?
       archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
     }));
 
-    let settingCategory = 'generic';
     let coreConcepts: CampaignCore;
     let factions: Faction[];
     let nodes: Node[];
@@ -573,27 +615,24 @@ The stage is set. What do you do?
         archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats,
       }));
       
-      const baseInput = { setting: gameData.setting, tone: gameData.tone, characters: charactersForAI };
-
-      setGenerationProgress({ current: 1, total: 5, step: 'Consulting the cosmic classifications...' });
-      const classification = await classifySetting({
-        setting: gameData.setting,
-        tone: gameData.tone,
-        originalRequest: gameData.originalRequest,
-      });
-      settingCategory = classification.category || 'generic';
+      const baseInput = { 
+        setting: gameData.setting, 
+        tone: gameData.tone, 
+        characters: charactersForAI,
+        settingCategory: worldState.settingCategory || 'generic'
+      };
   
-      setGenerationProgress({ current: 2, total: 5, step: 'Considering the threads of fate...' });
-      coreConcepts = await generateCampaignCoreAction({ ...baseInput, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 1, total: 4, step: 'Considering the threads of fate...' });
+      coreConcepts = await generateCampaignCoreAction(baseInput, activeGameId);
   
-      setGenerationProgress({ current: 3, total: 5, step: 'Populating the world with friends and foes...' });
-      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 2, total: 4, step: 'Populating the world with friends and foes...' });
+      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts }, activeGameId);
   
-      setGenerationProgress({ current: 4, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 3, total: 4, step: 'Erecting monoliths and digging dungeons...' });
+      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions }, activeGameId);
   
-      setGenerationProgress({ current: 5, total: 5, step: 'Plotting the ultimate conclusion...' });
-      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes, settingCategory }, activeGameId);
+      setGenerationProgress({ current: 4, total: 4, step: 'Plotting the ultimate conclusion...' });
+      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes }, activeGameId);
     } catch (error) {
       const err = error as Error;
       const currentStep = generationProgress?.step || 'an unknown step';
@@ -623,7 +662,7 @@ The stage is set. What do you do?
       gtag.event({
         action: 'build_world',
         category: 'game_setup',
-        label: settingCategory,
+        label: worldState.settingCategory,
         value: finalCharacters.length,
       });
   
@@ -664,7 +703,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           'worldState.storyAspects': coreConcepts.campaignAspects, 'worldState.places': knownPlaces,
           'worldState.knownPlaces': [startingPlace], 'worldState.knownFactions': [],
           'worldState.nodeStates': initialNodeStates, 'worldState.resolution': resolution,
-          'worldState.factions': factions, 'worldState.settingCategory': settingCategory,
+          'worldState.factions': factions,
           previousWorldState: null, step: 'play',
         },
       });
@@ -681,7 +720,7 @@ ${startingNode ? startingNode.description : gameData.setting}
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, toast]);
+  }, [activeGameId, gameData, worldState, toast]);
 
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
@@ -719,6 +758,8 @@ ${startingNode ? startingNode.description : gameData.setting}
             currentValue: gameData[fieldName],
         }, activeGameId);
         toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
+        // Force a re-classification after regeneration
+        setLastClassification(null);
     } catch (err: any) {
         toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
     }
@@ -1062,6 +1103,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         return (
           <SummaryReview
             gameData={gameData}
+            classification={lastClassification}
             isLoading={isLoading}
             onContinue={async () => {
               if (activeGameId) {
@@ -1114,7 +1156,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             {...ttsProps}
           />
@@ -1270,5 +1312,3 @@ ${startingNode ? startingNode.description : gameData.setting}
     </>
   );
 }
-
-    

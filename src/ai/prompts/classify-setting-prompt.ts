@@ -11,9 +11,10 @@ export function generateCategoryDescriptions(): string {
 export const classifySettingPromptText = `You are an expert genre classification system for a tabletop RPG tool. Your goal is to classify the provided game concept into one of the predefined genres.
 
 ### How to Classify
-1.  Start with the **Original Request**. This is the user's core idea.
-2.  Use the detailed **Setting** and **Tone** descriptions to understand the world's specifics and mood. This detailed context is more important than the original request if they seem to conflict.
-3.  Choose the single best-fitting category from the list below.
+1.  **Analyze Holistically**: Read the Original Request, Setting, and Tone together to get a full picture.
+2.  **Identify Core Elements**: Look for the primary subjects, actions, and environment. Are they pirates on ships? Knights in castles? Hackers in a dystopia?
+3.  **Prioritize Core Elements over Keywords**: Do not be swayed by superficial keywords. A story about a "brittle empire" of pirates is still a pirate story, not a post-apocalyptic one. The core subject matter (pirates, seas, ships) is more important than descriptive words like "brittle" or "ruins."
+4.  **Choose the Best Fit**: Select the single category from the list below that best describes the central theme and environment of the story.
 
 ### Information to Analyze
 - **Original Request:** \`{{{originalRequest}}}\`
@@ -26,5 +27,5 @@ export const classifySettingPromptText = `You are an expert genre classification
 {{{availableCategories}}}
 
 ### Your Response
-Synthesize all the information provided above. Choose the best category, provide a confidence score from 0.0 to 1.0, and a brief explanation for your choice.
+Synthesize all the information provided above. Choose the best category, provide a confidence score from 0.0 to 1.0, and a brief explanation for your choice that focuses on the core elements of the setting.
 `;
