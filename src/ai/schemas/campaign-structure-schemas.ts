@@ -66,21 +66,25 @@ export const CampaignResolutionSchema = z.object({
 export type CampaignResolution = z.infer<typeof CampaignResolutionSchema>;
 
 export const StoryBeatSchema = z.object({
-    beat: z.number().int().min(1).max(15).describe('The beat number, 1-15.'),
+    beat: z.number().int().min(1).max(20).describe('The beat number within the session, 1-20.'),
     trigger: z.string().describe('What causes this beat to advance.'),
     beatType: z.enum(["exploration", "investigation", "confrontation", "revelation", "crisis"]).describe('The type of this story beat.'),
     expectedFactionAdvancement: z.string().describe('Which faction clock should advance.'),
     suggestedLocation: z.string().describe('Recommended node for this beat.'),
     description: z.string().describe('What should happen during this beat.'),
+    isFlexible: z.boolean().describe('Can this beat be skipped/modified if the session ends early.'),
 });
 
-export const StoryProgressionSchema = z.object({
-    currentBeat: z.number().int().min(0).default(0).describe('Current story beat, starts at 0.'),
-    actionsInBeat: z.number().int().min(0).default(0).describe('Actions taken in current beat.'),
-    beatType: z.string().describe('Current beat type.'),
-    intensity: z.number().int().min(1).max(5).describe('Story intensity level, from 1 to 5.'),
+export const SessionProgressSchema = z.object({
+    currentSession: z.number().int().min(1).default(1).describe('Which session number, starts at 1.'),
+    currentBeat: z.number().int().min(0).default(0).describe('Current beat within the session.'),
+    beatsCompleted: z.number().int().min(0).default(0).describe('Number of beats finished this session.'),
+    beatsPlanned: z.number().int().min(0).default(0).describe('Number of beats originally planned for this session.'),
+    sessionComplete: z.boolean().default(false).describe('True if the session reached a natural conclusion.'),
+    interruptedMidBeat: z.boolean().default(false).describe('True if the session ended unexpectedly in the middle of a beat.'),
+    readyForNextSession: z.boolean().default(false).describe('True if the system is ready to generate beats for the next session.'),
 });
-export type StoryProgression = z.infer<typeof StoryProgressionSchema>;
+export type SessionProgress = z.infer<typeof SessionProgressSchema>;
 
 export const CampaignStructureSchema = z.object({
     campaignIssues: z.array(z.string()).length(2).describe('Two high-level, unresolved tensions for the campaign.'),
@@ -88,7 +92,7 @@ export const CampaignStructureSchema = z.object({
     factions: z.array(FactionSchema).min(2).max(3).describe('2-3 key factions or looming threats.'),
     nodes: z.array(NodeSchema).min(5).max(7).describe('A web of 5-7 interconnected situation nodes.'),
     resolution: CampaignResolutionSchema.optional().nullable().describe("The overarching endgame structure and victory conditions."),
-    storyBeats: z.array(StoryBeatSchema).optional().describe("An array of narrative beats that form the story's spine."),
+    currentSessionBeats: z.array(StoryBeatSchema).optional().describe("The narrative beats planned for the current session."),
 });
 export type CampaignStructure = z.infer<typeof CampaignStructureSchema>;
 
@@ -136,5 +140,3 @@ export const GenerateResolutionInputSchema = GenerateNodesInputSchema.extend({
 });
 export type GenerateResolutionInput = z.infer<typeof GenerateResolutionInputSchema>;
 
-export const GenerateStoryBeatsInputSchema = GenerateResolutionInputSchema.extend({});
-export type GenerateStoryBeatsInput = z.infer<typeof GenerateStoryBeatsInputSchema>;

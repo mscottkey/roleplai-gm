@@ -2,7 +2,7 @@
 
 import {z} from 'genkit';
 import { CharacterSchema } from './generate-character-schemas';
-import { CampaignStructureSchema, FactionSchema, NodeSchema, CampaignResolutionSchema, StoryProgressionSchema } from './campaign-structure-schemas';
+import { CampaignStructureSchema, FactionSchema, NodeSchema, CampaignResolutionSchema, SessionProgressSchema } from './campaign-structure-schemas';
 
 export const PlaceSchema = z.object({
     name: z.string().describe('The name of the location.'),
@@ -38,12 +38,12 @@ export const WorldStateSchema = z.object({
   knownPlaces: z.array(PlaceSchema).describe("A list of significant places the players have discovered."),
   knownFactions: z.array(FactionSchema).describe("A list of factions the players have discovered."),
   currentScene: SceneSchema.describe("Details about the party's immediate scene."),
-  settingCategory: z.string().nullable().describe('The pre-classified genre category of the setting (e.g., "sci_fi_cyberpunk").'),
+  settingCategory: z.string().nullable().describe('The pre-classified genre of the setting (e.g., "sci_fi_cyberpunk").'),
   nodeStates: z.record(z.string(), NodeStateSchema).nullable().describe('A map of nodeId to its current dynamic state (discovery level, known secrets).'),
   resolution: CampaignResolutionSchema.nullable().optional().describe('The dynamic state of the campaign\'s endgame.'),
   factions: z.array(FactionSchema).nullable().describe('The dynamic state of the campaign\'s factions and their clocks.'),
   turn: z.number().int().default(0).describe("The current turn number, incremented after each player action."),
-  storyProgression: StoryProgressionSchema.nullable().optional().describe('The dynamic state of the story progression.'),
+  storyProgression: SessionProgressSchema.nullable().optional().describe('The dynamic state of the story progression.'),
 });
 export type WorldState = z.infer<typeof WorldStateSchema>;
 
@@ -63,3 +63,4 @@ export type UpdateWorldStateInput = z.infer<typeof UpdateWorldStateInputSchema>;
 
 export const UpdateWorldStateOutputSchema = WorldStateSchema;
 export type UpdateWorldStateOutput = z.infer<typeof UpdateWorldStateOutputSchema>;
+
