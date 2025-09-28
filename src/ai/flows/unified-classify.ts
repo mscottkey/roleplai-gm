@@ -1,4 +1,3 @@
-
 // src/ai/flows/unified-classify.ts
 
 'use server';
@@ -62,6 +61,18 @@ export type UnifiedClassifyResponse = {
   usage: GenerationUsage;
   model: string;
 };
+
+const GenerationUsageSchema = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  totalTokens: z.number(),
+});
+
+const UnifiedClassifyResponseSchema = z.object({
+  output: UnifiedClassifyOutputSchema,
+  usage: GenerationUsageSchema,
+  model: z.string(),
+});
 
 
 // Keyword-based setting classification fallback
