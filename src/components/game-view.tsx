@@ -26,6 +26,8 @@ import {
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { Voice } from '@/hooks/use-speech-synthesis';
 import { extractProseForTTS } from '@/lib/tts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Wand2, PartyPopper } from 'lucide-react';
 
 
 type GameViewProps = {
@@ -49,6 +51,7 @@ type GameViewProps = {
   sessionStatus: SessionStatus;
   onUpdateStatus: (status: SessionStatus) => void;
   onConfirmEndCampaign: () => void;
+  onConfirmEndSession: () => void;
   // TTS Props
   isSpeaking: boolean;
   isPaused: boolean;
@@ -86,6 +89,7 @@ export function GameView({
   sessionStatus,
   onUpdateStatus,
   onConfirmEndCampaign,
+  onConfirmEndSession,
   ...ttsProps
 }: GameViewProps) {
   const storyRef = useRef<HTMLDivElement>(null);
@@ -94,6 +98,7 @@ export function GameView({
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   
   const [showSmartScroll, setShowSmartScroll] = useState(false);
+  const needsNextSession = worldState?.sessionProgress?.readyForNextSession;
 
   useEffect(() => {
     const viewport = storyRef.current?.querySelector('div');
@@ -263,29 +268,48 @@ export function GameView({
 
       <div className="h-full flex flex-col overflow-hidden">
           {gameData.playMode === 'local' && <LocalPlayerGrid />}
-           <GameControls
-              messages={messages}
-              onSendMessage={onSendMessage}
-              isLoading={isLoading}
-              gameData={gameData}
-              worldState={worldState}
-              campaignStructure={campaignStructure}
-              characters={characters}
-              activeCharacter={activeCharacter}
-              setActiveCharacter={setActiveCharacter}
-              mechanicsVisibility={mechanicsVisibility}
-              setMechanicsVisibility={setMechanicsVisibility}
-              onOpenStory={() => setIsStoryOpen(true)}
-              onUndo={onUndo}
-              canUndo={canUndo}
-              onRegenerateStoryline={onRegenerateStoryline}
-              currentUser={currentUser}
-              sessionStatus={sessionStatus}
-              onUpdateStatus={onUpdateStatus}
-              onConfirmEndCampaign={onConfirmEndCampaign}
-              {...ttsProps}
-              onPlay={handlePlayStory} // Override onPlay for this component
-            />
+          {needsNextSession ? (
+            <Card className="m-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><PartyPopper/> Session Complete!</CardTitle>
+                <CardDescription>Ready to see what happens next?</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">The AI is ready to generate the next set of story beats for your campaign based on how this session concluded.</p>
+              </CardContent>
+              <CardFooter>
+                 <Button className="w-full">
+                    <Wand2 className="mr-2 h-4 w-4"/>
+                    Generate Next Session
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+             <GameControls
+                messages={messages}
+                onSendMessage={onSendMessage}
+                isLoading={isLoading}
+                gameData={gameData}
+                worldState={worldState}
+                campaignStructure={campaignStructure}
+                characters={characters}
+                activeCharacter={activeCharacter}
+                setActiveCharacter={setActiveCharacter}
+                mechanicsVisibility={mechanicsVisibility}
+                setMechanicsVisibility={setMechanicsVisibility}
+                onOpenStory={() => setIsStoryOpen(true)}
+                onUndo={onUndo}
+                canUndo={canUndo}
+                onRegenerateStoryline={onRegenerateStoryline}
+                currentUser={currentUser}
+                sessionStatus={sessionStatus}
+                onUpdateStatus={onUpdateStatus}
+                onConfirmEndCampaign={onConfirmEndCampaign}
+                onConfirmEndSession={onConfirmEndSession}
+                {...ttsProps}
+                onPlay={handlePlayStory} // Override onPlay for this component
+              />
+          )}
       </div>
     </div>
   );

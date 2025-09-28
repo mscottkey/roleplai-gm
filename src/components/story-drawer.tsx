@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -44,6 +45,7 @@ import {
     PauseCircle,
     Power,
     PowerOff,
+    DoorClosed,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { CostEstimator } from "./cost-estimator";
@@ -78,6 +80,7 @@ type StoryDrawerProps = {
     sessionStatus: SessionStatus;
     onUpdateStatus: (status: SessionStatus) => void;
     onConfirmEndCampaign: () => void;
+    onConfirmEndSession: () => void;
 };
 
 const getSkillDisplay = (rank: number) => {
@@ -105,6 +108,7 @@ export function StoryDrawer({
     sessionStatus,
     onUpdateStatus,
     onConfirmEndCampaign,
+    onConfirmEndSession,
 }: StoryDrawerProps) {
     const { characters, setting, tone, playMode } = gameData;
     const { knownPlaces, knownFactions, recentEvents } = worldState ?? {};
@@ -319,6 +323,10 @@ export function StoryDrawer({
                       <div className="space-y-4">
                           <h4 className="font-medium text-foreground">Danger Zone</h4>
                           <div className="flex flex-col gap-2">
+                            <Button variant="secondary" className="w-full" onClick={onConfirmEndSession} disabled={isLoading || sessionStatus === 'finished'}>
+                                <DoorClosed className="mr-2 h-4 w-4" />
+                                End Current Session
+                            </Button>
                             <Button variant="outline" className="w-full" onClick={() => setIsAlertOpen(true)} disabled={isLoading || sessionStatus === 'finished'}>
                                 {isLoading ? (
                                     <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />
@@ -332,7 +340,7 @@ export function StoryDrawer({
                                 End Campaign
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground">Regenerate the storyline if you get stuck. End the campaign when your story is complete.</p>
+                          <p className="text-xs text-muted-foreground">End the current session, regenerate the entire plot, or end the campaign permanently.</p>
                       </div>
                   </AccordionContent>
                 </AccordionItem>

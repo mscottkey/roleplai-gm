@@ -29,6 +29,8 @@ import {
     generateCampaignNodes 
 } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
+import { generateSessionBeats } from "@/ai/flows/generate-session-beats";
+
 import type { 
     CampaignCore, 
     Faction, 
@@ -37,7 +39,9 @@ import type {
     GenerateFactionsInput, 
     GenerateNodesInput, 
     GenerateResolutionInput,
-    GenerateCampaignCoreInput
+    GenerateCampaignCoreInput,
+    StoryBeat,
+    GenerateSessionBeatsInput
 } from '@/ai/schemas/campaign-structure-schemas';
 import type { AICharacter } from "@/ai/schemas/generate-character-schemas";
 
@@ -145,7 +149,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         connections: [],
       },
       settingCategory: settingCategory,
-      storyProgression: null,
+      sessionProgress: null,
     };
     
     const welcomeMessageText = `**Welcome to ${newGame.name}!**\n\nReview the story summary, then continue to create your character(s).`;
@@ -352,6 +356,15 @@ export async function generateCampaignResolutionAction(input: GenerateResolution
     }
 }
 
+export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string): Promise<StoryBeat[]> {
+    try {
+        const { output } = await generateSessionBeats(input);
+        return output;
+    } catch (e: any) {
+        throw handleAIError(e, 'Failed to generate session beats');
+    }
+}
+
 
 // NON-AI Actions below.
 export async function saveCampaignStructure(gameId: string, campaign: CampaignStructure): Promise<{ success: boolean; message?: string }> {
@@ -542,6 +555,37 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     }
 }
 
+export async function endCurrentSession(gameId: string, endType: 'natural' | 'interrupted'): Promise<{ success: boolean; message?: string }> {
+    if (!gameId) {
+        return { success: false, message: "Game ID is required." };
+    }
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+
+        const gameDoc = await getDoc(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found.");
+        const gameData = gameDoc.data() as GameSession;
+
+        const currentProgress = gameData.worldState.sessionProgress;
+        
+        const updates: Record<string, any> = {
+            'worldState.sessionProgress.sessionComplete': true,
+            'worldState.sessionProgress.readyForNextSession': true,
+            'worldState.sessionProgress.interruptedMidBeat': endType === 'interrupted',
+        };
+
+        await updateDoc(gameRef, updates);
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error in endCurrentSession action:", error);
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message };
+    }
+}
     
 
     
+

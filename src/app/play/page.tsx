@@ -1,4 +1,5 @@
 
+
       
 'use client';
 
@@ -35,6 +36,8 @@ import {
   createCharacter,
   classifyInput,
   classifySetting,
+  generateSessionBeatsAction,
+  endCurrentSession,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -269,6 +272,8 @@ export default function RoleplAIGMPage() {
   
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [endCampaignConfirmation, setEndCampaignConfirmation] = useState(false);
+  const [sessionEnding, setSessionEnding] = useState(false);
+  const [sessionEndType, setSessionEndType] = useState<'natural' | 'interrupted' | null>(null);
 
   const { toast } = useToast();
 
@@ -620,99 +625,80 @@ The stage is set. What do you do?
   }, [activeGameId, gameData, worldState, toast]);
 
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
-    if (!activeGameId || !gameData || !worldState) return;
-  
+    if (!activeGameId || !gameData || !worldState || !user) return;
+
     if (finalCharacters.length === 0) {
       toast({ variant: 'destructive', title: 'Empty Party', description: 'You must have at least one character to start the game.' });
       return;
     }
-  
-    if (finalCharacters.some((c) => !c.playerName.trim())) {
+    if (finalCharacters.some(c => !c.playerName.trim())) {
       toast({ variant: 'destructive', title: 'Player Names Required', description: 'All characters must have a player name before starting.' });
       return;
     }
-  
-    if (gameData.playMode === 'remote' && finalCharacters.some((c) => !c.playerId)) {
+    if (gameData.playMode === 'remote' && finalCharacters.some(c => !c.playerId)) {
       toast({ variant: 'destructive', title: 'Unclaimed Characters', description: 'All characters must be claimed by a player.' });
       return;
     }
-  
-    setIsLoading(true);
-  
-    const plainCharacters: Character[] = finalCharacters.map((c) => ({
-      id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
-      archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
-    }));
 
-    let coreConcepts: CampaignCore;
-    let factions: Faction[];
-    let nodes: Node[];
-    let resolution: CampaignResolution;
-  
-    // AI Generation Step
+    setIsLoading(true);
+
+    let campaignData: CampaignStructure;
+    let beats: any[];
+
     try {
-      await updateDoc(doc(getFirestore(), 'games', activeGameId), {
-        'gameData.characters': plainCharacters, 'worldState.characters': plainCharacters,
-        activeCharacterId: finalCharacters[0].id,
-      });
-  
-      const charactersForAI: AICharacter[] = plainCharacters.map((c) => ({
+      const db = getFirestore();
+      const campaignDocRef = doc(db, 'games', activeGameId, 'campaign', 'data');
+      const gameDocRef = doc(db, 'games', activeGameId);
+
+      const plainCharacters: Character[] = finalCharacters.map(c => ({
+        id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
+        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
+      }));
+
+      const charactersForAI: AICharacter[] = plainCharacters.map(c => ({
         id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName,
         archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats,
       }));
+
+      setGenerationProgress({ current: 1, total: 5, step: 'Considering the threads of fate...' });
+      const coreConcepts = await generateCampaignCoreAction({ setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+
+      setGenerationProgress({ current: 2, total: 5, step: 'Populating the world with friends and foes...' });
+      const factions = await generateCampaignFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+
+      setGenerationProgress({ current: 3, total: 5, step: 'Erecting monoliths and digging dungeons...' });
+      const nodes = await generateCampaignNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+
+      setGenerationProgress({ current: 4, total: 5, step: 'Plotting the ultimate conclusion...' });
+      const resolution = await generateCampaignResolutionAction({ ...coreConcepts, factions, nodes, setting: gameData.setting, tone: gameData.tone, characters: charactersForAI, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
+
+      campaignData = { campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects, factions, nodes, resolution, currentSessionBeats: [] };
+
+      const initialNodeStates: Record<string, any> = {};
+      nodes.forEach(node => { initialNodeStates[node.id] = { discoveryLevel: node.isStartingNode ? 'visited' : 'unknown', playerKnowledge: [], revealedSecrets: [] }; });
+
+      const tempWorldStateForBeats = {
+        ...worldState,
+        summary: `The adventure begins with the party facing the situation at '${nodes.find(n => n.isStartingNode)?.title || nodes[0].title}'.`,
+        storyOutline: nodes.map(n => n.title),
+        characters: plainCharacters,
+        recentEvents: ['The adventure is about to begin.'],
+        storyAspects: coreConcepts.campaignAspects,
+        factions,
+        resolution,
+        nodeStates: initialNodeStates,
+        turn: 0,
+      };
+
+      setGenerationProgress({ current: 5, total: 5, step: 'Planning the first session...' });
+      beats = await generateSessionBeatsAction({ ...campaignData, currentWorldState: tempWorldStateForBeats, sessionNumber: 1 }, activeGameId);
+      campaignData.currentSessionBeats = beats;
+
+      await saveCampaignStructure(activeGameId, campaignData);
       
-      const baseInput = { 
-        setting: gameData.setting, 
-        tone: gameData.tone, 
-        characters: charactersForAI,
-        settingCategory: worldState.settingCategory || 'generic'
-      };
-  
-      setGenerationProgress({ current: 1, total: 4, step: 'Considering the threads of fate...' });
-      coreConcepts = await generateCampaignCoreAction(baseInput, activeGameId);
-  
-      setGenerationProgress({ current: 2, total: 4, step: 'Populating the world with friends and foes...' });
-      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts }, activeGameId);
-  
-      setGenerationProgress({ current: 3, total: 4, step: 'Erecting monoliths and digging dungeons...' });
-      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions }, activeGameId);
-  
-      setGenerationProgress({ current: 4, total: 4, step: 'Plotting the ultimate conclusion...' });
-      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes }, activeGameId);
-    } catch (error) {
-      const err = error as Error;
-      const currentStep = generationProgress?.step || 'an unknown step';
-      console.error(`Failed during world generation at step: ${currentStep}`, err);
-      toast({
-          variant: 'destructive',
-          title: `World Generation Failed`,
-          description: `The process failed at: "${currentStep}". Error: ${err.message}`,
-          duration: 10000,
-      });
-      setGenerationProgress(null);
-      setIsLoading(false);
-      return; // Exit the function
-    }
+      gtag.event({ action: 'build_world', category: 'game_setup', label: worldState.settingCategory, value: finalCharacters.length });
 
-    // Finalization Step
-    try {
-      const finalCampaignStructure: CampaignStructure = {
-        campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects,
-        factions, nodes, resolution,
-      };
-  
-      const saveResult = await saveCampaignStructure(activeGameId, finalCampaignStructure);
-      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
-
-      // Fire Google Analytics event
-      gtag.event({
-        action: 'build_world',
-        category: 'game_setup',
-        label: worldState.settingCategory,
-        value: finalCharacters.length,
-      });
-  
-      const startingNode = nodes.find((n) => n.isStartingNode) || nodes[0];
+      const startingNode = nodes.find(n => n.isStartingNode) || nodes[0];
       const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
       const storyboardContent = `
 # Welcome to ${gameData.name}
@@ -732,41 +718,53 @@ ${gameData.difficulty}
 
 ${startingNode ? startingNode.description : gameData.setting}
 `.trim();
-  
-      const knownPlaces = nodes.map((n) => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
-      const startingPlace = knownPlaces.find((p) => p.name === startingNode.title)!;
-      const initialNodeStates: Record<string, any> = {};
-      nodes.forEach(node => {
-        initialNodeStates[node.id] = { discoveryLevel: node.isStartingNode ? 'visited' : 'unknown', playerKnowledge: [], revealedSecrets: [] };
+      
+      const knownPlaces = nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
+      const startingPlace = knownPlaces.find(p => p.name === startingNode.title)!;
+
+      const sessionProgress = {
+        currentSession: 1,
+        currentBeat: 0,
+        beatsCompleted: 0,
+        beatsPlanned: beats.length,
+        sessionComplete: false,
+        interruptedMidBeat: false,
+        readyForNextSession: false,
+      };
+
+      await updateDoc(gameDocRef, {
+        'gameData.characters': plainCharacters,
+        'worldState.characters': plainCharacters,
+        'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
+        'worldState.storyOutline': nodes.map(n => n.title),
+        'worldState.recentEvents': ['The adventure has just begun.'],
+        'worldState.storyAspects': coreConcepts.campaignAspects,
+        'worldState.places': knownPlaces,
+        'worldState.knownPlaces': [startingPlace],
+        'worldState.knownFactions': [],
+        'worldState.nodeStates': initialNodeStates,
+        'worldState.resolution': resolution,
+        'worldState.factions': factions,
+        'worldState.sessionProgress': sessionProgress,
+        activeCharacterId: finalCharacters[0].id,
+        messages: [welcomeMessageForChat],
+        storyMessages: [{ content: storyboardContent }],
+        previousWorldState: null,
+        step: 'play',
       });
-  
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: {
-          messages: [welcomeMessageForChat], storyMessages: [{ content: storyboardContent }],
-          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-          'worldState.storyOutline': nodes.map((n) => n.title), 'worldState.recentEvents': ['The adventure has just begun.'],
-          'worldState.storyAspects': coreConcepts.campaignAspects, 'worldState.places': knownPlaces,
-          'worldState.knownPlaces': [startingPlace], 'worldState.knownFactions': [],
-          'worldState.nodeStates': initialNodeStates, 'worldState.resolution': resolution,
-          'worldState.factions': factions,
-          previousWorldState: null, step: 'play',
-        },
-      });
+
     } catch (error) {
       const err = error as Error;
-      console.error('Failed during final save/update state:', err);
-      toast({
-          variant: 'destructive',
-          title: 'Setup Finalization Failed',
-          description: `Could not save the generated world. Error: ${err.message}`,
-          duration: 10000,
-      });
+      const currentStep = generationProgress?.step || 'an unknown step';
+      console.error(`Failed during world generation at step: ${currentStep}`, err);
+      toast({ variant: 'destructive', title: `World Generation Failed`, description: `The process failed at: "${currentStep}". Error: ${err.message}`, duration: 10000 });
+      setIsLoading(false);
+      return;
     } finally {
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, worldState, toast]);
+  }, [activeGameId, gameData, worldState, user, toast, generationProgress]);
 
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
@@ -1080,6 +1078,18 @@ ${startingNode ? startingNode.description : gameData.setting}
     if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
 
+  const handleEndSession = async (type: 'natural' | 'interrupted') => {
+    if (!activeGameId) return;
+    setSessionEnding(false);
+    const result = await endCurrentSession(gameId, type);
+    if (result.success) {
+      toast({ title: 'Session Ended', description: `Your session has been marked as complete.`});
+    } else {
+      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+  };
+
+
   const handleHandoffConfirm = async () => {
     if (!activeGameId || !nextCharacter || !worldState) return;
 
@@ -1228,6 +1238,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             sessionStatus={sessionStatus}
             onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
+            onConfirmEndSession={() => setSessionEnding(true)}
             {...ttsProps}
           />
         );
@@ -1364,6 +1375,28 @@ ${startingNode ? startingNode.description : gameData.setting}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {sessionEnding && (
+        <AlertDialog open onOpenChange={setSessionEnding}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>How are you ending the session?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This helps the AI prepare for the next session.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="sm:flex-col sm:space-y-2">
+                    <AlertDialogAction onClick={() => handleEndSession('natural')}>
+                        This is a good stopping point.
+                    </AlertDialogAction>
+                    <AlertDialogAction onClick={() => handleEndSession('interrupted')} variant="destructive">
+                        We have to stop unexpectedly.
+                    </AlertDialogAction>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                </AlertDialogFooter>
+            </AlertDialogContent>
         </AlertDialog>
       )}
 
