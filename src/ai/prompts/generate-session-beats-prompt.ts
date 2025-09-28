@@ -1,3 +1,4 @@
+
 export const generateSessionBeatsPromptText = `You are a master storyteller and tabletop RPG game master. Your task is to plan the next game session by creating a sequence of 12-18 flexible "story beats" designed for a 1-3 hour session that can end gracefully at multiple points.
 
 ## CAMPAIGN OVERVIEW
@@ -42,8 +43,8 @@ Based on all the information above, generate a sequence of 12-18 story beats for
 2.  **Player-Driven:** Review the "Recent Events". What did the players focus on? What did they ignore? Generate beats that follow their demonstrated priorities and show the consequences of their inaction (e.g., by advancing a faction clock they ignored).
 3.  **Graceful Endings:** Design the beats so that beats 6, 9, 12, and 15 are satisfying potential stopping points. They should resolve a minor question or situation, while still providing a clear hook for what comes next.
 4.  **Flexibility:** Mark at least 3-5 beats as 'isFlexible: true'. These are beats that can be easily skipped or modified if the session runs short on time, such as optional character-focused side stories or exploratory scenes that aren't critical to the main plot.
-5.  **Pacing and Urgency:** If faction clocks are high or victory conditions are nearly met, the pacing should be faster and more urgent, focusing on `confrontation` and `revelation` beats. If the campaign is early, allow for more `exploration` and `investigation`.
-6.  **Faction Advancement:** A faction's progress is a key driver of tension. Ensure `expectedFactionAdvancement` is used to show the world moving in the background, especially if players are not directly engaging with that faction's plans.
+5.  **Pacing and Urgency:** If faction clocks are high or victory conditions are nearly met, the pacing should be faster and more urgent, focusing on \`confrontation\` and \`revelation\` beats. If the campaign is early, allow for more \`exploration\` and \`investigation\`.
+6.  **Faction Advancement:** A faction's progress is a key driver of tension. Ensure \`expectedFactionAdvancement\` is used to show the world moving in the background, especially if players are not directly engaging with that faction's plans.
 
 ### For each beat, you must provide:
 -   \`beat\`: The sequence number (1, 2, 3, ...).
