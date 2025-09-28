@@ -19,6 +19,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { ShareGameInvite } from './share-game-invite';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { Badge } from './ui/badge';
+import { Switch } from './ui/switch';
 
 type CharacterCreationFormProps = {
   gameData: GameSession['gameData'];
@@ -217,24 +218,29 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   onKickPlayer,
 }: CharacterCreationFormProps) {
   const formId = useId();
-  // This state now holds only the manually added local slots
   const [localSlots, setLocalSlots] = useState<Player[]>([]);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   
   const isHost = currentUser?.uid === gameData.userId;
+  const isLocalGame = gameData.playMode === 'local';
+  
+  // New state for toggling local play style
+  const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
 
-  // Combine remote players from props and local slots from state
-  const allPlayerSlots = [...players, ...localSlots];
+  const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : [...players, ...localSlots];
 
   useEffect(() => {
-    // If we're in local mode and have no slots, add one for the host
-    if (gameData.playMode === 'local' && players.length === 0 && localSlots.length === 0 && currentUser) {
+    // If we're in local mode and hot-seat is on, add a default slot for the host if none exist
+    if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
       const hostPlayerName = userPreferences?.displayName || currentUser.email?.split('@')[0] || 'Player 1';
       addNewSlot(hostPlayerName);
+    } else if (isLocalGame && !isHotSeatMode) {
+        // If we toggle hot-seat off, clear the manual local slots
+        setLocalSlots([]);
     }
-  }, [gameData.playMode, players, localSlots, currentUser, userPreferences]);
+  }, [isLocalGame, isHotSeatMode, localSlots.length, currentUser, userPreferences]);
 
 
   const handleFinalize = () => {
@@ -345,7 +351,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                                 isCustom: false,
                                 playerName: p.name,
                                 playerId: p.id,
-                                isMobile: p.isMobile,
                             }
                         }
                     };
@@ -366,8 +371,11 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   
   const allSlotsHaveCharacters = allPlayerSlots.length > 0 && allPlayerSlots.every(p => p.characterData.generatedCharacter);
   const slotsWithoutCharacters = allPlayerSlots.filter(p => !p.characterData.generatedCharacter).length;
-  const allRemotePlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready');
-  const readyToFinalize = (gameData.playMode === 'remote' && allRemotePlayersReady) || (gameData.playMode === 'local' && allSlotsHaveCharacters);
+  
+  const allRemotePlayersReady = players.length > 0 && players.every(p => p.characterCreationStatus === 'ready' || p.characterData.generatedCharacter);
+
+  const readyToFinalize = (!isLocalGame && allRemotePlayersReady) || (isLocalGame && isHotSeatMode && allSlotsHaveCharacters) || (isLocalGame && !isHotSeatMode && allRemotePlayersReady);
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-full w-full p-4 bg-background">
@@ -379,12 +387,25 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardTitle>
           <CardDescription className="pt-2">
              {isHost 
-                ? "Add slots for local players or share the invite link for mobile players. Once everyone is ready, generate the characters."
+                ? "Manage your party below. Players can join via the invite link."
                 : "Waiting for the host to start the game..."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {activeGameId && isHost && <ShareGameInvite gameId={activeGameId} />}
+          {isHost && (
+            <div className="flex flex-col items-center gap-4">
+                {isLocalGame && (
+                    <div className="flex items-center space-x-2">
+                        <Switch id="hotseat-mode" checked={isHotSeatMode} onCheckedChange={setIsHotSeatMode} />
+                        <Label htmlFor="hotseat-mode">Enable Hot-Seat Mode (Manual Entry)</Label>
+                    </div>
+                )}
+                {(!isLocalGame || (isLocalGame && !isHotSeatMode)) && activeGameId && (
+                     <ShareGameInvite gameId={activeGameId} />
+                )}
+            </div>
+          )}
+          
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {allPlayerSlots.map((player) => (
@@ -395,10 +416,10 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
                       onKickPlayer={onKickPlayer}
                       onUpdateSlot={updateLocalSlot}
                       onRemoveSlot={removeLocalSlot}
-                      isLocal={!player.isMobile}
+                      isLocal={isHotSeatMode && !player.isMobile}
                   />
               ))}
-              {isHost && (
+              {isHost && isLocalGame && isHotSeatMode && (
                 <Button variant="outline" type="button" onClick={() => addNewSlot()} className="w-full border-dashed h-full min-h-64">
                     <UserPlus className="mr-2 h-4 w-4" /> Add Local Player
                 </Button>
