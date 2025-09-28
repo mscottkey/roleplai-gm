@@ -109,16 +109,3 @@ export async function classifySetting(input: ClassifySettingInput): Promise<Clas
     };
   }
 }
-
-// Define the flow for the Genkit developer UI
-ai.defineFlow(
-  {
-    name: 'classifySettingFlow',
-    inputSchema: ClassifySettingInputSchema,
-    outputSchema: ClassifySettingOutputSchema,
-  },
-  async (input) => {
-    const { output } = await classifySetting(input);
-    return output;
-  }
-);
