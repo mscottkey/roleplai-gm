@@ -16,11 +16,11 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { ShareGameInvite } from './share-game-invite';
 import { QRCodeDisplay } from './qr-code-display';
 import type { UserPreferences } from '@/app/actions/user-preferences';
 import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
+import { ShareGameInvite } from './share-game-invite';
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -221,37 +221,42 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
 }: CharacterCreationFormProps) {
   const formId = useId();
   const [localSlots, setLocalSlots] = useState<Player[]>([]);
+  const isLocalGame = gameData.playMode === 'local';
+  const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   
   const isHost = currentUser?.uid === hostId;
-  const isLocalGame = gameData.playMode === 'local';
   
-  const [isHotSeatMode, setIsHotSeatMode] = useState(isLocalGame);
-
   const addNewSlot = useCallback((playerName: string = '', pronouns: string = 'Any') => {
-    const newId = `${formId}-slot-${Date.now()}`;
-    const newSlot: Player = {
-      id: newId,
-      name: playerName || `Player ${localSlots.length + 1}`,
-      isHost: false,
-      isMobile: false,
-      connectionStatus: 'connected',
-      characterCreationStatus: 'creating',
-      characterData: {
-        playerName: playerName || `Player ${localSlots.length + 1}`,
-        isApproved: true,
-        pronouns,
-      },
-      joinedAt: new Date() as any,
-      lastActive: new Date() as any,
-    };
-    setLocalSlots(slots => [...slots, newSlot]);
-  }, [formId, localSlots.length]);
+    // Use the updater function for setLocalSlots to get the latest state
+    // and avoid depending on `localSlots.length` in the dependency array.
+    setLocalSlots(currentSlots => {
+      const newId = `${formId}-slot-${Date.now()}-${currentSlots.length}`;
+      const newPlayerName = playerName || `Player ${currentSlots.length + 1}`;
+      const newSlot: Player = {
+        id: newId,
+        name: newPlayerName,
+        isHost: false,
+        isMobile: false,
+        connectionStatus: 'connected',
+        characterCreationStatus: 'creating',
+        characterData: {
+          playerName: newPlayerName,
+          isApproved: true,
+          pronouns: pronouns,
+        },
+        joinedAt: new Date() as any,
+        lastActive: new Date() as any,
+      };
+      return [...currentSlots, newSlot];
+    });
+  }, [formId]);
 
-
+  // Effect to manage the initial state of localSlots
   useEffect(() => {
+    // This effect should only add an initial slot, and only once.
     if (isLocalGame && isHotSeatMode && localSlots.length === 0 && currentUser) {
       const hostPlayerName = (userPreferences?.displayName && userPreferences.displayName.trim() !== '') 
         ? userPreferences.displayName 
@@ -262,14 +267,19 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
         : 'Any';
 
       addNewSlot(hostPlayerName, hostPronouns);
-    } else if (isLocalGame && !isHotSeatMode) {
-        setLocalSlots([]);
+    } 
+    // This effect should clear the local slots if we switch away from hot-seat mode.
+    else if (isLocalGame && !isHotSeatMode) {
+        if (localSlots.length > 0) {
+            setLocalSlots([]);
+        }
     }
-  }, [isLocalGame, isHotSeatMode, localSlots.length, currentUser, userPreferences, addNewSlot]);
+  // The dependency array is crucial. We only want this to run when the modes or user change,
+  // NOT every time localSlots itself changes. This prevents the race condition.
+  }, [isLocalGame, isHotSeatMode, currentUser, userPreferences, addNewSlot]);
 
 
   const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
-
 
   const handleFinalize = () => {
     const finalCharacters = allPlayerSlots
@@ -373,7 +383,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
         } else {
           // In lobby mode, the parent component handles state via Firestore listeners.
           // We can just trust the suggestions were generated and will appear.
-          // In a more complex setup, you might write these to Firestore here.
         }
 
     } catch (error) {
@@ -404,7 +413,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
           </CardTitle>
           <CardDescription className="pt-2">
              {isHost 
-                ? "Manage your party below. Players can join via the invite link."
+                ? "Manage your party below. Players can join via the invite link or QR code."
                 : "Waiting for the host to start the game..."}
           </CardDescription>
         </CardHeader>
