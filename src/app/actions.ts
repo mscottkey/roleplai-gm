@@ -242,7 +242,7 @@ export async function getAnswerToQuestion(input: AskQuestionInput, gameId: strin
 
 export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string): Promise<NarratePlayerActionsOutput> {
     try {
-        const output: NarratePlayerActionsOutput = await narratePlayerActionsFlow(input);
+        const { output }: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to get GM acknowledgement');
@@ -251,7 +251,7 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
     try {
-        const output: AssessConsequencesOutput = await assessConsequencesFlow(input);
+        const { output }: AssessConsequencesResponse = await assessConsequencesFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to assess consequences');
@@ -260,7 +260,7 @@ export async function checkConsequences(input: AssessConsequencesInput, gameId: 
 
 export async function generateRecap(input: GenerateRecapInput, gameId: string): Promise<GenerateRecapOutput> {
     try {
-        const output: GenerateRecapOutput = await generateRecapFlow(input);
+        const { output }: GenerateRecapResponse = await generateRecapFlow(input);
         return output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to generate recap');
@@ -283,8 +283,8 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
 
 export async function unifiedClassify(input: UnifiedClassifyInput, gameId: string): Promise<UnifiedClassifyOutput> {
     try {
-        const output: UnifiedClassifyOutput = await unifiedClassifyFlow(input);
-        return output;
+        const response = await unifiedClassifyFlow(input);
+        return response.output;
     } catch (e: any) {
         throw handleAIError(e, 'Failed to classify input');
     }
@@ -516,3 +516,5 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
         return { success: false, message };
     }
 }
+
+    
