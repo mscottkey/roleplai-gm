@@ -29,9 +29,6 @@ const generateSessionBeatsPrompt = ai.definePrompt({
     format: 'json',
     schema: z.array(StoryBeatSchema),
   },
-  config: {
-    retries: 2,
-  },
 });
 
 /**
