@@ -212,6 +212,7 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
+        
         if (result.model && result.usage) {
             await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         }
