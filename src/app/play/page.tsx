@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -16,7 +15,6 @@ import {
   startNewGame,
   continueStory,
   updateWorldState,
-  checkConsequences,
   undoLastAction,
   generateRecap,
   deleteGame,
@@ -26,7 +24,10 @@ import {
   regenerateField,
   narratePlayerActions,
   getAnswerToQuestion,
-  updateSessionStatus,
+  endCurrentSessionAction,
+  startNextSessionAction,
+  kickPlayerAction,
+  checkConsequences,
   generateCampaignCoreAction,
   generateCampaignFactionsAction,
   generateCampaignNodesAction,
@@ -34,10 +35,8 @@ import {
   createCharacter,
   classifyInput,
   classifySetting,
+  updateSessionStatus,
   generateSessionBeatsAction,
-  endCurrentSessionAction,
-  startNextSessionAction,
-  kickPlayerAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -596,11 +595,13 @@ export default function RoleplAIGMPage() {
           userId: user.uid,
           updates: {
               'gameData.campaignGenerated': true,
-              messages: [newSystemMessage],
+              messages: [...messages, newSystemMessage],
               storyMessages: [welcomeStoryMessage],
               'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
               'worldState.currentScene.name': startingNode?.title || 'Starting Point',
               'worldState.currentScene.description': startingNode?.description || 'The scene is not yet described.',
+              'worldState.recentEvents': ["The adventure has been reset with a new storyline."],
+              'worldState.turn': 0,
           }
       });
 
@@ -614,7 +615,7 @@ export default function RoleplAIGMPage() {
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, worldState, user, toast]);
+  }, [activeGameId, gameData, worldState, user, toast, messages]);
 
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData || !worldState || !user) return;
@@ -718,7 +719,7 @@ export default function RoleplAIGMPage() {
   }, [activeGameId, gameData, worldState, user, toast, generationProgress, messages]);
 
   const handleUndo = useCallback(async () => {
-    if (!activeGameId) {
+    if (!activeGameId || !user) {
       toast({ variant: 'destructive', title: 'Undo Failed', description: 'No active game selected.' });
       return;
     }
@@ -737,7 +738,7 @@ export default function RoleplAIGMPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeGameId, toast]);
+  }, [activeGameId, user, toast]);
   
   const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
     if (!activeGameId || !gameData || !user) return;
@@ -795,63 +796,6 @@ export default function RoleplAIGMPage() {
       const err = error as Error;
       toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
-  };
-
-  if (step === 'loading') {
-    return (
-      <div className="flex flex-col h-screen w-screen items-center justify-center bg-background gap-4">
-        <BrandedLoadingSpinner className="w-48 h-48" />
-        <p className="text-muted-foreground text-sm animate-pulse">Loading Session...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const handleCreateGame = async (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to create a game.' });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      gtag.event({
-        action: 'create_game',
-        category: 'game_setup',
-        label: source,
-        value: playMode === 'local' ? 1 : 2,
-      });
-      const { gameId, newGame, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
-
-      if (warningMessage) {
-        toast({ title: 'Request Modified', description: warningMessage, duration: 6000 });
-      }
-
-      router.push(`/play?game=${gameId}`);
-      setActiveGameId(gameId);
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to start new game:', err);
-      toast({ variant: 'destructive', title: 'Failed to Start Game', description: err.message || 'An unknown error occurred.' });
-      setStep('create');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGenerateCharacters = (input: GenerateCharacterInput): Promise<GenerateCharacterOutput> => {
-    if (!activeGameId || !user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No active game selected.' });
-        return Promise.reject(new Error('No active game selected.'));
-    }
-    gtag.event({
-        action: 'generate_characters',
-        category: 'game_setup',
-        label: gameData?.playMode || 'local',
-        value: input.characterSlots.length,
-    });
-    return createCharacter(input, activeGameId, user.uid);
   };
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {

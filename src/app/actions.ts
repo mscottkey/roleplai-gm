@@ -1,5 +1,4 @@
 
-
 'use server';
 
 // AI FLOW IMPORTS
@@ -22,7 +21,7 @@ import { generateNextSessionBeats, generateSessionBeats } from "@/ai/flows/gener
 
 // OTHER ACTION IMPORTS
 import { logAiUsage } from './actions/admin-actions';
-import { updateUserPreferences as updateUserPreferencesAction, type UserPreferences } from './actions/user-preferences';
+import { updateUserPreferences, type UserPreferences } from './actions/user-preferences';
 
 
 // TYPE IMPORTS
@@ -85,7 +84,9 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let sanitizeResult: SanitizeIpResponse;
   try {
     sanitizeResult = await sanitizeIpFlow({ request: input.request });
-    await logAiUsage({ userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
+    if (sanitizeResult.model && sanitizeResult.usage) {
+        await logAiUsage({ userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
+    }
   } catch (e: any) {
     throw handleAIError(e, 'sanitize_request');
   }
@@ -94,7 +95,9 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let gameGenResult: GenerateNewGameResponse;
   try {
     gameGenResult = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
-    await logAiUsage({ userId, gameId: null, flowType: 'generate_new_game', model: gameGenResult.model, usage: gameGenResult.usage });
+    if (gameGenResult.model && gameGenResult.usage) {
+        await logAiUsage({ userId, gameId: null, flowType: 'generate_new_game', model: gameGenResult.model, usage: gameGenResult.usage });
+    }
   } catch(e: any) {
     throw handleAIError(e, 'generate_new_game');
   }
@@ -172,7 +175,9 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   const flowInput = { ...rest, worldState, character };
   try {
     const result: ResolveActionResponse = await resolveActionFlow(flowInput);
-    await logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
+    if (result.model && result.usage) {
+        await logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
+    }
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'resolve_action');
@@ -182,7 +187,9 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function getAnswerToQuestion(input: AskQuestionInput, gameId: string, userId: string): Promise<AskQuestionOutput> {
   try {
     const result: AskQuestionResponse = await askQuestionFlow(input);
-    await logAiUsage({ userId, gameId, flowType: 'ask_question', model: result.model, usage: result.usage });
+    if (result.model && result.usage) {
+        await logAiUsage({ userId, gameId, flowType: 'ask_question', model: result.model, usage: result.usage });
+    }
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'ask_question');
@@ -192,7 +199,9 @@ export async function getAnswerToQuestion(input: AskQuestionInput, gameId: strin
 export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string, userId: string): Promise<NarratePlayerActionsOutput> {
     try {
         const result: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'narrate_action', model: result.model, usage: result.usage });
+        if (result.model && result.usage) {
+            await logAiUsage({ userId, gameId, flowType: 'narrate_action', model: result.model, usage: result.usage });
+        }
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'narrate_action');
@@ -203,7 +212,9 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
+        if (result.model && result.usage) {
+            await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
+        }
 
         const app = await getServerApp();
         const db = getFirestore(app);
@@ -244,32 +255,42 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
 
 export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
     const result = await generateCampaignCore(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model!, usage: result.usage });
+    if (result.model && result.usage) {
+      await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
 export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
     const result = await generateCampaignFactions(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model!, usage: result.usage });
+    if (result.model && result.usage) {
+      await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
 export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
     const result = await generateCampaignNodes(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model!, usage: result.usage });
+    if (result.model && result.usage) {
+      await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
 export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
     const result = await generateCampaignResolution(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model!, usage: result.usage });
+    if (result.model && result.usage) {
+      await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
 export async function regenerateField(input: RegenerateFieldInput, gameId: string, userId: string): Promise<RegenerateFieldOutput> {
     try {
         const result: RegenerateFieldResponse = await regenerateFieldFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'regenerate_field', model: result.model, usage: result.usage });
+        if (result.model && result.usage) {
+            await logAiUsage({ userId, gameId, flowType: 'regenerate_field', model: result.model, usage: result.usage });
+        }
         return result.output;
     } catch(e: any) {
         throw handleAIError(e, 'regenerate_field');
@@ -302,7 +323,9 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       try {
         const result: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
-        await logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
+        if (result.model && result.usage) {
+            await logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
+        }
         
         await updateDoc(gameRef, { worldState: result.output, previousWorldState: currentWorldState, ...updates });
         return result.output;
@@ -340,6 +363,7 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
         await updateDoc(gameRef, {
             worldState: gameData.previousWorldState,
             previousWorldState: null,
+            // Also revert the last message if applicable
         });
 
         return { success: true };
@@ -353,7 +377,9 @@ export async function undoLastAction(gameId: string): Promise<{ success: boolean
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
-    await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
+    if (result.model && result.usage) {
+        await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
+    }
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');
@@ -414,7 +440,9 @@ export async function renameGame(gameId: string, newName: string): Promise<{ suc
 export async function generateRecap(input: GenerateRecapInput, gameId: string, userId: string): Promise<GenerateRecapOutput> {
     try {
         const result: GenerateRecapResponse = await generateRecapFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_recap', model: result.model, usage: result.usage });
+        if (result.model && result.usage) {
+            await logAiUsage({ userId, gameId, flowType: 'generate_recap', model: result.model, usage: result.usage });
+        }
         return result.output;
     } catch(e: any) {
         throw handleAIError(e, 'generate_recap');
@@ -423,7 +451,9 @@ export async function generateRecap(input: GenerateRecapInput, gameId: string, u
 
 export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string, userId: string): Promise<StoryBeat[]> {
     const result = await generateSessionBeats(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model!, usage: result.usage });
+    if (result.model && result.usage) {
+      await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
@@ -495,19 +525,23 @@ export async function kickPlayerAction(gameId: string, playerId: string): Promis
     return { success: true };
 }
 
-export async function updateUserProfile(userId: string, updates: UserPreferences): Promise<{ success: boolean }> {
-  return updateUserPreferencesAction(userId, updates);
+export async function updateUserProfile(userId: string, updates: UserPreferences): Promise<{ success: boolean; message?: string; }> {
+  return updateUserPreferences(userId, updates);
 }
 
 // CLASSIFICATION ACTIONS
 export async function classifyInput(input: ClassifyInput, userId: string, gameId: string | null): Promise<ClassifyInputOutput> {
     const result: ClassifyInputResponse = await classifyInputFlow(input);
-    await logAiUsage({ userId, gameId, flowType: 'classify_input', model: result.model, usage: result.usage });
+    if (result.model && result.usage) {
+        await logAiUsage({ userId, gameId, flowType: 'classify_input', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
 
 export async function classifySetting(input: ClassifySettingInput, userId: string, gameId: string | null): Promise<ClassifySettingOutput> {
     const result: ClassifySettingResponse = await classifySettingFlow(input);
-    await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: result.model, usage: result.usage });
+    if (result.model && result.usage) {
+        await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: result.model, usage: result.usage });
+    }
     return result.output;
 }
