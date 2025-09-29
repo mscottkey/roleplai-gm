@@ -33,7 +33,7 @@ export const AI_MODEL_COSTS: Record<string, ModelCost> = {
  * @returns The calculated cost in USD, or 0 if the model is not found.
  */
 export function calculateCost(model: string, usage: GenerationUsage): number {
-  const modelKey = model.startsWith('googleai/gemini') ? model.substring('googleai/'.length) : model;
+  const modelKey = model.startsWith('googleai/') ? model.substring('googleai/'.length) : model;
   const modelCosts = AI_MODEL_COSTS[modelKey];
   if (!modelCosts) {
     console.warn(`Cost calculation failed: Model "${model}" (key: "${modelKey}") not found in AI_MODEL_COSTS.`);

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,8 +36,6 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         const db = getFirestore();
 
-        // This is a simplified query and may incur high read costs on large user bases.
-        // In a production environment, you would use a counter managed by Cloud Functions.
         getDocs(collection(db, 'users')).then(snap => setTotalUsers(snap.size));
 
         const gamesQuery = query(collection(db, 'games'), orderBy('createdAt', 'desc'));
@@ -54,14 +51,21 @@ export default function AdminDashboardPage() {
             setLoading(false);
         });
 
-        // Note: The 'aiUsageLogs' collection does not exist with the new telemetry setup.
-        // This table will be empty. It should be replaced with a component that queries
-        // and displays data from BigQuery via a server action.
-        setUsageLogs([]);
+        const usageQuery = query(collection(db, 'aiUsageLogs'), orderBy('createdAt', 'desc'));
+        const usageUnsub = onSnapshot(usageQuery, (snapshot) => {
+            const allLogs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as AiUsageLogWithId));
+            setUsageLogs(allLogs);
+        }, (error) => {
+            console.error("Error fetching AI usage logs:", error);
+        });
 
 
         return () => {
             gamesUnsub();
+            usageUnsub();
         };
     }, []);
     
@@ -120,7 +124,6 @@ export default function AdminDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{usageLogs.length}</div>
-                            <p className="text-xs text-muted-foreground">Manual logs disabled.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -128,15 +131,33 @@ export default function AdminDashboardPage() {
                 <div className="flex-1 overflow-auto p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
                     <Card className="col-span-1 xl:col-span-2 flex flex-col">
                         <CardHeader>
-                            <CardTitle>AI Usage Logs</CardTitle>
+                            <CardTitle>Live AI Usage Logs</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-hidden">
-                             <div className="h-full overflow-auto flex items-center justify-center text-center text-muted-foreground">
-                                <div>
-                                <p>Manual AI logging has been replaced by the Genkit Telemetry exporter.</p>
-                                <p className="text-xs">Data is now available in your project's Cloud Logging and can be routed to BigQuery.</p>
-                                </div>
-                            </div>
+                             <div className="h-full overflow-auto">
+                                <Table>
+                                 <TableHeader>
+                                     <TableRow>
+                                         <TableHead>Flow</TableHead>
+                                         <TableHead>Model</TableHead>
+                                         <TableHead>Tokens</TableHead>
+                                         <TableHead>Cost</TableHead>
+                                         <TableHead>Time</TableHead>
+                                     </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                     {usageLogs.map(log => (
+                                         <TableRow key={log.id}>
+                                             <TableCell className="font-medium text-sm">{log.flowType}</TableCell>
+                                             <TableCell className="text-xs">{log.model.replace('googleai/','')}</TableCell>
+                                             <TableCell className="text-xs">{log.usage?.totalTokens.toLocaleString()}</TableCell>
+                                             <TableCell className="text-xs">${log.cost.toFixed(6)}</TableCell>
+                                             <TableCell className="text-xs">{log.createdAt ? formatDistanceToNow(log.createdAt.toDate(), { addSuffix: true }) : 'N/A'}</TableCell>
+                                         </TableRow>
+                                     ))}
+                                 </TableBody>
+                                </Table>
+                             </div>
                         </CardContent>
                     </Card>
                      <Card className="col-span-1 flex flex-col">
@@ -184,6 +205,3 @@ export default function AdminDashboardPage() {
             </main>
         </div>
     );
-}
-
-    
