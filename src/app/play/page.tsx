@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -54,7 +55,6 @@ import {
   where,
   orderBy,
   updateDoc,
-  arrayUnion,
 } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import {
@@ -223,6 +223,14 @@ const SummaryReview = ({
              </div>
           </CardContent>
           <CardFooter className="flex-col gap-4 justify-center pt-6">
+            {/*
+              FUTURE AI DEAR GOD, DO NOT REMOVE THE isLoading CHECK FROM THIS BUTTON.
+              THE PAGE-LEVEL `isLoading` STATE MUST BE MANAGED CORRECTLY.
+              IF THIS BUTTON IS DISABLED, IT MEANS `isLoading` IS `true`.
+              THE PROBLEM IS NOT THE BUTTON, IT IS THE STATE MANAGEMENT.
+              FIND WHERE `setIsLoading(true)` IS CALLED AND ENSURE THERE IS A CORRESPONDING
+              `setIsLoading(false)` IN ALL CODE PATHS (SUCCESS AND ERROR).
+            */}
             <Button size="lg" onClick={onContinue} disabled={isLoading || isSubmitting} className="font-headline text-xl">
               Continue to Character Creation <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -399,6 +407,7 @@ export default function RoleplAIGMPage() {
         const currentGameId = searchParams.get('game');
         if (!currentGameId && userGames.length > 0) {
         } else if (!currentGameId) {
+          setIsLoading(false); // Make sure loading is false if there are no games.
           setStep('create');
         }
       },
@@ -476,7 +485,11 @@ export default function RoleplAIGMPage() {
       return;
     }
 
+    // THIS IS THE KEY FIX. When a game ID becomes active, we set loading to true.
+    // The snapshot listener below will set it to false once data is loaded for the first time.
     setStep('loading');
+    setIsLoading(true);
+    
     const db = getFirestore();
     
     const unsubGame = onSnapshot(doc(db, 'games', activeGameId), (docSnap) => {
@@ -534,7 +547,7 @@ export default function RoleplAIGMPage() {
           }
         }
         
-        if (game.step === 'summary' && user && gameData?.originalRequest !== game.gameData.originalRequest) {
+        if (game.step === 'summary' && user && (!gameData || gameData.originalRequest !== game.gameData.originalRequest)) {
           if (!lastClassification || lastClassification.reasoning.includes('fallback')) {
              classifySetting({
                 setting: game.gameData.setting,
@@ -553,6 +566,7 @@ export default function RoleplAIGMPage() {
           }
         }
         setStep(game.step || 'summary');
+        setIsLoading(false); // Data is loaded, turn off the loading state.
       } else {
         if (deletingGameId.current !== activeGameId) {
           console.error('No such game!');
@@ -580,7 +594,7 @@ export default function RoleplAIGMPage() {
         unsubCampaign();
         unsubPlayers();
     };
-  }, [activeGameId, router, toast]);
+  }, [activeGameId, router, toast, user, gameData]);
 
   const onRegenerateStoryline = useCallback(async () => {
     if (!activeGameId || !gameData || !worldState || !user) return;
@@ -1102,7 +1116,22 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
         toast({ variant: 'destructive', title: 'Failed to End Session', description: err.message });
     }
   };
-
+  
+  const handleStartNewSession = async () => {
+    if (!activeGameId || !user) return;
+    setIsLoading(true);
+    toast({ title: "Starting New Session...", description: "The GM is preparing the next chapter." });
+    try {
+        await startNextSessionAction(activeGameId, user.uid);
+        toast({ title: 'New Session Started!', description: 'The story continues.' });
+    } catch (error) {
+        const err = error as Error;
+        console.error("Failed to start new session:", err);
+        toast({ variant: 'destructive', title: 'Error', description: err.message });
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   const handleHandoffConfirm = async () => {
     if (!activeGameId || !nextCharacter || !worldState || !user) return;
@@ -1170,22 +1199,6 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
     }
   };
   
-  const handleStartNewSession = async () => {
-    if (!activeGameId || !user) return;
-    setIsLoading(true);
-    toast({ title: "Starting New Session...", description: "The GM is preparing the next chapter." });
-    try {
-        await startNextSessionAction(activeGameId, user.uid);
-        toast({ title: 'New Session Started!', description: 'The story continues.' });
-    } catch (error) {
-        const err = error as Error;
-        console.error("Failed to start new session:", err);
-        toast({ variant: 'destructive', title: 'Error', description: err.message });
-    } finally {
-        setIsLoading(false);
-    }
-  };
-  
   const handleKickPlayer = async (playerId: string) => {
     if (!activeGameId || !user || user.uid !== hostId) return;
     try {
@@ -1217,8 +1230,8 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
       case 'create':
         return <CreateGameForm onSubmit={handleCreateGame} isLoading={isLoading} />;
       case 'summary':
-        if (!gameData) {
-            return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
+        if (!gameData || isLoading) {
+            return <div className="flex h-full w-full items-center justify-center"><BrandedLoadingSpinner /></div>;
         }
         return (
           <SummaryReview
@@ -1233,7 +1246,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
         );
       case 'characters':
         if (!gameData || !activeGameId || !hostId) {
-            return <div className="flex h-full w-full items-center justify-center"><LoadingSpinner /></div>;
+            return <div className="flex h-full w-full items-center justify-center"><BrandedLoadingSpinner /></div>;
         }
         return (
           <MemoizedCharacterCreationForm
@@ -1286,7 +1299,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
       default:
         return (
           <div className="flex h-full w-full items-center justify-center">
-            <LoadingSpinner className="h-8 w-8" />
+            <BrandedLoadingSpinner className="h-8 w-8" />
           </div>
         );
     }
