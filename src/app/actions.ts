@@ -19,7 +19,6 @@ import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldState
 import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 import { updateUserPreferences } from './actions/user-preferences';
-import { logAiUsage } from './actions/admin-actions';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 
@@ -89,7 +88,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let sanitizeResult: SanitizeIpResponse;
   try {
     sanitizeResult = await sanitizeIpFlow({ request: input.request });
-    await logAiUsage({ userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
   } catch (e: any) {
     throw handleAIError(e, 'sanitize_request');
   }
@@ -102,7 +100,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     throw handleAIError(e, 'generate_new_game');
   }
 
-  const { output: newGame, usage: gameGenUsage, model: gameGenModel } = gameGenResult;
+  const { output: newGame } = gameGenResult;
 
   let classifyResult: ClassifySettingResponse;
   try {
@@ -115,7 +113,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     throw handleAIError(e, 'classify_setting');
   }
   
-  const { output: classification, usage: classifyUsage, model: classifyModel } = classifyResult;
+  const { output: classification } = classifyResult;
   const settingCategory = classification.category || 'generic';
     
   try {
@@ -123,10 +121,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     const db = getFirestore(app);
     const gameRef = doc(collection(db, 'games'));
     const gameId = gameRef.id;
-
-    // Now log the chained AI calls with the new gameId
-    await logAiUsage({ userId, gameId, flowType: 'generate_new_game', model: gameGenModel, usage: gameGenUsage });
-    await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: classifyModel, usage: classifyUsage });
 
     const initialWorldState: WorldState = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
@@ -201,7 +195,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   const flowInput = { ...rest, worldState, character };
   try {
     const result: ResolveActionResponse = await resolveActionFlow(flowInput);
-    await logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'resolve_action');
@@ -211,7 +204,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_characters');
@@ -243,7 +235,6 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       try {
         const result: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
-        await logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
         
         await updateDoc(gameRef, { worldState: result.output, previousWorldState: currentWorldState, ...updates });
         return result.output;
@@ -269,7 +260,6 @@ export async function getAnswerToQuestion(input: AskQuestionInput, gameId: strin
     if (!character) throw new Error("Character asking question not found in world state.");
     
     const result: AskQuestionResponse = await askQuestionFlow({ ...input, character });
-    await logAiUsage({ userId, gameId, flowType: 'ask_question', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'get_answer');
@@ -279,7 +269,6 @@ export async function getAnswerToQuestion(input: AskQuestionInput, gameId: strin
 export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string, userId: string): Promise<NarratePlayerActionsOutput> {
     try {
         const result: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'narrate_player_actions', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'narrate_actions');
@@ -289,7 +278,6 @@ export async function narratePlayerActions(input: NarratePlayerActionsInput, gam
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
     try {
         const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'check_consequences');
@@ -299,7 +287,6 @@ export async function checkConsequences(input: AssessConsequencesInput, gameId: 
 export async function generateRecap(input: GenerateRecapInput, gameId: string, userId: string): Promise<GenerateRecapOutput> {
     try {
         const result: GenerateRecapResponse = await generateRecapFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_recap', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_recap');
@@ -309,7 +296,6 @@ export async function generateRecap(input: GenerateRecapInput, gameId: string, u
 export async function regenerateField(input: RegenerateFieldInput, gameId: string, userId: string): Promise<{newValue: string}> {
     try {
         const result: RegenerateFieldResponse = await regenerateFieldFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'regenerate_field', model: result.model, usage: result.usage });
         
         const app = await getServerApp();
         const db = getFirestore(app);
@@ -325,7 +311,6 @@ export async function regenerateField(input: RegenerateFieldInput, gameId: strin
 export async function classifyInput(input: ClassifyInput, userId: string, gameId: string | null): Promise<ClassifyInputOutput> {
     try {
         const result: ClassifyInputResponse = await classifyInputFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'classify_input', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'classify_input');
@@ -335,7 +320,6 @@ export async function classifyInput(input: ClassifyInput, userId: string, gameId
 export async function classifySetting(input: ClassifySettingInput, userId: string, gameId: string | null): Promise<ClassifySettingOutput> {
     try {
         const result: ClassifySettingResponse = await classifySettingFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'classify_setting');
@@ -347,7 +331,6 @@ export async function classifySetting(input: ClassifySettingInput, userId: strin
 export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
     try {
         const result = await generateCampaignCore(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_campaign_core');
@@ -357,7 +340,6 @@ export async function generateCampaignCoreAction(input: GenerateCampaignCoreInpu
 export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
     try {
         const result = await generateCampaignFactions(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_campaign_factions');
@@ -367,7 +349,6 @@ export async function generateCampaignFactionsAction(input: GenerateFactionsInpu
 export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
     try {
         const result = await generateCampaignNodes(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_campaign_nodes');
@@ -377,7 +358,6 @@ export async function generateCampaignNodesAction(input: GenerateNodesInput, gam
 export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
     try {
         const result = await generateCampaignResolution(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_campaign_resolution');
@@ -387,7 +367,6 @@ export async function generateCampaignResolutionAction(input: GenerateResolution
 export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string, userId: string): Promise<StoryBeat[]> {
     try {
         const result = await generateSessionBeats(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_session_beats');
@@ -550,7 +529,6 @@ export async function regenerateGameConcept(gameId: string, request: string, use
     let sanitizeResult: SanitizeIpResponse;
     try {
         sanitizeResult = await sanitizeIpFlow({ request });
-        await logAiUsage({ userId, gameId, flowType: 'sanitize_ip_regenerate', model: sanitizeResult.model, usage: sanitizeResult.usage });
     } catch (e: any) {
         throw handleAIError(e, 'sanitize_request');
     }
@@ -558,7 +536,6 @@ export async function regenerateGameConcept(gameId: string, request: string, use
     const ipCheck = sanitizeResult.output;
     try {
         const result: GenerateNewGameResponse = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
-        await logAiUsage({ userId, gameId, flowType: 'regenerate_game_concept', model: result.model, usage: result.usage });
         
         const { output: newGame } = result;
 
@@ -626,7 +603,7 @@ export async function endCurrentSessionAction(gameId: string, endType: 'natural'
     } catch (error) {
         console.error("Error in endCurrentSession action:", error);
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
-        return { success: false, message };
+        return { success, message };
     }
 }
     
@@ -717,5 +694,3 @@ export async function startNextSessionAction(gameId: string, userId: string): Pr
         return { success: false, message };
     }
 }
-
-    

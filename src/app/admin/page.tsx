@@ -54,20 +54,14 @@ export default function AdminDashboardPage() {
             setLoading(false);
         });
 
-        const usageQuery = query(collection(db, 'aiUsageLogs'), orderBy('createdAt', 'desc'));
-        const usageUnsub = onSnapshot(usageQuery, (snapshot) => {
-            const allLogs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as AiUsageLogWithId));
-            setUsageLogs(allLogs);
-        }, (error) => {
-            console.error("Error fetching AI usage logs:", error);
-        });
+        // Note: The 'aiUsageLogs' collection does not exist with the new telemetry setup.
+        // This table will be empty. It should be replaced with a component that queries
+        // and displays data from BigQuery via a server action.
+        setUsageLogs([]);
+
 
         return () => {
             gamesUnsub();
-            usageUnsub();
         };
     }, []);
     
@@ -126,6 +120,7 @@ export default function AdminDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{usageLogs.length}</div>
+                            <p className="text-xs text-muted-foreground">Manual logs disabled.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -133,34 +128,14 @@ export default function AdminDashboardPage() {
                 <div className="flex-1 overflow-auto p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
                     <Card className="col-span-1 xl:col-span-2 flex flex-col">
                         <CardHeader>
-                            <CardTitle>Live AI Usage Logs</CardTitle>
+                            <CardTitle>AI Usage Logs</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-hidden">
-                             <div className="h-full overflow-auto">
-                               <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Timestamp</TableHead>
-                                        <TableHead>Flow Type</TableHead>
-                                        <TableHead>Game ID</TableHead>
-                                        <TableHead>Model</TableHead>
-                                        <TableHead>Tokens</TableHead>
-                                        <TableHead className="text-right">Cost</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {usageLogs.slice(0, 100).map(log => (
-                                        <TableRow key={log.id}>
-                                            <TableCell className="text-xs">{log.createdAt ? formatDistanceToNow(log.createdAt.toDate(), { addSuffix: true }) : 'N/A'}</TableCell>
-                                            <TableCell><Badge variant="secondary" className="font-mono text-xs">{log.flowType}</Badge></TableCell>
-                                            <TableCell className="font-mono text-xs truncate max-w-24">{log.gameId || 'N/A'}</TableCell>
-                                            <TableCell className="font-mono text-xs">{log.model.replace('googleai/','').replace('gemini-','')}</TableCell>
-                                            <TableCell className="text-xs">{(log.usage?.totalTokens || 0).toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-mono text-xs">${log.cost.toFixed(5)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                               </Table>
+                             <div className="h-full overflow-auto flex items-center justify-center text-center text-muted-foreground">
+                                <div>
+                                <p>Manual AI logging has been replaced by the Genkit Telemetry exporter.</p>
+                                <p className="text-xs">Data is now available in your project's Cloud Logging and can be routed to BigQuery.</p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
