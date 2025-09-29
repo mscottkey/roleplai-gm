@@ -294,6 +294,34 @@ export default function RoleplAIGMPage() {
   const sessionLoadedRef = useRef<string | null>(null);
   const userInteractedRef = useRef(false);
 
+  const handleCreateGame = async (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Not Logged In', description: 'You must be logged in to create a game.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      gtag.event({
+        action: 'create_game',
+        category: 'game_creation',
+        label: source,
+      });
+      const { gameId, warningMessage } = await startNewGame({ request, userId: user.uid, playMode });
+      if (warningMessage) {
+          toast({
+              title: 'A note from the GM',
+              description: warningMessage,
+              duration: 7000,
+          });
+      }
+      router.push(`/play?game=${gameId}`);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Game Creation Failed', description: err.message });
+      setIsLoading(false);
+    }
+    // isLoading will be reset by the page transition
+  };
+
   useEffect(() => {
     const setTrue = () => { userInteractedRef.current = true; };
     window.addEventListener('click', setTrue, { once: true });
@@ -600,7 +628,7 @@ export default function RoleplAIGMPage() {
               'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
               'worldState.currentScene.name': startingNode?.title || 'Starting Point',
               'worldState.currentScene.description': startingNode?.description || 'The scene is not yet described.',
-              'worldState.recentEvents': ["The adventure has been reset with a new storyline."],
+              'worldState.recentEvents': ["The adventure has just begun, anew."],
               'worldState.turn': 0,
           }
       });
@@ -718,6 +746,15 @@ export default function RoleplAIGMPage() {
     }
   }, [activeGameId, gameData, worldState, user, toast, generationProgress, messages]);
 
+  const handleGenerateCharacters = (input: GenerateCharacterInput) => {
+    if (!activeGameId || !user) {
+        toast({ variant: "destructive", title: "Error", description: "You must be in a game to generate characters." });
+        return Promise.reject(new Error("Not in a game"));
+    }
+    gtag.event({ action: 'generate_characters', category: 'game_setup' });
+    return createCharacter(input, activeGameId, user.uid);
+  };
+  
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !user) {
       toast({ variant: 'destructive', title: 'Undo Failed', description: 'No active game selected.' });
@@ -1037,7 +1074,7 @@ export default function RoleplAIGMPage() {
     try {
         await updateUserProfile(user.uid, updates);
         toast({ title: "Profile Updated", description: "Your preferences have been saved." });
-        onOpenChange(false);
+        setIsAccountDialogOpen(false);
     } catch (error) {
         const err = error as Error;
         toast({ variant: "destructive", title: "Update Failed", description: err.message });
