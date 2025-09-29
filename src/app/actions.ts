@@ -12,6 +12,9 @@ import { logAiUsage } from './actions/admin-actions';
 import { updateUserPreferences } from './actions/user-preferences';
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
+import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
+import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
+
 
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
@@ -238,12 +241,45 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
   }
 }
 
-export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
+export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
-    // This is a classification flow, so we can skip logging its cost to reduce noise.
+    // Low-cost classification, so we can skip logging to reduce noise.
+    // await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');
   }
+}
+
+// Campaign Generation Actions
+export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
+    const result = await generateCampaignCore(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
+    const result = await generateCampaignFactions(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
+    const result = await generateCampaignNodes(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
+    const result = await generateCampaignResolution(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function saveCampaignStructure(gameId: string, campaignStructure: CampaignStructure) {
+  const app = await getServerApp();
+  const db = getFirestore(app);
+  const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
+  await setDoc(campaignRef, campaignStructure, { merge: true });
 }

@@ -17,6 +17,11 @@ import {
   updateWorldState,
   checkConsequences,
   createCharacter,
+  generateCampaignCoreAction,
+  generateCampaignFactionsAction,
+  generateCampaignNodesAction,
+  generateCampaignResolutionAction,
+  saveCampaignStructure,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -34,6 +39,7 @@ import {
   where,
   orderBy,
   updateDoc,
+  arrayUnion,
 } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import {
@@ -528,8 +534,77 @@ export default function RoleplAIGMPage() {
     setIsLoading(true);
 
     try {
-      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Campaign generation is currently disabled.' });
-      
+      // This is the core "world-build" sequence
+      setGenerationProgress({ current: 1, total: 5, step: 'Generating Core Concepts...' });
+      const campaignCore = await generateCampaignCoreAction({
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: finalCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 2, total: 5, step: 'Designing Factions...' });
+      const factions = await generateCampaignFactionsAction({
+          ...campaignCore,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: finalCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 3, total: 5, step: 'Building Situation Nodes...' });
+      const nodes = await generateCampaignNodesAction({
+          ...campaignCore,
+          factions,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: finalCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 4, total: 5, step: 'Creating Endgame...' });
+      const resolution = await generateCampaignResolutionAction({
+          ...campaignCore,
+          factions,
+          nodes,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: finalCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      const completeCampaignStructure: CampaignStructure = {
+          ...campaignCore,
+          factions,
+          nodes,
+          resolution,
+      };
+
+      setGenerationProgress({ current: 5, total: 5, step: 'Finalizing World...' });
+      await saveCampaignStructure(activeGameId, completeCampaignStructure);
+
+      // After saving, update the main game document to start play
+      const startingNode = nodes.find(n => n.isStartingNode);
+      const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
+      const welcomeStoryMessage = { content: welcomeMessageText };
+
+      await updateWorldState({
+          gameId: activeGameId,
+          userId: user.uid,
+          updates: {
+              step: 'play',
+              'gameData.campaignGenerated': true,
+              'worldState.characters': finalCharacters,
+              messages: arrayUnion({ id: `start-play-${Date.now()}`, role: 'system', content: `The world has been built. The story can now begin.` }),
+              storyMessages: [welcomeStoryMessage],
+              'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
+              'worldState.currentScene.name': startingNode?.title || 'Starting Point',
+              'worldState.currentScene.description': startingNode?.description || 'The scene is not yet described.',
+          }
+      });
+
+      toast({ title: 'World Built!', description: 'Your campaign is ready to play.' });
+
     } catch (error) {
       const err = error as Error;
       const currentStep = generationProgress?.step || 'an unknown step';
@@ -725,7 +800,7 @@ export default function RoleplAIGMPage() {
                 actionDescription: playerInput,
                 worldState,
                 character: activeCharacter,
-            }, activeGameId);
+            }, activeGameId, user.uid);
 
             if (consequenceResult.needsConfirmation && consequenceResult.confirmationMessage) {
                 setConfirmation({
@@ -985,7 +1060,7 @@ export default function RoleplAIGMPage() {
           <GameView
             messages={messages}
             storyMessages={storyMessages}
-            onSendMessage={onSendMessage}
+            onSendMessage={handleSendMessage}
             isLoading={isLoading}
             gameData={gameData!}
             worldState={worldState}
