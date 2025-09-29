@@ -1303,7 +1303,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={onUpdateStatus}
+            onUpdateStatus={handleUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             onConfirmEndSession={() => setSessionEnding(true)}
             onStartNewSession={handleStartNewSession}
