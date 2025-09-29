@@ -8,30 +8,13 @@ import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse, type AssessConsequencesInput, type AssessConsequencesOutput } from "@/ai/flows/assess-consequences";
-import { generateRecap as generateRecapFlow, type GenerateRecapInput, type GenerateRecapOutput, type GenerateRecapResponse } from "@/ai/flows/generate-recap";
-import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse } from "@/ai/flows/regenerate-field";
-import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
-import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
-import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
-import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
+import { logAiUsage } from './actions/admin-actions';
 import { updateUserPreferences } from './actions/user-preferences';
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
-import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
-
-// Imports for granular campaign generation
-import { 
-    generateCampaignCore, 
-    generateCampaignFactions, 
-    generateCampaignNodes 
-} from "@/ai/flows/generate-campaign-pieces";
-import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
-
-
-import type { Character as AICharacter } from "@/ai/schemas/generate-character-schemas";
 
 
 import { z } from 'genkit';
@@ -88,6 +71,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let sanitizeResult: SanitizeIpResponse;
   try {
     sanitizeResult = await sanitizeIpFlow({ request: input.request });
+    await logAiUsage({ userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
   } catch (e: any) {
     throw handleAIError(e, 'sanitize_request');
   }
@@ -96,25 +80,15 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let gameGenResult: GenerateNewGameResponse;
   try {
     gameGenResult = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+    await logAiUsage({ userId, gameId: null, flowType: 'generate_new_game', model: gameGenResult.model, usage: gameGenResult.usage });
   } catch(e: any) {
     throw handleAIError(e, 'generate_new_game');
   }
 
   const { output: newGame } = gameGenResult;
 
-  let classifyResult: ClassifySettingResponse;
-  try {
-    classifyResult = await classifySettingFlow({
-      setting: newGame.setting,
-      tone: newGame.tone,
-      originalRequest: ipCheck.sanitizedRequest,
-    });
-  } catch (e: any) {
-    throw handleAIError(e, 'classify_setting');
-  }
-  
-  const { output: classification } = classifyResult;
-  const settingCategory = classification.category || 'generic';
+  // Since classifySetting is a low-cost flow and doesn't involve generation, we can skip logging it for now.
+  // This keeps the logs focused on the more expensive generation tasks.
     
   try {
     const app = await getServerApp();
@@ -144,7 +118,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         environmentalFactors: [],
         connections: [],
       },
-      settingCategory: settingCategory,
+      settingCategory: 'generic', // This will be updated by a separate client-side action
       sessionProgress: null,
       lastActivity: new Date().toISOString(),
       idleTimeoutMinutes: 120,
@@ -163,6 +137,14 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     };
     
     await setDoc(gameRef, newGameDocument);
+
+    const totalUsage: GenerationUsage = {
+        inputTokens: sanitizeResult.usage.inputTokens + gameGenResult.usage.inputTokens,
+        outputTokens: sanitizeResult.usage.outputTokens + gameGenResult.usage.outputTokens,
+        totalTokens: sanitizeResult.usage.totalTokens + gameGenResult.usage.totalTokens,
+    }
+    await logAiUsage({ userId, gameId, flowType: 'start_new_game_total', model: 'aggregate', usage: totalUsage});
+
 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
@@ -195,6 +177,7 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   const flowInput = { ...rest, worldState, character };
   try {
     const result: ResolveActionResponse = await resolveActionFlow(flowInput);
+    await logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'resolve_action');
@@ -204,6 +187,7 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_characters');
@@ -235,6 +219,7 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       try {
         const result: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
+        await logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
         
         await updateDoc(gameRef, { worldState: result.output, previousWorldState: currentWorldState, ...updates });
         return result.output;
@@ -256,6 +241,7 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
+    // This is a classification flow, so we can skip logging its cost to reduce noise.
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');

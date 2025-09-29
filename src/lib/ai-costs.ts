@@ -16,9 +16,9 @@ export const AI_MODEL_COSTS: Record<string, ModelCost> = {
     input: 0.35,
     output: 0.70,
   },
-  'gemini-pro': { // Example, not currently used
-    input: 7,
-    output: 21,
+  'gemini-pro': {
+    input: 0.50,
+    output: 1.50,
   },
   'fallback-classifier': { // Used for keyword-based fallbacks
       input: 0,
