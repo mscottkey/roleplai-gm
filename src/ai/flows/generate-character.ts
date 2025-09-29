@@ -37,7 +37,7 @@ export async function generateCharacter(input: GenerateCharacterInput): Promise<
   return {
     output: { characters: flowResult.characters },
     usage,
-    model: MODEL_GENERATION, // Returning the base model as we can't get it per-call easily here
+    model: MODEL_GENERATION,
   };
 }
 

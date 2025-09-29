@@ -43,7 +43,7 @@ function cleanMarkdown(text: string): string {
     .replace(/\*\*(Vibe|Tone Levers|Notable Locations):\s*/g, '## $1\n\n')
     // Fix malformed bullet points patterns - be more conservative
     .replace(/\*\*\*\*\* /g, '* ')
-    .replace(/\*\*\* /g, '* ')
+    .replace(/\*\* /g, '* ')
     // Fix mangled asterisks around text
     .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**')
     // Clean up excessive whitespace but preserve single spaces
@@ -61,16 +61,20 @@ function cleanMarkdown(text: string): string {
 export async function generateNewGame(input: GenerateNewGameInput): Promise<GenerateNewGameResponse> {
   const result = await prompt(input);
   
+  if (!result.output) {
+      throw new Error('AI failed to generate a new game concept.');
+  }
+
   const cleanedOutput = {
-    ...result.output!,
-    setting: cleanMarkdown(result.output!.setting),
-    tone: cleanMarkdown(result.output!.tone),
+    ...result.output,
+    setting: cleanMarkdown(result.output.setting),
+    tone: cleanMarkdown(result.output.tone),
   };
   
   return { 
     output: cleanedOutput,
     usage: result.usage,
-    model: result.model || MODEL_GENERATION,
+    model: result.model,
   };
 }
 

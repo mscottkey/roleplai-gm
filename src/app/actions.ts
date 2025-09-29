@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
@@ -20,6 +19,7 @@ import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldState
 import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 import { updateUserPreferences } from './actions/user-preferences';
+import { logAiUsage } from './actions/admin-actions';
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 
@@ -48,12 +48,12 @@ import { GenerationUsage } from "genkit";
 import * as gtag from '@/lib/gtag';
 
 // Helper for user-friendly error messages
-function handleAIError(error: Error, defaultMessage: string): Error {
-    console.error(`AI Error in ${defaultMessage}:`, error);
+function handleAIError(error: Error, flowType: string): Error {
+    console.error(`AI Error in ${flowType}:`, error);
     if (error.message.includes('503') || error.message.toLowerCase().includes('overloaded')) {
         return new Error("The AI is currently experiencing high demand. Please wait a moment and try again.");
     }
-    return new Error(`${defaultMessage}: ${error.message}`);
+    return new Error(`Failed to ${flowType.replace(/_/g, ' ')}: ${error.message}`);
 }
 
 // Initialize Firebase for server actions
@@ -85,33 +85,49 @@ type StartNewGameInput = {
 
 
 export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
-  // Step 1: Sanitize IP (this is also an AI call)
-  const sanitizeInput = { request: input.request };
-  let ipCheck: SanitizeIpOutput;
+  let sanitizeResult: SanitizeIpResponse;
   try {
-    const sanitizeResult: SanitizeIpResponse = await sanitizeIpFlow(sanitizeInput);
-    ipCheck = sanitizeResult.output;
+    sanitizeResult = await sanitizeIpFlow({ request: input.request });
+    await logAiUsage({ userId: input.userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
   } catch (e: any) {
-    throw handleAIError(e, 'Failed to sanitize your request');
+    throw handleAIError(e, 'sanitize_request');
+  }
+  
+  const ipCheck = sanitizeResult.output;
+  let gameGenResult: GenerateNewGameResponse;
+  try {
+    gameGenResult = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+    // Don't log this yet, wait until we have a gameId
+  } catch(e: any) {
+    throw handleAIError(e, 'generate_new_game');
   }
 
-  // Step 2: Generate Game
-  const generateGameInput: GenerateNewGameInput = { request: ipCheck.sanitizedRequest };
+  const { output: newGame, usage: gameGenUsage, model: gameGenModel } = gameGenResult;
+
+  let classifyResult: ClassifySettingResponse;
   try {
-    const { output: newGame }: GenerateNewGameResponse = await generateNewGameFlow(generateGameInput);
-    
-    // Step 3: Classify the new game to get its category
-    const classification = await classifySetting({
+    classifyResult = await classifySettingFlow({
       setting: newGame.setting,
       tone: newGame.tone,
       originalRequest: ipCheck.sanitizedRequest,
     });
-    const settingCategory = classification.category || 'generic';
+    // Don't log this yet
+  } catch (e: any) {
+    throw handleAIError(e, 'classify_setting');
+  }
+  
+  const { output: classification, usage: classifyUsage, model: classifyModel } = classifyResult;
+  const settingCategory = classification.category || 'generic';
     
-    // Step 4: Create the document in Firestore
+  try {
     const app = await getServerApp();
     const db = getFirestore(app);
     const gameRef = doc(collection(db, 'games'));
+    const gameId = gameRef.id;
+
+    // Now log the chained AI calls with the new gameId
+    await logAiUsage({ userId: input.userId, gameId, flowType: 'generate_new_game', model: gameGenModel, usage: gameGenUsage });
+    await logAiUsage({ userId: input.userId, gameId, flowType: 'classify_setting', model: classifyModel, usage: classifyUsage });
 
     const initialWorldState: WorldState = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
@@ -158,20 +174,23 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
   } catch (e: any) {
-    throw handleAIError(e, 'Failed to generate a new game');
+     if (e instanceof Error) {
+        throw new Error(`Failed to save new game to database: ${e.message}`);
+     }
+     throw new Error('An unknown error occurred while saving the game.');
   }
 }
 
-type ContinueStoryInput = Omit<ResolveActionInput, 'character'> & { characterId: string; gameId: string; };
+type ContinueStoryInput = Omit<ResolveActionInput, 'character'> & { characterId: string; gameId: string; userId: string; };
 export async function continueStory(input: ContinueStoryInput): Promise<ResolveActionOutput> {
-  const { characterId, worldState, gameId, ...rest } = input;
+  const { characterId, worldState, gameId, userId, ...rest } = input;
 
   const character = worldState.characters.find(c => c.id === characterId);
   if (!character) {
       throw new Error("Character not found in world state.");
   }
 
-  // Pre-flight checks (no logging needed for these)
+  // Pre-flight checks
   const app = await getServerApp();
   const db = getFirestore(app);
   const gameDoc = await getDoc(doc(db, 'games', gameId));
@@ -182,24 +201,27 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   
   const flowInput = { ...rest, worldState, character };
   try {
-    const { output }: ResolveActionResponse = await resolveActionFlow(flowInput);
-    return output;
+    const result: ResolveActionResponse = await resolveActionFlow(flowInput);
+    await logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
+    return result.output;
   } catch (e: any) {
-    throw handleAIError(e, 'The story could not be continued');
+    throw handleAIError(e, 'resolve_action');
   }
 }
 
-export async function createCharacter(input: GenerateCharacterInput, gameId: string): Promise<GenerateCharacterOutput> {
+export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate characters');
+        throw handleAIError(e, 'generate_characters');
     }
 }
 
 type UpdateWorldStateServerInput = {
   gameId: string;
+  userId: string;
   updates?: Record<string, any>;
   playerAction?: {
     characterName: string;
@@ -211,7 +233,7 @@ type UpdateWorldStateServerInput = {
 };
 
 export async function updateWorldState(input: UpdateWorldStateServerInput): Promise<UpdateWorldStateOutput | void> {
-  const { gameId, updates, playerAction, gmResponse, currentWorldState, campaignStructure } = input;
+  const { gameId, updates, playerAction, gmResponse, currentWorldState, campaignStructure, userId } = input;
   
   try {
     const app = await getServerApp();
@@ -221,138 +243,155 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
     if (playerAction && gmResponse && currentWorldState && campaignStructure) {
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       try {
-        const { output: newWorldState }: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
-        await updateDoc(gameRef, { worldState: newWorldState, previousWorldState: currentWorldState, ...updates });
-        return newWorldState;
+        const result: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
+        await logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
+        
+        await updateDoc(gameRef, { worldState: result.output, previousWorldState: currentWorldState, ...updates });
+        return result.output;
       } catch (e: any) {
-        throw e; // Re-throw to be caught by the outer catch block
+        throw handleAIError(e, 'update_world_state');
       }
 
     } else if (updates) {
-      // This is a direct data update
       await updateDoc(gameRef, updates);
     }
 
   } catch (e: any) {
-    throw handleAIError(e, 'Failed to update the world state');
+     if (e instanceof Error) {
+        throw new Error(`Failed to update world state in database: ${e.message}`);
+     }
+     throw new Error('An unknown error occurred while updating the world state.');
   }
 }
 
-export async function getAnswerToQuestion(input: AskQuestionInput, gameId: string): Promise<AskQuestionOutput> {
+export async function getAnswerToQuestion(input: AskQuestionInput, gameId: string, userId: string): Promise<AskQuestionOutput> {
   try {
     const character = input.worldState.characters.find(c => c.id === input.character.id);
     if (!character) throw new Error("Character asking question not found in world state.");
     
-    const { output }: AskQuestionResponse = await askQuestionFlow({ ...input, character });
-    return output;
+    const result: AskQuestionResponse = await askQuestionFlow({ ...input, character });
+    await logAiUsage({ userId, gameId, flowType: 'ask_question', model: result.model, usage: result.usage });
+    return result.output;
   } catch (e: any) {
-    throw handleAIError(e, 'Failed to get an answer from the GM');
+    throw handleAIError(e, 'get_answer');
   }
 }
 
-export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string): Promise<NarratePlayerActionsOutput> {
+export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string, userId: string): Promise<NarratePlayerActionsOutput> {
     try {
-        const { output }: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
-        return output;
+        const result: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'narrate_player_actions', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to get GM acknowledgement');
+        throw handleAIError(e, 'narrate_actions');
     }
 }
 
-export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
+export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
     try {
-        const { output }: AssessConsequencesResponse = await assessConsequencesFlow(input);
-        return output;
+        const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to assess consequences');
+        throw handleAIError(e, 'check_consequences');
     }
 }
 
-export async function generateRecap(input: GenerateRecapInput, gameId: string): Promise<GenerateRecapOutput> {
+export async function generateRecap(input: GenerateRecapInput, gameId: string, userId: string): Promise<GenerateRecapOutput> {
     try {
-        const { output }: GenerateRecapResponse = await generateRecapFlow(input);
-        return output;
+        const result: GenerateRecapResponse = await generateRecapFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_recap', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate recap');
+        throw handleAIError(e, 'generate_recap');
     }
 }
 
-export async function regenerateField(input: RegenerateFieldInput, gameId: string): Promise<{newValue: string}> {
+export async function regenerateField(input: RegenerateFieldInput, gameId: string, userId: string): Promise<{newValue: string}> {
     try {
-        const { output }: RegenerateFieldResponse = await regenerateFieldFlow(input);
+        const result: RegenerateFieldResponse = await regenerateFieldFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'regenerate_field', model: result.model, usage: result.usage });
+        
         const app = await getServerApp();
         const db = getFirestore(app);
         const gameRef = doc(db, 'games', gameId);
 
-        await updateDoc(gameRef, { [`gameData.${input.fieldName}`]: output.newValue });
-        return output;
+        await updateDoc(gameRef, { [`gameData.${input.fieldName}`]: result.output.newValue });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, `Failed to regenerate ${input.fieldName}`);
+        throw handleAIError(e, `regenerate_${input.fieldName}`);
     }
 }
 
-export async function classifyInput(input: ClassifyInput): Promise<ClassifyInputOutput> {
+export async function classifyInput(input: ClassifyInput, userId: string, gameId: string | null): Promise<ClassifyInputOutput> {
     try {
-        const response: ClassifyInputResponse = await classifyInputFlow(input);
-        return response.output;
+        const result: ClassifyInputResponse = await classifyInputFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'classify_input', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to classify input');
+        throw handleAIError(e, 'classify_input');
     }
 }
 
-export async function classifySetting(input: ClassifySettingInput): Promise<ClassifySettingOutput> {
+export async function classifySetting(input: ClassifySettingInput, userId: string, gameId: string | null): Promise<ClassifySettingOutput> {
     try {
-        const response: ClassifySettingResponse = await classifySettingFlow(input);
-        return response.output;
+        const result: ClassifySettingResponse = await classifySettingFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to classify setting');
+        throw handleAIError(e, 'classify_setting');
     }
 }
 
 
 // Granular actions for client-side orchestration
-export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string): Promise<CampaignCore> {
+export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
     try {
-        const { output } = await generateCampaignCore(input);
-        return output;
+        const result = await generateCampaignCore(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate campaign core concepts');
+        throw handleAIError(e, 'generate_campaign_core');
     }
 }
 
-export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string): Promise<Faction[]> {
+export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
     try {
-        const { output } = await generateCampaignFactions(input);
-        return output;
+        const result = await generateCampaignFactions(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate campaign factions');
+        throw handleAIError(e, 'generate_campaign_factions');
     }
 }
 
-export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string): Promise<Node[]> {
+export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
     try {
-        const { output } = await generateCampaignNodes(input);
-        return output;
+        const result = await generateCampaignNodes(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate campaign nodes');
+        throw handleAIError(e, 'generate_campaign_nodes');
     }
 }
 
-export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string): Promise<CampaignResolution> {
+export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
     try {
-        const { output } = await generateCampaignResolution(input);
-        return output;
+        const result = await generateCampaignResolution(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate campaign resolution');
+        throw handleAIError(e, 'generate_campaign_resolution');
     }
 }
 
-export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput): Promise<StoryBeat[]> {
+export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string, userId: string): Promise<StoryBeat[]> {
     try {
-        const { output } = await generateSessionBeats(input);
-        return output;
+        const result = await generateSessionBeats(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model, usage: result.usage });
+        return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to generate session beats');
+        throw handleAIError(e, 'generate_session_beats');
     }
 }
 
@@ -508,19 +547,21 @@ export async function updateUserProfile(userId: string, isAnonymous: boolean, up
     }
 }
 
-export async function regenerateGameConcept(gameId: string, request: string): Promise<{ success: boolean; warningMessage?: string; message?: string }> {
-    const sanitizeInput = { request };
-    let ipCheck: SanitizeIpOutput;
-     try {
-        const sanitizeResult = await sanitizeIpFlow(sanitizeInput);
-        ipCheck = sanitizeResult.output;
+export async function regenerateGameConcept(gameId: string, request: string, userId: string): Promise<{ success: boolean; warningMessage?: string; message?: string }> {
+    let sanitizeResult: SanitizeIpResponse;
+    try {
+        sanitizeResult = await sanitizeIpFlow({ request });
+        await logAiUsage({ userId, gameId, flowType: 'sanitize_ip_regenerate', model: sanitizeResult.model, usage: sanitizeResult.usage });
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to sanitize your request');
+        throw handleAIError(e, 'sanitize_request');
     }
 
-    const generateGameInput = { request: ipCheck.sanitizedRequest };
+    const ipCheck = sanitizeResult.output;
     try {
-        const { output: newGame } = await generateNewGameFlow(generateGameInput);
+        const result: GenerateNewGameResponse = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
+        await logAiUsage({ userId, gameId, flowType: 'regenerate_game_concept', model: result.model, usage: result.usage });
+        
+        const { output: newGame } = result;
 
         const app = await getServerApp();
         const db = getFirestore(app);
@@ -534,7 +575,7 @@ export async function regenerateGameConcept(gameId: string, request: string): Pr
         
         return { success: true, warningMessage: ipCheck.warningMessage };
     } catch (e: any) {
-        throw handleAIError(e, 'Failed to regenerate game concept');
+        throw handleAIError(e, 'regenerate_game_concept');
     }
 }
 
@@ -590,7 +631,7 @@ export async function endCurrentSessionAction(gameId: string, endType: 'natural'
     }
 }
     
-export async function startNextSessionAction(gameId: string): Promise<{ success: boolean; message?: string }> {
+export async function startNextSessionAction(gameId: string, userId: string): Promise<{ success: boolean; message?: string }> {
     if (!gameId) {
         return { success: false, message: "Game ID is required." };
     }
@@ -631,8 +672,10 @@ export async function startNextSessionAction(gameId: string): Promise<{ success:
             currentWorldState: worldState,
             sessionNumber: nextSessionNumber,
         };
-        const { output: nextSessionBeats } = await generateSessionBeats(beatsInput);
-
+        const result = await generateSessionBeats(beatsInput);
+        await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model, usage: result.usage });
+        
+        const nextSessionBeats = result.output;
         const shouldConclude = nextSessionBeats.length === 0;
 
         if (shouldConclude) {
