@@ -628,8 +628,29 @@ export default function RoleplAIGMPage() {
       await saveCampaignStructure(activeGameId, completeCampaignStructure);
 
       const startingNode = nodes.find(n => n.isStartingNode);
-      const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
-      const welcomeStoryMessage = { content: welcomeMessageText };
+      
+      const fullWelcomeMessage = `
+# Welcome to ${gameData.name}
+
+## Setting
+${gameData.setting}
+
+## Tone
+${gameData.tone}
+
+## Difficulty
+${gameData.difficulty}
+
+## Initial Hooks
+${gameData.initialHooks.map(hook => `- ${hook}`).join('\n')}
+
+---
+
+**Your adventure begins...**
+
+${startingNode ? startingNode.description : 'A new story unfolds before you.'}
+`;
+      const welcomeStoryMessage = { content: fullWelcomeMessage };
       
       const newSystemMessage = { id: `start-play-${Date.now()}`, role: 'system' as const, content: `The world has been rebuilt. A new story can now begin.` };
 
