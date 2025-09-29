@@ -14,7 +14,6 @@ import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerAct
 import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
 import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
 import { generateSessionBeats, generateNextSessionBeats } from "@/ai/flows/generate-session-beats";
-import { logAiUsage } from './actions/admin-actions';
 import { updateUserPreferences } from './actions/user-preferences';
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
@@ -89,7 +88,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let sanitizeResult: SanitizeIpResponse;
   try {
     sanitizeResult = await sanitizeIpFlow({ request: input.request });
-    logAiUsage({ userId, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
   } catch (e: any) {
     throw handleAIError(e, 'sanitize_request');
   }
@@ -98,7 +96,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let gameGenResult: GenerateNewGameResponse;
   try {
     gameGenResult = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
-    logAiUsage({ userId, flowType: 'generate_new_game', model: gameGenResult.model, usage: gameGenResult.usage });
   } catch(e: any) {
     throw handleAIError(e, 'generate_new_game');
   }
@@ -112,7 +109,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       tone: newGame.tone,
       originalRequest: ipCheck.sanitizedRequest,
     });
-    logAiUsage({ userId, flowType: 'classify_setting', model: classifyResult.model, usage: classifyResult.usage });
   } catch (e: any) {
     throw handleAIError(e, 'classify_setting');
   }
@@ -167,11 +163,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     };
     
     await setDoc(gameRef, newGameDocument);
-    await logAiUsage({ userId, gameId, flowType: 'start_new_game_total', model: 'aggregate', usage: {
-      inputTokens: sanitizeResult.usage.inputTokens + gameGenResult.usage.inputTokens + classifyResult.usage.inputTokens,
-      outputTokens: sanitizeResult.usage.outputTokens + gameGenResult.usage.outputTokens + classifyResult.usage.outputTokens,
-      totalTokens: sanitizeResult.usage.totalTokens + gameGenResult.usage.totalTokens + classifyResult.usage.totalTokens,
-    }});
 
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
@@ -204,7 +195,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   const flowInput = { ...rest, worldState, character };
   try {
     const result: ResolveActionResponse = await resolveActionFlow(flowInput);
-    logAiUsage({ userId, gameId, flowType: 'resolve_action', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'resolve_action');
@@ -214,7 +204,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
-        logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         return result.output;
     } catch (e: any) {
         throw handleAIError(e, 'generate_characters');
@@ -246,7 +235,6 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       const flowInput = { worldState: currentWorldState, playerAction, gmResponse, campaignStructure };
       try {
         const result: UpdateWorldStateResponse = await updateWorldStateFlow(flowInput);
-        logAiUsage({ userId, gameId, flowType: 'update_world_state', model: result.model, usage: result.usage });
         
         await updateDoc(gameRef, { worldState: result.output, previousWorldState: currentWorldState, ...updates });
         return result.output;
@@ -258,4 +246,9 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
       await updateDoc(gameRef, updates);
     }
 
-  } catch (e: any
+  } catch (e: any) {
+    console.error("Error in updateWorldState action:", e);
+    const message = e instanceof Error ? e.message : "An unknown database error occurred.";
+    throw new Error(`Failed to update world state: ${message}`);
+  }
+}
