@@ -209,10 +209,14 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
             archetype: char.archetype,
             stats: char.stats,
           };
-          batch.update(playerRef, {
-            'characterData.generatedCharacter': characterData,
+          // Use set with merge:true to handle both creation and update gracefully.
+          // This fixes the bug where hot-seat players (who don't have a doc yet) cause a "NOT_FOUND" error.
+          batch.set(playerRef, {
+            characterData: {
+                generatedCharacter: characterData,
+            },
             characterCreationStatus: 'ready',
-          });
+          }, { merge: true });
         });
 
         await batch.commit();
@@ -272,8 +276,6 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
-    // Low-cost classification, so we can skip logging to reduce noise.
-    // await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');
