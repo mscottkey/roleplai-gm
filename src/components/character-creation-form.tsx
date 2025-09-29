@@ -21,6 +21,7 @@ import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { QRCodeDisplay } from './qr-code-display';
 import { ShareGameInvite } from './share-game-invite';
+import { saveGeneratedCharacters } from '@/app/actions';
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -327,6 +328,7 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   }, []);
 
   const handleGenerateAll = async () => {
+    if (!activeGameId) return;
     const slotsToGenerate = allPlayerSlots.filter(s => !s.characterData.generatedCharacter);
     
     if (slotsToGenerate.length === 0) {
@@ -361,35 +363,36 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             characterSlots: slotsForAI,
             existingCharacters,
         });
-        
-        const updatePlayerState = (players: Player[]): Player[] => {
-            return players.map(p => {
-                const newCharData = result.characters.find(c => c.slotId === p.id);
-                if (newCharData) {
-                    return {
-                        ...p,
-                        characterData: {
-                            ...p.characterData,
-                            generatedCharacter: {
-                                ...newCharData,
-                                id: p.id,
-                                isCustom: false,
-                                playerName: p.name,
-                                playerId: p.id,
-                            }
-                        }
-                    };
-                }
-                return p;
-            });
-        };
 
+        // After successful generation, save the characters to the database.
+        await saveGeneratedCharacters(activeGameId, result.characters);
+        
+        // The component will automatically re-render with the new data from Firestore.
+        // If in local mode, we still need to update local state.
         if (isHotSeatMode) {
-          setLocalSlots(updatePlayerState);
-        } else {
-          // In lobby mode, the parent component handles state via Firestore listeners.
-          // We can just trust the suggestions were generated and will appear.
+           setLocalSlots(prevSlots => {
+                return prevSlots.map(p => {
+                    const newCharData = result.characters.find(c => c.slotId === p.id);
+                    if (newCharData) {
+                        return {
+                            ...p,
+                            characterData: {
+                                ...p.characterData,
+                                generatedCharacter: {
+                                    ...newCharData,
+                                    id: p.id,
+                                    isCustom: false,
+                                    playerName: p.name,
+                                    playerId: p.id,
+                                }
+                            }
+                        };
+                    }
+                    return p;
+                });
+            });
         }
+
 
     } catch (error) {
         const err = error as Error;
@@ -503,3 +506,5 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     </div>
   );
 });
+
+    

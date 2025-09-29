@@ -197,6 +197,45 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
     }
 }
 
+export async function saveGeneratedCharacters(
+  gameId: string,
+  characters: (Character & { slotId: string })[]
+): Promise<{ success: boolean }> {
+  try {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const batch = writeBatch(db);
+
+    characters.forEach((char) => {
+      const playerRef = doc(db, 'games', gameId, 'players', char.slotId);
+      const characterData: Character = {
+        id: char.slotId, // Ensure the character ID matches the player/slot ID
+        isCustom: false,
+        playerId: char.slotId,
+        playerName: char.playerName,
+        name: char.name,
+        description: char.description,
+        aspect: char.aspect,
+        pronouns: char.pronouns,
+        age: char.age,
+        archetype: char.archetype,
+        stats: char.stats,
+      };
+      batch.update(playerRef, {
+        'characterData.generatedCharacter': characterData,
+        characterCreationStatus: 'ready',
+      });
+    });
+
+    await batch.commit();
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving generated characters:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(`Failed to save characters: ${message}`);
+  }
+}
+
 type UpdateWorldStateServerInput = {
   gameId: string;
   userId: string;
@@ -283,3 +322,5 @@ export async function saveCampaignStructure(gameId: string, campaignStructure: C
   const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
   await setDoc(campaignRef, campaignStructure, { merge: true });
 }
+
+    

@@ -39,7 +39,6 @@ import {
   where,
   orderBy,
   updateDoc,
-  arrayUnion,
 } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import {
@@ -389,8 +388,8 @@ export default function RoleplAIGMPage() {
           description: `This session will automatically pause in about ${Math.round(timeoutMinutes - minutesSince)} minutes due to inactivity. Take an action to keep it alive.`,
           duration: 60000,
         });
-        if (activeGameId) {
-          await updateWorldState({gameId: activeGameId, userId: user!.uid, updates: {
+        if (activeGameId && user) {
+          await updateWorldState({gameId: activeGameId, userId: user.uid, updates: {
             'worldState.idleWarningShown': true
           }});
         }
@@ -493,7 +492,7 @@ export default function RoleplAIGMPage() {
   }, [activeGameId, router, toast]);
 
   const onRegenerateStoryline = useCallback(async () => {
-    if (!activeGameId || !gameData || !worldState) return;
+    if (!activeGameId || !gameData || !worldState || !user) return;
   
     setIsLoading(true);
     toast({ title: 'Regenerating Storyline...', description: 'The AI is crafting a new narrative web. Please wait.' });
@@ -513,7 +512,7 @@ export default function RoleplAIGMPage() {
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, worldState, toast]);
+  }, [activeGameId, gameData, worldState, user, toast]);
 
   const handleCharactersFinalized = useCallback(async (finalCharacters: Character[]) => {
     if (!activeGameId || !gameData || !worldState || !user) return;
@@ -1257,3 +1256,5 @@ export default function RoleplAIGMPage() {
     </>
   );
 }
+
+    
