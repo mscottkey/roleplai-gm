@@ -85,10 +85,11 @@ type StartNewGameInput = {
 
 
 export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
+  const { userId, request, playMode } = input;
   let sanitizeResult: SanitizeIpResponse;
   try {
     sanitizeResult = await sanitizeIpFlow({ request: input.request });
-    await logAiUsage({ userId: input.userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
+    await logAiUsage({ userId, gameId: null, flowType: 'sanitize_ip', model: sanitizeResult.model, usage: sanitizeResult.usage });
   } catch (e: any) {
     throw handleAIError(e, 'sanitize_request');
   }
@@ -97,7 +98,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   let gameGenResult: GenerateNewGameResponse;
   try {
     gameGenResult = await generateNewGameFlow({ request: ipCheck.sanitizedRequest });
-    // Don't log this yet, wait until we have a gameId
   } catch(e: any) {
     throw handleAIError(e, 'generate_new_game');
   }
@@ -111,7 +111,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
       tone: newGame.tone,
       originalRequest: ipCheck.sanitizedRequest,
     });
-    // Don't log this yet
   } catch (e: any) {
     throw handleAIError(e, 'classify_setting');
   }
@@ -126,8 +125,8 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     const gameId = gameRef.id;
 
     // Now log the chained AI calls with the new gameId
-    await logAiUsage({ userId: input.userId, gameId, flowType: 'generate_new_game', model: gameGenModel, usage: gameGenUsage });
-    await logAiUsage({ userId: input.userId, gameId, flowType: 'classify_setting', model: classifyModel, usage: classifyUsage });
+    await logAiUsage({ userId, gameId, flowType: 'generate_new_game', model: gameGenModel, usage: gameGenUsage });
+    await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: classifyModel, usage: classifyUsage });
 
     const initialWorldState: WorldState = {
       summary: `The game is set in ${newGame.setting}. The tone is ${newGame.tone}.`,
@@ -672,10 +671,9 @@ export async function startNextSessionAction(gameId: string, userId: string): Pr
             currentWorldState: worldState,
             sessionNumber: nextSessionNumber,
         };
-        const result = await generateSessionBeats(beatsInput);
-        await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model, usage: result.usage });
+        const result = await generateSessionBeatsAction(beatsInput, gameId, userId);
         
-        const nextSessionBeats = result.output;
+        const nextSessionBeats = result;
         const shouldConclude = nextSessionBeats.length === 0;
 
         if (shouldConclude) {
@@ -719,3 +717,5 @@ export async function startNextSessionAction(gameId: string, userId: string): Pr
         return { success: false, message };
     }
 }
+
+    

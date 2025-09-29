@@ -21,7 +21,7 @@ export interface AiUsageLog {
  * @param logData - The data for the AI usage log entry.
  * @returns An object indicating success or failure.
  */
-export async function logAiUsage(logData: Omit<AiUsageLog, 'createdAt' | 'cost'>): Promise<{ success: boolean; message?: string }> {
+export async function logAiUsage(logData: Omit<AiUsageLog, 'createdAt' | 'cost' | 'id'>): Promise<{ success: boolean; message?: string }> {
   const { userId, gameId, flowType, model, usage } = logData;
 
   if (!userId || !flowType || !model || !usage) {
@@ -34,7 +34,7 @@ export async function logAiUsage(logData: Omit<AiUsageLog, 'createdAt' | 'cost'>
 
     const cost = calculateCost(model, usage);
 
-    const logEntry: Omit<AiUsageLog, 'createdAt'> = {
+    const logEntry: Omit<AiUsageLog, 'createdAt' | 'id'> = {
       userId,
       gameId,
       flowType,
@@ -56,3 +56,5 @@ export async function logAiUsage(logData: Omit<AiUsageLog, 'createdAt' | 'cost'>
     return { success: false, message };
   }
 }
+
+    

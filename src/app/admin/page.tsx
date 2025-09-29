@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFirestore, collection, getDocs, orderBy, query, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, orderBy, query, onSnapshot, type Timestamp } from 'firebase/firestore';
 import type { GameSession } from '@/app/lib/types';
 import { GameInspector } from '@/components/admin/game-inspector';
 import { BrandedLoadingSpinner } from '@/components/icons';
@@ -11,12 +11,25 @@ import { Gamepad2, Users, Coins, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import type { AiUsageLog } from '../actions/admin-actions';
-import { calculateCost } from '@/lib/ai-costs';
+
+interface AiUsageLogWithId {
+    id: string;
+    userId: string;
+    gameId: string | null;
+    flowType: string;
+    model: string;
+    usage: {
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+    };
+    cost: number;
+    createdAt: Timestamp;
+}
 
 export default function AdminDashboardPage() {
     const [games, setGames] = useState<GameSession[]>([]);
-    const [usageLogs, setUsageLogs] = useState<AiUsageLog[]>([]);
+    const [usageLogs, setUsageLogs] = useState<AiUsageLogWithId[]>([]);
     const [totalUsers, setTotalUsers] = useState<number>(0);
     const [selectedGame, setSelectedGame] = useState<GameSession | null>(null);
     const [loading, setLoading] = useState(true);
@@ -24,6 +37,8 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         const db = getFirestore();
 
+        // This is a simplified query and may incur high read costs on large user bases.
+        // In a production environment, you would use a counter managed by Cloud Functions.
         getDocs(collection(db, 'users')).then(snap => setTotalUsers(snap.size));
 
         const gamesQuery = query(collection(db, 'games'), orderBy('createdAt', 'desc'));
@@ -34,6 +49,9 @@ export default function AdminDashboardPage() {
             } as GameSession));
             setGames(allGames);
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching games:", error);
+            setLoading(false);
         });
 
         const usageQuery = query(collection(db, 'aiUsageLogs'), orderBy('createdAt', 'desc'));
@@ -41,8 +59,10 @@ export default function AdminDashboardPage() {
             const allLogs = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            } as AiUsageLog));
+            } as AiUsageLogWithId));
             setUsageLogs(allLogs);
+        }, (error) => {
+            console.error("Error fetching AI usage logs:", error);
         });
 
         return () => {
@@ -52,7 +72,7 @@ export default function AdminDashboardPage() {
     }, []);
     
     const totalCost = usageLogs.reduce((acc, log) => acc + log.cost, 0);
-    const totalTokens = usageLogs.reduce((acc, log) => acc + log.usage.totalTokens, 0);
+    const totalTokens = usageLogs.reduce((acc, log) => acc + (log.usage?.totalTokens || 0), 0);
 
 
     if (loading) {
@@ -133,9 +153,9 @@ export default function AdminDashboardPage() {
                                         <TableRow key={log.id}>
                                             <TableCell className="text-xs">{log.createdAt ? formatDistanceToNow(log.createdAt.toDate(), { addSuffix: true }) : 'N/A'}</TableCell>
                                             <TableCell><Badge variant="secondary" className="font-mono text-xs">{log.flowType}</Badge></TableCell>
-                                            <TableCell className="font-mono text-xs truncate">{log.gameId || 'N/A'}</TableCell>
+                                            <TableCell className="font-mono text-xs truncate max-w-24">{log.gameId || 'N/A'}</TableCell>
                                             <TableCell className="font-mono text-xs">{log.model.replace('googleai/','').replace('gemini-','')}</TableCell>
-                                            <TableCell className="text-xs">{log.usage.totalTokens.toLocaleString()}</TableCell>
+                                            <TableCell className="text-xs">{(log.usage?.totalTokens || 0).toLocaleString()}</TableCell>
                                             <TableCell className="text-right font-mono text-xs">${log.cost.toFixed(5)}</TableCell>
                                         </TableRow>
                                     ))}
@@ -190,3 +210,5 @@ export default function AdminDashboardPage() {
         </div>
     );
 }
+
+    
