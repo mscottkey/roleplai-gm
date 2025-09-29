@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, orderBy, query, onSnapshot } from 'firebase/firestore';
-import { AppShell } from '@/components/app-shell';
 import type { GameSession } from '@/app/lib/types';
 import { GameInspector } from '@/components/admin/game-inspector';
 import { BrandedLoadingSpinner } from '@/components/icons';

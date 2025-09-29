@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { signOut } from 'firebase/auth';
@@ -15,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User, Settings, ShieldCheck, Award } from 'lucide-react';
+import { LogOut, User, Settings, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from './ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
