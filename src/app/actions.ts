@@ -9,10 +9,10 @@ import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse, type AssessConsequencesInput, type AssessConsequencesOutput } from "@/ai/flows/assess-consequences";
-import { logAiUsage } from './actions/admin-actions';
-import { updateUserPreferences } from './actions/user-preferences';
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
+import { logAiUsage } from './actions/admin-actions';
+import { updateUserPreferences } from './actions/user-preferences';
 
 
 import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
@@ -187,7 +187,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
-        
         await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
 
         const app = await getServerApp();
@@ -326,4 +325,3 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     throw new Error(`Failed to update session status: ${message}`);
   }
 }
-

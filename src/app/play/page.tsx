@@ -502,8 +502,74 @@ export default function RoleplAIGMPage() {
       const currentCharacters = worldState.characters || [];
       if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
   
-      // This functionality needs to be restored by re-implementing the individual generation actions
-      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Storyline regeneration is currently disabled.' });
+      setGenerationProgress({ current: 1, total: 5, step: 'Generating Core Concepts...' });
+      const campaignCore = await generateCampaignCoreAction({
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: currentCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 2, total: 5, step: 'Designing Factions...' });
+      const factions = await generateCampaignFactionsAction({
+          ...campaignCore,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: currentCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 3, total: 5, step: 'Building Situation Nodes...' });
+      const nodes = await generateCampaignNodesAction({
+          ...campaignCore,
+          factions,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: currentCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      setGenerationProgress({ current: 4, total: 5, step: 'Creating Endgame...' });
+      const resolution = await generateCampaignResolutionAction({
+          ...campaignCore,
+          factions,
+          nodes,
+          setting: gameData.setting,
+          tone: gameData.tone,
+          characters: currentCharacters,
+          settingCategory: worldState.settingCategory || 'generic',
+      }, activeGameId, user.uid);
+
+      const completeCampaignStructure: CampaignStructure = {
+          ...campaignCore,
+          factions,
+          nodes,
+          resolution,
+      };
+
+      setGenerationProgress({ current: 5, total: 5, step: 'Finalizing World...' });
+      await saveCampaignStructure(activeGameId, completeCampaignStructure);
+
+      const startingNode = nodes.find(n => n.isStartingNode);
+      const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
+      const welcomeStoryMessage = { content: welcomeMessageText };
+      
+      const newSystemMessage = { id: `start-play-${Date.now()}`, role: 'system' as const, content: `The world has been rebuilt. A new story can now begin.` };
+
+      await updateWorldState({
+          gameId: activeGameId,
+          userId: user.uid,
+          updates: {
+              'gameData.campaignGenerated': true,
+              messages: [newSystemMessage],
+              storyMessages: [welcomeStoryMessage],
+              'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
+              'worldState.currentScene.name': startingNode?.title || 'Starting Point',
+              'worldState.currentScene.description': startingNode?.description || 'The scene is not yet described.',
+          }
+      });
+
+      toast({ title: 'Storyline Regenerated!', description: 'Your new campaign is ready to play.' });
 
     } catch (error) {
       const err = error as Error;
@@ -674,6 +740,18 @@ export default function RoleplAIGMPage() {
         toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
   }, [activeGameId, worldState, user, toast]);
+
+  const handleUpdateStatus = async (status: SessionStatus) => {
+    if (!activeGameId || !user) return;
+    try {
+      await updateSessionStatus(activeGameId, status);
+      toast({ title: "Status Updated", description: `Session is now ${status}.`});
+      if (endCampaignConfirmation) setEndCampaignConfirmation(false);
+    } catch (error) {
+      const err = error as Error;
+      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
+    }
+  };
 
   if (step === 'loading') {
     return (
@@ -902,17 +980,6 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleUpdateStatus = async (status: SessionStatus) => {
-    if (!activeGameId || !user) return;
-    try {
-      await updateSessionStatus(activeGameId, status);
-      toast({ title: "Status Updated", description: `Session is now ${status}.`});
-      if (endCampaignConfirmation) setEndCampaignConfirmation(false);
-    } catch (error) {
-      const err = error as Error;
-      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
-    }
-  };
 
   const handleEndSession = async (type: 'natural' | 'interrupted' | 'early') => {
     if (!activeGameId) return;
@@ -1264,3 +1331,4 @@ export default function RoleplAIGMPage() {
 }
 
     
+
