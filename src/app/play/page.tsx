@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
@@ -16,13 +17,27 @@ import {
   continueStory,
   updateWorldState,
   checkConsequences,
+  undoLastAction,
+  generateRecap,
+  deleteGame,
+  renameGame,
+  updateUserProfile,
   saveCampaignStructure,
+  regenerateField,
+  narratePlayerActions,
+  getAnswerToQuestion,
+  updateSessionStatus,
   generateCampaignCoreAction,
   generateCampaignFactionsAction,
   generateCampaignNodesAction,
   generateCampaignResolutionAction,
   createCharacter,
-  updateSessionStatus,
+  classifyInput,
+  classifySetting,
+  generateSessionBeatsAction,
+  endCurrentSessionAction,
+  startNextSessionAction,
+  kickPlayerAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -40,6 +55,7 @@ import {
   where,
   orderBy,
   updateDoc,
+  arrayUnion,
 } from 'firebase/firestore';
 import { BrandedLoadingSpinner, LoadingSpinner } from '@/components/icons';
 import {
@@ -58,7 +74,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { cn } from '@/lib/utils';
-import type { GenerateCharacterInput } from "@/ai/schemas/generate-character-schemas";
+import type { GenerateCharacterInput, GenerateCharacterOutput } from "@/ai/schemas/generate-character-schemas";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Bot, ScrollText, Play, Wand2, PartyPopper } from 'lucide-react';
 import { AccountDialog } from '@/components/account-dialog';
@@ -97,8 +113,6 @@ const SummaryReview = ({
     allCategories: string[];
   }) => {
     
-    const [newRequest, setNewRequest] = useState(gameData.originalRequest || '');
-    const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>(classification?.category || '');
     const [isUpdating, setIsUpdating] = useState(false);
@@ -261,7 +275,6 @@ export default function RoleplAIGMPage() {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [endCampaignConfirmation, setEndCampaignConfirmation] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
-  const [sessionEndType, setSessionEndType] = useState<'natural' | 'interrupted' | 'early' | null>(null);
 
   const { toast } = useToast();
 
@@ -370,7 +383,6 @@ export default function RoleplAIGMPage() {
     return () => { if (supported) cancel(); };
   }, [searchParams, activeGameId, cancel, supported]);
 
-  // Effect for handling session idle warnings
   useEffect(() => {
     if (step !== 'play' || sessionStatus !== 'active' || !worldState?.autoEndEnabled || !worldState?.lastActivity) {
       return;
@@ -397,8 +409,8 @@ export default function RoleplAIGMPage() {
       }
     };
   
-    const interval = setInterval(checkIdle, 5 * 60 * 1000); // Check every 5 mins
-    checkIdle(); // Initial check
+    const interval = setInterval(checkIdle, 5 * 60 * 1000); 
+    checkIdle();
   
     return () => clearInterval(interval);
   }, [step, sessionStatus, worldState, activeGameId, toast, user]);
@@ -445,23 +457,46 @@ export default function RoleplAIGMPage() {
 
           if (sessionLoadedRef.current !== activeGameId) {
             sessionLoadedRef.current = activeGameId;
-
             let shouldShowRecap = game.worldState.sessionProgress && game.worldState.sessionProgress.currentSession > 1 && game.worldState.sessionProgress.currentBeat === 0;
-
-            if (shouldShowRecap) {
+            if (shouldShowRecap && user && game.worldState.recentEvents.length > 1) {
               setIsLoading(true);
-              // TODO: Re-implement generateRecap
+              generateRecap({
+                recentEvents: game.worldState.recentEvents,
+                storyOutline: game.worldState.storyOutline,
+                characters: game.worldState.characters,
+                factions: game.worldState.factions || undefined
+              }, activeGameId, user.uid).then(recapOutput => {
+                const recapMessage: Message = {
+                  id: `recap-${Date.now()}`,
+                  role: 'system',
+                  content: `**Previously On:**\n\n${recapOutput.recap}\n\n**Urgent Situations:**\n${recapOutput.urgentSituations.map(s => `- ${s}`).join('\n')}`
+                };
+                setMessages(prev => [...prev, recapMessage]);
+              }).catch(err => {
+                console.error("Failed to generate recap:", err);
+              }).finally(() => setIsLoading(false));
             }
           }
         }
         
-        if (game.step === 'summary' && gameData?.originalRequest !== game.gameData.originalRequest) {
+        if (game.step === 'summary' && user && gameData?.originalRequest !== game.gameData.originalRequest) {
           if (!lastClassification || lastClassification.reasoning.includes('fallback')) {
-              // TODO: Re-implement classifySetting
+             classifySetting({
+                setting: game.gameData.setting,
+                tone: game.gameData.tone,
+                originalRequest: game.gameData.originalRequest,
+              }, user.uid, activeGameId).then(classification => {
+                setLastClassification(classification);
+                if (game.worldState.settingCategory !== classification.category) {
+                    updateWorldState({
+                        gameId: activeGameId,
+                        userId: user.uid,
+                        updates: { 'worldState.settingCategory': classification.category }
+                    });
+                }
+            });
           }
         }
-
-
         setStep(game.step || 'summary');
       } else {
         if (deletingGameId.current !== activeGameId) {
@@ -600,7 +635,6 @@ export default function RoleplAIGMPage() {
     setIsLoading(true);
 
     try {
-        // This is the core "world-build" sequence
         setGenerationProgress({ current: 1, total: 5, step: 'Generating Core Concepts...' });
         const campaignCore = await generateCampaignCoreAction({
             setting: gameData.setting,
@@ -649,7 +683,6 @@ export default function RoleplAIGMPage() {
         setGenerationProgress({ current: 5, total: 5, step: 'Finalizing World...' });
         await saveCampaignStructure(activeGameId, completeCampaignStructure);
 
-        // After saving, update the main game document to start play
         const startingNode = nodes.find(n => n.isStartingNode);
         const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
         const welcomeStoryMessage = { content: welcomeMessageText };
@@ -678,8 +711,6 @@ export default function RoleplAIGMPage() {
       const currentStep = generationProgress?.step || 'an unknown step';
       console.error(`Failed during world generation at step: ${currentStep}`, err);
       toast({ variant: 'destructive', title: `World Generation Failed`, description: `The process failed at: "${currentStep}". Error: ${err.message}`, duration: 10000 });
-      setIsLoading(false);
-      return;
     } finally {
       setGenerationProgress(null);
       setIsLoading(false);
@@ -687,14 +718,18 @@ export default function RoleplAIGMPage() {
   }, [activeGameId, gameData, worldState, user, toast, generationProgress, messages]);
 
   const handleUndo = useCallback(async () => {
-    if (!activeGameId || !previousWorldState) {
-      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No previous state to restore.' });
+    if (!activeGameId) {
+      toast({ variant: 'destructive', title: 'Undo Failed', description: 'No active game selected.' });
       return;
     }
     setIsLoading(true);
     try {
-      // Re-implement `undoLastAction` to enable
-      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Undo is currently disabled.' });
+        const result = await undoLastAction(activeGameId);
+        if (result.success) {
+            toast({ title: 'Last Action Undone', description: 'The game state has been reverted.' });
+        } else {
+            throw new Error(result.message || 'Failed to undo the last action.');
+        }
     } catch (error) {
       const err = error as Error;
       console.error('Failed to undo:', err);
@@ -702,22 +737,31 @@ export default function RoleplAIGMPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeGameId, previousWorldState, toast]);
+  }, [activeGameId, toast]);
   
   const handleRegenerateField = useCallback(async (fieldName: 'setting' | 'tone') => {
-    if (!activeGameId || !gameData) return;
+    if (!activeGameId || !gameData || !user) return;
     try {
         gtag.event({
             action: 'regenerate_field',
             category: 'game_setup',
             label: fieldName,
         });
-        // Re-implement `regenerateField` to enable
-        toast({ variant: 'destructive', title: 'Not Implemented', description: 'Field regeneration is currently disabled.' });
+        const result = await regenerateField({
+            request: gameData.originalRequest || '',
+            fieldName,
+            currentValue: gameData[fieldName],
+        }, activeGameId, user.uid);
+        
+        await updateWorldState({
+            gameId: activeGameId,
+            userId: user.uid,
+            updates: { [`gameData.${fieldName}`]: result.newValue }
+        });
     } catch (err: any) {
         toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
     }
-  }, [activeGameId, gameData, toast]);
+  }, [activeGameId, gameData, toast, user]);
 
   const handleUpdateCategory = useCallback(async (newCategory: string) => {
     if (!activeGameId || !worldState || !user) return;
@@ -796,7 +840,7 @@ export default function RoleplAIGMPage() {
     }
   };
 
-  const handleGenerateCharacters = (input: GenerateCharacterInput) => {
+  const handleGenerateCharacters = (input: GenerateCharacterInput): Promise<GenerateCharacterOutput> => {
     if (!activeGameId || !user) {
         toast({ variant: 'destructive', title: 'Error', description: 'No active game selected.' });
         return Promise.reject(new Error('No active game selected.'));
@@ -848,9 +892,7 @@ export default function RoleplAIGMPage() {
     setIsLoading(true);
   
     try {
-      // Re-implement `classifyInput` to enable
-      const intentClassification = { intent: 'Action' }; // Placeholder
-      
+      const intentClassification = await classifyInput({ playerInput }, user.uid, activeGameId);
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
       if (intentClassification?.intent === 'Action') {
@@ -896,11 +938,11 @@ export default function RoleplAIGMPage() {
             }
         }
         
-        // Re-implement `narratePlayerActions` to enable
+        const ack = await narratePlayerActions({ playerAction: playerInput, gameState: worldState.summary, character: activeCharacter }, activeGameId, user.uid);
         const acknowledgementMessage: Message = {
             id: `assistant-ack-${Date.now()}`,
             role: 'assistant',
-            content: `Okay, ${activeCharacter.name} tries to ${playerInput}. Let's see what happens...`, // Placeholder
+            content: ack.narration,
         };
         
         const finalChatMessages = [...newMessages, acknowledgementMessage];
@@ -948,9 +990,7 @@ export default function RoleplAIGMPage() {
         }
   
       } else {
-        // QUESTION intent
-        // Re-implement `getAnswerToQuestion` to enable
-        const response = { answer: "I'm sorry, asking questions is temporarily disabled." }; // Placeholder
+        const response = await getAnswerToQuestion({ question: playerInput, worldState, character: actingCharacter, settingCategory: worldState.settingCategory || 'generic' }, activeGameId, user.uid);
   
         const assistantMessage: Message = {
           id: `assistant-ans-${Date.now()}`,
@@ -984,8 +1024,13 @@ export default function RoleplAIGMPage() {
   const handleEndSession = async (type: 'natural' | 'interrupted' | 'early') => {
     if (!activeGameId) return;
     setSessionEnding(false);
-    // Re-implement endCurrentSessionAction
-    toast({ variant: 'destructive', title: 'Not Implemented' });
+    try {
+        await endCurrentSessionAction(activeGameId, type);
+        toast({ title: "Session Paused", description: "The session has been paused. You can start a new session from the story drawer."});
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Failed to End Session', description: err.message });
+    }
   };
 
 
@@ -1011,8 +1056,13 @@ export default function RoleplAIGMPage() {
     deletingGameId.current = gameIdToDelete;
     setDeleteConfirmation(null);
     router.push('/play');
-    // Re-implement deleteGame
-    toast({ variant: 'destructive', title: 'Not Implemented' });
+    try {
+        await deleteGame(gameIdToDelete);
+        toast({ title: 'Game Deleted', description: `"${deleteConfirmation.gameData.name}" has been permanently deleted.`});
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
+    }
     deletingGameId.current = null;
   };
 
@@ -1021,8 +1071,13 @@ export default function RoleplAIGMPage() {
 
     const gameIdToRename = renameTarget.id;
     setRenameTarget(null);
-    // Re-implement renameGame
-    toast({ variant: 'destructive', title: 'Not Implemented' });
+    try {
+        await renameGame(gameIdToRename, newGameName.trim());
+        toast({ title: 'Game Renamed', description: `Your game has been renamed to "${newGameName.trim()}".`});
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: 'destructive', title: 'Rename Failed', description: err.message });
+    }
     setNewGameName('');
   };
 
@@ -1035,17 +1090,23 @@ export default function RoleplAIGMPage() {
 
   const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string; }) => {
     if (!user) return;
-    // Re-implement updateUserProfile
-    toast({ variant: 'destructive', title: 'Not Implemented' });
+    try {
+        await updateUserProfile(user.uid, updates);
+        toast({ title: "Profile Updated", description: "Your preferences have been saved." });
+        onOpenChange(false);
+    } catch (error) {
+        const err = error as Error;
+        toast({ variant: "destructive", title: "Update Failed", description: err.message });
+    }
   };
   
   const handleStartNewSession = async () => {
-    if (!activeGameId) return;
+    if (!activeGameId || !user) return;
     setIsLoading(true);
     toast({ title: "Starting New Session...", description: "The GM is preparing the next chapter." });
     try {
-        // Re-implement startNextSessionAction
-        toast({ variant: 'destructive', title: 'Not Implemented' });
+        await startNextSessionAction(activeGameId, user.uid);
+        toast({ title: 'New Session Started!', description: 'The story continues.' });
     } catch (error) {
         const err = error as Error;
         console.error("Failed to start new session:", err);
@@ -1058,8 +1119,8 @@ export default function RoleplAIGMPage() {
   const handleKickPlayer = async (playerId: string) => {
     if (!activeGameId || !user || user.uid !== hostId) return;
     try {
-      // Re-implement kickPlayerAction
-      toast({ variant: 'destructive', title: 'Not Implemented' });
+      await kickPlayerAction(activeGameId, playerId);
+      toast({ title: "Player Kicked", description: "The player has been removed from the game." });
     } catch (error) {
       const err = error as Error;
       toast({ variant: 'destructive', title: 'Kick Failed', description: err.message });
@@ -1329,6 +1390,3 @@ export default function RoleplAIGMPage() {
     </>
   );
 }
-
-    
-

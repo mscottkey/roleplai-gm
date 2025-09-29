@@ -2,6 +2,7 @@
 
 'use server';
 
+// AI FLOW IMPORTS
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
 import { resolveAction as resolveActionFlow, type ResolveActionOutput, type ResolveActionResponse } from "@/ai/flows/integrate-rules-adapter";
 import { generateCharacter as generateCharacterFlow, type GenerateCharacterResponse, type GenerateCharacterInput, type GenerateCharacterOutput } from "@/ai/flows/generate-character";
@@ -9,20 +10,31 @@ import { updateWorldState as updateWorldStateFlow, type UpdateWorldStateResponse
 import { askQuestion as askQuestionFlow, type AskQuestionInput, type AskQuestionOutput, type AskQuestionResponse } from "@/ai/flows/ask-question";
 import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpResponse } from "@/ai/flows/sanitize-ip";
 import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse, type AssessConsequencesInput, type AssessConsequencesOutput } from "@/ai/flows/assess-consequences";
+import { regenerateField as regenerateFieldFlow, type RegenerateFieldInput, type RegenerateFieldResponse, type RegenerateFieldOutput } from "@/ai/flows/regenerate-field";
+import { narratePlayerActions as narratePlayerActionsFlow, type NarratePlayerActionsInput, type NarratePlayerActionsOutput, type NarratePlayerActionsResponse } from "@/ai/flows/narrate-player-actions";
+import { generateRecap as generateRecapFlow, type GenerateRecapResponse, type GenerateRecapInput, type GenerateRecapOutput } from "@/ai/flows/generate-recap";
+import { classifyInput as classifyInputFlow, type ClassifyInputResponse, type ClassifyInputOutput } from "@/ai/flows/classify-input";
+import { classifySetting as classifySettingFlow, type ClassifySettingResponse, type ClassifySettingOutput } from "@/ai/flows/classify-setting";
+
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
+import { generateNextSessionBeats, generateSessionBeats } from "@/ai/flows/generate-session-beats";
+
+// OTHER ACTION IMPORTS
 import { logAiUsage } from './actions/admin-actions';
-import { updateUserPreferences } from './actions/user-preferences';
+import { updateUserPreferences as updateUserPreferencesAction, type UserPreferences } from './actions/user-preferences';
 
 
-import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
+// TYPE IMPORTS
+import type { UpdateWorldStateInput as AIUpdateWorldStateInput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
+import type { ClassifyInput, ClassifySettingInput } from "@/ai/schemas/classify-schemas";
 
 
 import { z } from 'genkit';
 
-// Import Firebase client SDK with proper initialization
+// FIREBASE IMPORTS
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, collection, getDoc, query, where, getDocs, deleteDoc, arrayUnion, writeBatch, initializeFirestore } from 'firebase/firestore';
 
@@ -32,7 +44,7 @@ import type { Character, Message, GameSession, SessionStatus } from "@/app/lib/t
 import { GenerationUsage } from "genkit";
 import * as gtag from '@/lib/gtag';
 
-// Helper for user-friendly error messages
+// HELPER FUNCTIONS
 function handleAIError(error: Error, flowType: string): Error {
     console.error(`AI Error in ${flowType}:`, error);
     if (error.message.includes('503') || error.message.toLowerCase().includes('overloaded')) {
@@ -41,7 +53,6 @@ function handleAIError(error: Error, flowType: string): Error {
     return new Error(`Failed to ${flowType.replace(/_/g, ' ')}: ${error.message}`);
 }
 
-// Initialize Firebase for server actions
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -62,12 +73,12 @@ export async function getServerApp() {
   return app;
 }
 
+// GAME CREATION
 type StartNewGameInput = {
   request: string;
   userId: string;
   playMode: 'local' | 'remote';
 };
-
 
 export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: string; newGame: GenerateNewGameOutput; warningMessage?: string }> {
   const { userId, request, playMode } = input;
@@ -118,7 +129,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
         environmentalFactors: [],
         connections: [],
       },
-      settingCategory: 'generic', // This will be updated by a separate client-side action
+      settingCategory: 'generic', 
       sessionProgress: null,
       lastActivity: new Date().toISOString(),
       idleTimeoutMinutes: 120,
@@ -138,14 +149,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
     
     await setDoc(gameRef, newGameDocument);
 
-    const totalUsage: GenerationUsage = {
-        inputTokens: sanitizeResult.usage.inputTokens + gameGenResult.usage.inputTokens,
-        outputTokens: sanitizeResult.usage.outputTokens + gameGenResult.usage.outputTokens,
-        totalTokens: sanitizeResult.usage.totalTokens + gameGenResult.usage.totalTokens,
-    }
-    await logAiUsage({ userId, gameId, flowType: 'start_new_game_total', model: 'aggregate', usage: totalUsage});
-
-
     return { gameId: gameRef.id, newGame, warningMessage: ipCheck.warningMessage };
 
   } catch (e: any) {
@@ -156,6 +159,7 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   }
 }
 
+// IN-GAME ACTIONS
 type ContinueStoryInput = Omit<ResolveActionInput, 'character'> & { characterId: string; gameId: string; userId: string; };
 export async function continueStory(input: ContinueStoryInput): Promise<ResolveActionOutput> {
   const { characterId, worldState, gameId, userId, ...rest } = input;
@@ -164,15 +168,6 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   if (!character) {
       throw new Error("Character not found in world state.");
   }
-
-  // Pre-flight checks
-  const app = await getServerApp();
-  const db = getFirestore(app);
-  const gameDoc = await getDoc(doc(db, 'games', gameId));
-  if (!gameDoc.exists()) throw new Error("Game not found for validation.");
-  const gameData = gameDoc.data() as GameSession;
-  if (gameData.gameData.playMode === 'remote' && gameData.activeCharacterId !== character.id) throw new Error("It is not this character's turn to act.");
-  if (gameData.sessionStatus !== 'active') throw new Error("The game session is not active. Please resume the session to continue.");
   
   const flowInput = { ...rest, worldState, character };
   try {
@@ -184,6 +179,27 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
   }
 }
 
+export async function getAnswerToQuestion(input: AskQuestionInput, gameId: string, userId: string): Promise<AskQuestionOutput> {
+  try {
+    const result: AskQuestionResponse = await askQuestionFlow(input);
+    await logAiUsage({ userId, gameId, flowType: 'ask_question', model: result.model, usage: result.usage });
+    return result.output;
+  } catch (e: any) {
+    throw handleAIError(e, 'ask_question');
+  }
+}
+
+export async function narratePlayerActions(input: NarratePlayerActionsInput, gameId: string, userId: string): Promise<NarratePlayerActionsOutput> {
+    try {
+        const result: NarratePlayerActionsResponse = await narratePlayerActionsFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'narrate_action', model: result.model, usage: result.usage });
+        return result.output;
+    } catch (e: any) {
+        throw handleAIError(e, 'narrate_action');
+    }
+}
+
+// CHARACTER & CAMPAIGN GENERATION
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
@@ -213,7 +229,7 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
                 generatedCharacter: characterData,
             },
             characterCreationStatus: 'ready',
-          }, { merge: true });
+        }, { merge: true });
         });
 
         await batch.commit();
@@ -226,6 +242,41 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
     }
 }
 
+export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
+    const result = await generateCampaignCore(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
+    const result = await generateCampaignFactions(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
+    const result = await generateCampaignNodes(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
+    const result = await generateCampaignResolution(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function regenerateField(input: RegenerateFieldInput, gameId: string, userId: string): Promise<RegenerateFieldOutput> {
+    try {
+        const result: RegenerateFieldResponse = await regenerateFieldFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'regenerate_field', model: result.model, usage: result.usage });
+        return result.output;
+    } catch(e: any) {
+        throw handleAIError(e, 'regenerate_field');
+    }
+}
+
+// WORLD STATE & GAME MANAGEMENT
 type UpdateWorldStateServerInput = {
   gameId: string;
   userId: string;
@@ -270,6 +321,35 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
   }
 }
 
+export async function undoLastAction(gameId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+        const gameSnap = await getDoc(gameRef);
+
+        if (!gameSnap.exists()) {
+            throw new Error('Game not found.');
+        }
+
+        const gameData = gameSnap.data() as GameSession;
+        if (!gameData.previousWorldState) {
+            throw new Error('No previous state to restore.');
+        }
+
+        await updateDoc(gameRef, {
+            worldState: gameData.previousWorldState,
+            previousWorldState: null,
+        });
+
+        return { success: true };
+    } catch (e: any) {
+        const message = e instanceof Error ? e.message : "An unknown error occurred during undo.";
+        console.error("Undo failed:", message);
+        return { success: false, message };
+    }
+}
+
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
@@ -278,31 +358,6 @@ export async function checkConsequences(input: AssessConsequencesInput, gameId: 
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');
   }
-}
-
-// Campaign Generation Actions
-export async function generateCampaignCoreAction(input: GenerateCampaignCoreInput, gameId: string, userId: string): Promise<CampaignCore> {
-    const result = await generateCampaignCore(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_core', model: result.model!, usage: result.usage });
-    return result.output;
-}
-
-export async function generateCampaignFactionsAction(input: GenerateFactionsInput, gameId: string, userId: string): Promise<Faction[]> {
-    const result = await generateCampaignFactions(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_factions', model: result.model!, usage: result.usage });
-    return result.output;
-}
-
-export async function generateCampaignNodesAction(input: GenerateNodesInput, gameId: string, userId: string): Promise<Node[]> {
-    const result = await generateCampaignNodes(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_nodes', model: result.model!, usage: result.usage });
-    return result.output;
-}
-
-export async function generateCampaignResolutionAction(input: GenerateResolutionInput, gameId: string, userId: string): Promise<CampaignResolution> {
-    const result = await generateCampaignResolution(input);
-    await logAiUsage({ userId, gameId, flowType: 'generate_campaign_resolution', model: result.model!, usage: result.usage });
-    return result.output;
 }
 
 export async function saveCampaignStructure(gameId: string, campaignStructure: CampaignStructure) {
@@ -324,4 +379,135 @@ export async function updateSessionStatus(gameId: string, status: SessionStatus)
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
     throw new Error(`Failed to update session status: ${message}`);
   }
+}
+
+export async function deleteGame(gameId: string): Promise<{ success: boolean }> {
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        // It's good practice to also delete subcollections, but for this MVP, deleting the main doc is sufficient.
+        await deleteDoc(doc(db, 'games', gameId));
+        return { success: true };
+    } catch (error) {
+        console.error(`Error deleting game ${gameId}:`, error);
+        throw new Error('Failed to delete game.');
+    }
+}
+
+export async function renameGame(gameId: string, newName: string): Promise<{ success: boolean }> {
+    if (!newName.trim()) {
+        throw new Error('Game name cannot be empty.');
+    }
+    try {
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, { 'gameData.name': newName });
+        return { success: true };
+    } catch (error) {
+        console.error(`Error renaming game ${gameId}:`, error);
+        throw new Error('Failed to rename game.');
+    }
+}
+
+// SESSION MANAGEMENT
+export async function generateRecap(input: GenerateRecapInput, gameId: string, userId: string): Promise<GenerateRecapOutput> {
+    try {
+        const result: GenerateRecapResponse = await generateRecapFlow(input);
+        await logAiUsage({ userId, gameId, flowType: 'generate_recap', model: result.model, usage: result.usage });
+        return result.output;
+    } catch(e: any) {
+        throw handleAIError(e, 'generate_recap');
+    }
+}
+
+export async function generateSessionBeatsAction(input: GenerateSessionBeatsInput, gameId: string, userId: string): Promise<StoryBeat[]> {
+    const result = await generateSessionBeats(input);
+    await logAiUsage({ userId, gameId, flowType: 'generate_session_beats', model: result.model!, usage: result.usage });
+    return result.output;
+}
+
+export async function endCurrentSessionAction(gameId: string, endType: 'natural' | 'interrupted' | 'early' | 'idle_timeout'): Promise<{ success: boolean }> {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, 'games', gameId);
+
+    const updates: Record<string, any> = {
+        'worldState.sessionProgress.sessionComplete': true,
+        'worldState.sessionProgress.readyForNextSession': true,
+        'sessionStatus': 'paused'
+    };
+
+    if (endType === 'interrupted') {
+        updates['worldState.sessionProgress.interruptedMidBeat'] = true;
+    }
+
+    await updateDoc(gameRef, updates);
+    return { success: true };
+}
+
+
+export async function startNextSessionAction(gameId: string, userId: string): Promise<{ newBeats: StoryBeat[], newSessionNumber: number }> {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, 'games', gameId);
+    const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
+    
+    const [gameSnap, campaignSnap] = await Promise.all([getDoc(gameRef), getDoc(campaignRef)]);
+    
+    if (!gameSnap.exists() || !campaignSnap.exists()) {
+        throw new Error("Game or campaign data not found.");
+    }
+    
+    const game = gameSnap.data() as GameSession;
+    const campaign = campaignSnap.data() as CampaignStructure;
+
+    const newBeats = await generateNextSessionBeats(game.worldState, campaign);
+
+    const newSessionNumber = (game.worldState.sessionProgress?.currentSession || 0) + 1;
+    
+    const newSessionProgress: SessionProgress = {
+        currentSession: newSessionNumber,
+        currentBeat: 1,
+        beatsCompleted: 0,
+        beatsPlanned: newBeats.length,
+        sessionComplete: false,
+        interruptedMidBeat: false,
+        readyForNextSession: false,
+    };
+    
+    await updateDoc(gameRef, {
+        'worldState.sessionProgress': newSessionProgress,
+        'campaign.currentSessionBeats': newBeats,
+        sessionStatus: 'active'
+    });
+
+    return { newBeats, newSessionNumber };
+}
+
+
+// USER & PLAYER MANAGEMENT
+export async function kickPlayerAction(gameId: string, playerId: string): Promise<{ success: true }> {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const playerRef = doc(db, 'games', gameId, 'players', playerId);
+    await deleteDoc(playerRef);
+    return { success: true };
+}
+
+export async function updateUserProfile(userId: string, updates: UserPreferences): Promise<{ success: boolean }> {
+  return updateUserPreferencesAction(userId, updates);
+}
+
+// CLASSIFICATION ACTIONS
+export async function classifyInput(input: ClassifyInput, userId: string, gameId: string | null): Promise<ClassifyInputOutput> {
+    const result: ClassifyInputResponse = await classifyInputFlow(input);
+    await logAiUsage({ userId, gameId, flowType: 'classify_input', model: result.model, usage: result.usage });
+    return result.output;
+}
+
+export async function classifySetting(input: ClassifySettingInput, userId: string, gameId: string | null): Promise<ClassifySettingOutput> {
+    const result: ClassifySettingResponse = await classifySettingFlow(input);
+    await logAiUsage({ userId, gameId, flowType: 'classify_setting', model: result.model, usage: result.usage });
+    return result.output;
 }
