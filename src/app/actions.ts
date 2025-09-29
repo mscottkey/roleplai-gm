@@ -11,12 +11,11 @@ import { sanitizeIp as sanitizeIpFlow, type SanitizeIpOutput, type SanitizeIpRes
 import { assessConsequences as assessConsequencesFlow, type AssessConsequencesResponse, type AssessConsequencesInput, type AssessConsequencesOutput } from "@/ai/flows/assess-consequences";
 import { logAiUsage } from './actions/admin-actions';
 import { updateUserPreferences } from './actions/user-preferences';
-
-import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
 import { generateCampaignCore, generateCampaignFactions, generateCampaignNodes } from "@/ai/flows/generate-campaign-pieces";
 import { generateCampaignResolution } from "@/ai/flows/generate-campaign-resolution";
 
 
+import type { UpdateWorldStateInput as AIUpdateWorldStateInput, UpdateWorldStateOutput, WorldState, GenerateSessionBeatsInput, StoryBeat, SessionProgress, CampaignCore, Faction, Node, CampaignResolution, GenerateFactionsInput, GenerateNodesInput, GenerateResolutionInput, GenerateCampaignCoreInput, CampaignStructure } from "@/ai/schemas/world-state-schemas";
 import type { ResolveActionInput } from '@/ai/flows/integrate-rules-adapter';
 import type { GenerateNewGameOutput } from "@/ai/flows/generate-new-game";
 
@@ -188,8 +187,9 @@ export async function continueStory(input: ContinueStoryInput): Promise<ResolveA
 export async function createCharacter(input: GenerateCharacterInput, gameId: string, userId: string): Promise<GenerateCharacterOutput> {
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
-        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
         
+        await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
+
         const app = await getServerApp();
         const db = getFirestore(app);
         const batch = writeBatch(db);
@@ -209,8 +209,6 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
             archetype: char.archetype,
             stats: char.stats,
           };
-          // Use set with merge:true to handle both creation and update gracefully.
-          // This fixes the bug where hot-seat players (who don't have a doc yet) cause a "NOT_FOUND" error.
           batch.set(playerRef, {
             characterData: {
                 generatedCharacter: characterData,
@@ -276,6 +274,7 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
 export async function checkConsequences(input: AssessConsequencesInput, gameId: string, userId: string): Promise<AssessConsequencesOutput> {
   try {
     const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
+    await logAiUsage({ userId, gameId, flowType: 'assess_consequences', model: result.model, usage: result.usage });
     return result.output;
   } catch (e: any) {
     throw handleAIError(e, 'assess_consequences');
@@ -313,3 +312,18 @@ export async function saveCampaignStructure(gameId: string, campaignStructure: C
   const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
   await setDoc(campaignRef, campaignStructure, { merge: true });
 }
+
+export async function updateSessionStatus(gameId: string, status: SessionStatus): Promise<{ success: boolean }> {
+  try {
+    const app = await getServerApp();
+    const db = getFirestore(app);
+    const gameRef = doc(db, 'games', gameId);
+    await updateDoc(gameRef, { sessionStatus: status });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating session status:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(`Failed to update session status: ${message}`);
+  }
+}
+
