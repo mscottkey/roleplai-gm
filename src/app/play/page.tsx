@@ -16,27 +16,7 @@ import {
   continueStory,
   updateWorldState,
   checkConsequences,
-  undoLastAction,
-  generateRecap,
-  deleteGame,
-  renameGame,
-  updateUserProfile,
-  saveCampaignStructure,
-  regenerateField,
-  narratePlayerActions,
-  getAnswerToQuestion,
-  updateSessionStatus,
-  generateCampaignCoreAction,
-  generateCampaignFactionsAction,
-  generateCampaignNodesAction,
-  generateCampaignResolutionAction,
   createCharacter,
-  classifyInput,
-  classifySetting,
-  generateSessionBeatsAction,
-  endCurrentSessionAction,
-  startNextSessionAction,
-  kickPlayerAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -404,7 +384,7 @@ export default function RoleplAIGMPage() {
           duration: 60000,
         });
         if (activeGameId) {
-          await updateWorldState({gameId: activeGameId, updates: {
+          await updateWorldState({gameId: activeGameId, userId: user!.uid, updates: {
             'worldState.idleWarningShown': true
           }});
         }
@@ -415,7 +395,7 @@ export default function RoleplAIGMPage() {
     checkIdle(); // Initial check
   
     return () => clearInterval(interval);
-  }, [step, sessionStatus, worldState, activeGameId, toast]);
+  }, [step, sessionStatus, worldState, activeGameId, toast, user]);
 
   useEffect(() => {
     if (!activeGameId) {
@@ -464,60 +444,14 @@ export default function RoleplAIGMPage() {
 
             if (shouldShowRecap) {
               setIsLoading(true);
-              generateRecap({ 
-                  recentEvents: game.worldState.recentEvents,
-                  storyOutline: game.worldState.storyOutline,
-                  characters: game.worldState.characters,
-                  factions: game.worldState.factions || [],
-              }, activeGameId)
-                .then((recapResult) => {
-                  let recapContent = `### Previously On...\n\n${recapResult.recap}`;
-
-                  if (recapResult.characterReminders && Object.keys(recapResult.characterReminders).length > 0) {
-                      recapContent += `\n\n---\n\n### Reminders for the Party\n`;
-                      for (const [charName, reminder] of Object.entries(recapResult.characterReminders)) {
-                          recapContent += `*   **${charName}:** ${reminder}\n`;
-                      }
-                  }
-
-                  if (recapResult.urgentSituations && recapResult.urgentSituations.length > 0) {
-                      recapContent += `\n\n---\n\n### Urgent Situations\n`;
-                      recapResult.urgentSituations.forEach(situation => {
-                          recapContent += `*   ${situation}\n`;
-                      });
-                  }
-
-                  const recapMessage: Message = {
-                    id: `recap-${Date.now()}`,
-                    role: 'system',
-                    content: recapContent,
-                  };
-                  setMessages((prev) => [recapMessage, ...prev]);
-                })
-                .catch((err) => {
-                  console.error('Failed to generate recap:', err);
-                  toast({ variant: 'destructive', title: 'Recap Failed', description: 'Could not generate a session recap.' });
-                })
-                .finally(() => setIsLoading(false));
+              // TODO: Re-implement generateRecap
             }
           }
         }
         
         if (game.step === 'summary' && gameData?.originalRequest !== game.gameData.originalRequest) {
           if (!lastClassification || lastClassification.reasoning.includes('fallback')) {
-              classifySetting({
-                  setting: game.gameData.setting,
-                  tone: game.gameData.tone,
-                  originalRequest: game.gameData.originalRequest,
-              }).then(result => {
-                  setLastClassification(result);
-                  if (game.worldState.settingCategory !== result.category) {
-                      updateWorldState({gameId: activeGameId, updates: { 'worldState.settingCategory': result.category }});
-                  }
-              }).catch(err => {
-                  console.error("Failed to classify setting on summary load:", err);
-                  toast({ variant: 'destructive', title: 'Classification Failed', description: err.message });
-              });
+              // TODO: Re-implement classifySetting
           }
         }
 
@@ -562,91 +496,9 @@ export default function RoleplAIGMPage() {
       const currentCharacters = worldState.characters || [];
       if (currentCharacters.length === 0) throw new Error('Cannot regenerate storyline without characters.');
   
-      const baseInput = {
-        setting: gameData.setting,
-        tone: gameData.tone,
-        characters: currentCharacters,
-        settingCategory: worldState.settingCategory || 'generic'
-      };
-      
-      let coreConcepts: CampaignCore;
-      let factions: Faction[];
-      let nodes: Node[];
-      let resolution: CampaignResolution;
-  
-      setGenerationProgress({ current: 1, total: 4, step: 'Considering the threads of fate...' });
-      coreConcepts = await generateCampaignCoreAction(baseInput, activeGameId);
-  
-      setGenerationProgress({ current: 2, total: 4, step: 'Populating the world with friends and foes...' });
-      factions = await generateCampaignFactionsAction({ ...baseInput, ...coreConcepts }, activeGameId);
-  
-      setGenerationProgress({ current: 3, total: 4, step: 'Erecting monoliths and digging dungeons...' });
-      nodes = await generateCampaignNodesAction({ ...baseInput, ...coreConcepts, factions }, activeGameId);
-  
-      setGenerationProgress({ current: 4, total: 4, step: 'Plotting the ultimate conclusion...' });
-      resolution = await generateCampaignResolutionAction({ ...baseInput, ...coreConcepts, factions, nodes }, activeGameId);
-        
-      const newCampaignStructure: CampaignStructure = {
-        campaignIssues: coreConcepts.campaignIssues,
-        campaignAspects: coreConcepts.campaignAspects,
-        factions,
-        nodes,
-        resolution,
-      };
-  
-      const saveResult = await saveCampaignStructure(activeGameId, newCampaignStructure);
-      if (!saveResult.success) throw new Error(saveResult.message || 'Failed to save campaign structure.');
-  
-      const startingNode = newCampaignStructure.nodes.find((n) => n.isStartingNode) || newCampaignStructure.nodes[0];
-      
-      const welcomeMessageForChat: Message = { 
-        id: `start-chat-regen-${Date.now()}`, 
-        role: 'system', 
-        content: `**The world has been reshaped!**\n\nThe story has been regenerated. The new opening scene is on the storyboard. What do you do?`
-      };
-  
-      const storyboardContent = `
-# Welcome to your (newly regenerated) adventure!
+      // This functionality needs to be restored by re-implementing the individual generation actions
+      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Storyline regeneration is currently disabled.' });
 
-## Setting
-${gameData.setting}
-
-## Tone
-${gameData.tone}
-
----
-
-${startingNode.description}
-
-The stage is set. What do you do?
-`.trim();
-  
-    const initialNodeStates: Record<string, { discoveryLevel: string; playerKnowledge: string[]; revealedSecrets: string[]; currentState?: string; }> = {};
-    newCampaignStructure.nodes.forEach(node => {
-        initialNodeStates[node.id] = {
-        discoveryLevel: node.isStartingNode ? 'visited' : 'unknown',
-        playerKnowledge: [],
-        revealedSecrets: [],
-        };
-    });
-  
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: {
-          'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-          'worldState.storyOutline': newCampaignStructure.nodes.map((n) => n.title),
-          'worldState.recentEvents': ['The adventure has just begun.'],
-          'worldState.storyAspects': newCampaignStructure.campaignAspects,
-          'worldState.nodeStates': initialNodeStates,
-          'worldState.factions': newCampaignStructure.factions,
-          'worldState.resolution': newCampaignStructure.resolution,
-          messages: [welcomeMessageForChat],
-          storyMessages: [{ content: storyboardContent }],
-          previousWorldState: null,
-        },
-      });
-  
-      toast({ title: 'Storyline Regenerated!', description: 'Your adventure has been reset with a new plot.' });
     } catch (error) {
       const err = error as Error;
       console.error('Failed to regenerate storyline:', err);
@@ -675,117 +527,9 @@ The stage is set. What do you do?
 
     setIsLoading(true);
 
-    let campaignData: CampaignStructure;
-    let beats: StoryBeat[];
-
     try {
-      const db = getFirestore();
-      const campaignDocRef = doc(db, 'games', activeGameId, 'campaign', 'data');
-      const gameDocRef = doc(db, 'games', activeGameId);
-
-      const plainCharacters: Character[] = finalCharacters.map(c => ({
-        id: c.id, name: c.name, description: c.description, aspect: c.aspect, playerName: c.playerName, isCustom: c.isCustom,
-        archetype: c.archetype, pronouns: c.pronouns, age: c.age, stats: c.stats, playerId: c.playerId,
-      }));
-
-      setGenerationProgress({ current: 1, total: 5, step: 'Considering the threads of fate...' });
-      const coreConcepts = await generateCampaignCoreAction({ setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
-
-      setGenerationProgress({ current: 2, total: 5, step: 'Populating the world with friends and foes...' });
-      const factions = await generateCampaignFactionsAction({ ...coreConcepts, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
-
-      setGenerationProgress({ current: 3, total: 5, step: 'Erecting monoliths and digging dungeons...' });
-      const nodes = await generateCampaignNodesAction({ ...coreConcepts, factions, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
-
-      setGenerationProgress({ current: 4, total: 5, step: 'Plotting the ultimate conclusion...' });
-      const resolution = await generateCampaignResolutionAction({ ...coreConcepts, factions, nodes, setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, settingCategory: worldState.settingCategory || 'generic' }, activeGameId);
-
-      campaignData = { campaignIssues: coreConcepts.campaignIssues, campaignAspects: coreConcepts.campaignAspects, factions, nodes, resolution, currentSessionBeats: [] };
-
-      const initialNodeStates: Record<string, any> = {};
-      nodes.forEach(node => { initialNodeStates[node.id] = { discoveryLevel: node.isStartingNode ? 'visited' : 'unknown', playerKnowledge: [], revealedSecrets: [] }; });
-
-      const tempWorldStateForBeats: WorldState = {
-        ...worldState,
-        summary: `The adventure begins with the party facing the situation at '${nodes.find(n => n.isStartingNode)?.title || nodes[0].title}'.`,
-        storyOutline: nodes.map(n => n.title),
-        characters: plainCharacters,
-        recentEvents: ['The adventure is about to begin.'],
-        storyAspects: coreConcepts.campaignAspects,
-        factions,
-        resolution,
-        nodeStates: initialNodeStates,
-        turn: 0,
-      };
-
-      setGenerationProgress({ current: 5, total: 5, step: 'Planning the first session...' });
-      beats = await generateSessionBeatsAction({
-        setting: gameData.setting, tone: gameData.tone, characters: plainCharacters, factions, nodes, resolution,
-        currentWorldState: tempWorldStateForBeats,
-        sessionNumber: 1,
-      });
-      campaignData.currentSessionBeats = beats;
-
-      await saveCampaignStructure(activeGameId, campaignData);
+      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Campaign generation is currently disabled.' });
       
-      gtag.event({ action: 'build_world', category: 'game_setup', label: worldState.settingCategory, value: finalCharacters.length });
-
-      const startingNode = nodes.find(n => n.isStartingNode) || nodes[0];
-      const welcomeMessageForChat: Message = { id: `start-chat-${Date.now()}`, role: 'system', content: `**Let the adventure begin!**\n\nThe story is starting. The opening scene has been added to the storyboard. What do you do?` };
-      const storyboardContent = `
-# Welcome to ${gameData.name}
-
-### Setting
-${gameData.setting}
-
-### Tone
-${gameData.tone}
-
-### Difficulty
-${gameData.difficulty}
-
----
-
-## And So It Begins...
-
-${startingNode ? startingNode.description : gameData.setting}
-`.trim();
-      
-      const knownPlaces = nodes.map(n => ({ name: n.title, description: n.description.split('.')[0] + '.' }));
-      const startingPlace = knownPlaces.find(p => p.name === startingNode.title)!;
-
-      const sessionProgress = {
-        currentSession: 1,
-        currentBeat: 0,
-        beatsCompleted: 0,
-        beatsPlanned: beats.length,
-        sessionComplete: false,
-        interruptedMidBeat: false,
-        readyForNextSession: false,
-      };
-
-      await updateWorldState({
-        gameId: activeGameId,
-        updates: {
-        'worldState.characters': plainCharacters,
-        'worldState.summary': `The adventure begins with the party facing the situation at '${startingNode.title}'.`,
-        'worldState.storyOutline': nodes.map(n => n.title),
-        'worldState.recentEvents': ['The adventure has just begun.'],
-        'worldState.storyAspects': coreConcepts.campaignAspects,
-        'worldState.places': knownPlaces,
-        'worldState.knownPlaces': [startingPlace],
-        'worldState.knownFactions': [],
-        'worldState.nodeStates': initialNodeStates,
-        'worldState.resolution': resolution,
-        'worldState.factions': factions,
-        'worldState.sessionProgress': sessionProgress,
-        activeCharacterId: finalCharacters[0].id,
-        messages: [welcomeMessageForChat],
-        storyMessages: [{ content: storyboardContent }],
-        previousWorldState: null,
-        step: 'play',
-      }});
-
     } catch (error) {
       const err = error as Error;
       const currentStep = generationProgress?.step || 'an unknown step';
@@ -806,12 +550,8 @@ ${startingNode ? startingNode.description : gameData.setting}
     }
     setIsLoading(true);
     try {
-      const result = await undoLastAction(activeGameId);
-      if (result.success) {
-        toast({ title: 'Action Undone', description: 'The game state has been rolled back.' });
-      } else {
-        throw new Error(result.message || 'Failed to undo the last action.');
-      }
+      // Re-implement `undoLastAction` to enable
+      toast({ variant: 'destructive', title: 'Not Implemented', description: 'Undo is currently disabled.' });
     } catch (error) {
       const err = error as Error;
       console.error('Failed to undo:', err);
@@ -829,21 +569,15 @@ ${startingNode ? startingNode.description : gameData.setting}
             category: 'game_setup',
             label: fieldName,
         });
-        const result = await regenerateField({
-            request: gameData.originalRequest || gameData.name,
-            fieldName,
-            currentValue: gameData[fieldName],
-        }, activeGameId);
-        toast({ title: `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} Regenerated`, description: `The ${fieldName} has been updated.` });
-        // Force a re-classification after regeneration
-        setLastClassification(null);
+        // Re-implement `regenerateField` to enable
+        toast({ variant: 'destructive', title: 'Not Implemented', description: 'Field regeneration is currently disabled.' });
     } catch (err: any) {
         toast({ variant: 'destructive', title: 'Regeneration Failed', description: err.message });
     }
   }, [activeGameId, gameData, toast]);
 
   const handleUpdateCategory = useCallback(async (newCategory: string) => {
-    if (!activeGameId || !worldState) return;
+    if (!activeGameId || !worldState || !user) return;
 
     if (worldState.settingCategory === newCategory) {
         toast({ title: 'No Change', description: 'The selected category is already set.' });
@@ -853,16 +587,16 @@ ${startingNode ? startingNode.description : gameData.setting}
     try {
         await updateWorldState({
             gameId: activeGameId,
+            userId: user.uid,
             updates: { 'worldState.settingCategory': newCategory }
         });
         toast({ title: 'Category Updated', description: `Game genre has been set to ${newCategory.replace(/_/g, ' ')}.` });
-        // The onSnapshot listener will handle the state update, which will re-render SummaryReview with the new classification.
     } catch (error) {
         const err = error as Error;
         console.error('Failed to update category:', err);
         toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
-  }, [activeGameId, worldState, toast]);
+  }, [activeGameId, worldState, user, toast]);
 
   if (step === 'loading') {
     return (
@@ -908,7 +642,7 @@ ${startingNode ? startingNode.description : gameData.setting}
   };
 
   const handleGenerateCharacters = (input: GenerateCharacterInput) => {
-    if (!activeGameId) {
+    if (!activeGameId || !user) {
         toast({ variant: 'destructive', title: 'Error', description: 'No active game selected.' });
         return Promise.reject(new Error('No active game selected.'));
     }
@@ -918,7 +652,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         label: gameData?.playMode || 'local',
         value: input.characterSlots.length,
     });
-    return createCharacter(input, activeGameId);
+    return createCharacter(input, activeGameId, user.uid);
   };
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
@@ -959,7 +693,8 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
   
     try {
-      const intentClassification = await classifyInput({ playerInput });
+      // Re-implement `classifyInput` to enable
+      const intentClassification = { intent: 'Action' }; // Placeholder
       
       const newMessages = [...messagesWithoutRecap, newUserMessage];
   
@@ -1006,16 +741,11 @@ ${startingNode ? startingNode.description : gameData.setting}
             }
         }
         
-        const acknowledgement = await narratePlayerActions({
-            playerAction: playerInput,
-            gameState: worldState.summary,
-            character: activeCharacter,
-        }, activeGameId);
-
+        // Re-implement `narratePlayerActions` to enable
         const acknowledgementMessage: Message = {
             id: `assistant-ack-${Date.now()}`,
             role: 'assistant',
-            content: acknowledgement.narration,
+            content: `Okay, ${activeCharacter.name} tries to ${playerInput}. Let's see what happens...`, // Placeholder
         };
         
         const finalChatMessages = [...newMessages, acknowledgementMessage];
@@ -1028,6 +758,7 @@ ${startingNode ? startingNode.description : gameData.setting}
             mechanicsVisibility: mechanicsVisibility,
             settingCategory: worldState.settingCategory || 'generic',
             gameId: activeGameId,
+            userId: user.uid,
         });
 
         const newStoryMessages = [...storyMessages, { content: storyResponse.narrativeResult }];
@@ -1041,6 +772,7 @@ ${startingNode ? startingNode.description : gameData.setting}
         
         const worldUpdatePayload = {
             gameId: activeGameId,
+            userId: user.uid,
             playerAction: { characterName: activeCharacter.name, action: playerInput },
             gmResponse: storyResponse.narrativeResult,
             currentWorldState: serializableWorldState,
@@ -1062,12 +794,8 @@ ${startingNode ? startingNode.description : gameData.setting}
   
       } else {
         // QUESTION intent
-        const response = await getAnswerToQuestion({
-          question: playerInput,
-          worldState,
-          character: actingCharacter,
-          settingCategory: worldState.settingCategory || 'generic',
-        }, activeGameId);
+        // Re-implement `getAnswerToQuestion` to enable
+        const response = { answer: "I'm sorry, asking questions is temporarily disabled." }; // Placeholder
   
         const assistantMessage: Message = {
           id: `assistant-ans-${Date.now()}`,
@@ -1077,6 +805,7 @@ ${startingNode ? startingNode.description : gameData.setting}
   
         await updateWorldState({
           gameId: activeGameId,
+          userId: user.uid,
           updates: {
             messages: [...newMessages, assistantMessage],
           },
@@ -1097,35 +826,28 @@ ${startingNode ? startingNode.description : gameData.setting}
   };
 
   const handleUpdateStatus = async (status: SessionStatus) => {
-    if (!activeGameId) return;
-    const result = await updateSessionStatus(activeGameId, status);
-    if (result.success) {
-      toast({ title: `Session ${status}`, description: `The game session has been marked as ${status}.`});
-    } else {
-      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
-    }
+    if (!activeGameId || !user) return;
+    // Re-implement updateSessionStatus
+    toast({ variant: 'destructive', title: 'Not Implemented' });
     if (endCampaignConfirmation) setEndCampaignConfirmation(false);
   };
 
   const handleEndSession = async (type: 'natural' | 'interrupted' | 'early') => {
     if (!activeGameId) return;
     setSessionEnding(false);
-    const result = await endCurrentSessionAction(activeGameId, type);
-    if (result.success) {
-      toast({ title: 'Session Ended', description: `Your session has been marked as complete.`});
-    } else {
-      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
-    }
+    // Re-implement endCurrentSessionAction
+    toast({ variant: 'destructive', title: 'Not Implemented' });
   };
 
 
   const handleHandoffConfirm = async () => {
-    if (!activeGameId || !nextCharacter || !worldState) return;
+    if (!activeGameId || !nextCharacter || !worldState || !user) return;
 
     setShowHandoff(false);
 
     await updateWorldState({
       gameId: activeGameId,
+      userId: user.uid,
       updates: { activeCharacterId: nextCharacter.id },
     });
 
@@ -1140,13 +862,8 @@ ${startingNode ? startingNode.description : gameData.setting}
     deletingGameId.current = gameIdToDelete;
     setDeleteConfirmation(null);
     router.push('/play');
-
-    const result = await deleteGame(gameIdToDelete);
-    if (result.success) {
-      toast({ title: 'Game Deleted', description: 'The game session has been successfully deleted.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Deletion Failed', description: result.message });
-    }
+    // Re-implement deleteGame
+    toast({ variant: 'destructive', title: 'Not Implemented' });
     deletingGameId.current = null;
   };
 
@@ -1155,34 +872,22 @@ ${startingNode ? startingNode.description : gameData.setting}
 
     const gameIdToRename = renameTarget.id;
     setRenameTarget(null);
-
-    const result = await renameGame(gameIdToRename, newGameName);
-    if (result.success) {
-      toast({ title: 'Game Renamed', description: 'The game session has been successfully renamed.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Rename Failed', description: result.message });
-    }
+    // Re-implement renameGame
+    toast({ variant: 'destructive', title: 'Not Implemented' });
     setNewGameName('');
   };
 
   const handleLocalCharacterSwitch = (char: Character) => {
-    if (activeGameId) {
+    if (activeGameId && user) {
       setActiveCharacter(char);
-      updateWorldState({ gameId: activeGameId, updates: { activeCharacterId: char.id } });
+      updateWorldState({ gameId: activeGameId, userId: user.uid, updates: { activeCharacterId: char.id } });
     }
   };
 
   const handleProfileUpdate = async (updates: { displayName: string; defaultPronouns: string; defaultVoiceURI?: string; }) => {
     if (!user) return;
-    const result = await updateUserProfile(user.uid, user.isAnonymous, updates);
-    if (result.success) {
-      toast({ title: 'Profile Updated', description: 'Your preferences have been saved.' });
-      setIsAccountDialogOpen(false);
-      // No reload needed if state is managed properly
-      getUserPreferences(user.uid).then(setUserPreferences);
-    } else {
-      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
-    }
+    // Re-implement updateUserProfile
+    toast({ variant: 'destructive', title: 'Not Implemented' });
   };
   
   const handleStartNewSession = async () => {
@@ -1190,12 +895,8 @@ ${startingNode ? startingNode.description : gameData.setting}
     setIsLoading(true);
     toast({ title: "Starting New Session...", description: "The GM is preparing the next chapter." });
     try {
-        const result = await startNextSessionAction(activeGameId);
-        if (result.success) {
-            toast({ title: "New Session Started!", description: result.message || "The adventure continues." });
-        } else {
-            throw new Error(result.message || "Failed to start the new session.");
-        }
+        // Re-implement startNextSessionAction
+        toast({ variant: 'destructive', title: 'Not Implemented' });
     } catch (error) {
         const err = error as Error;
         console.error("Failed to start new session:", err);
@@ -1208,12 +909,8 @@ ${startingNode ? startingNode.description : gameData.setting}
   const handleKickPlayer = async (playerId: string) => {
     if (!activeGameId || !user || user.uid !== hostId) return;
     try {
-      const result = await kickPlayerAction(activeGameId, playerId);
-      if (result.success) {
-        toast({ title: "Player Kicked", description: "The player has been removed from the session." });
-      } else {
-        throw new Error(result.message);
-      }
+      // Re-implement kickPlayerAction
+      toast({ variant: 'destructive', title: 'Not Implemented' });
     } catch (error) {
       const err = error as Error;
       toast({ variant: 'destructive', title: 'Kick Failed', description: err.message });
@@ -1249,8 +946,8 @@ ${startingNode ? startingNode.description : gameData.setting}
             classification={lastClassification}
             isLoading={isLoading}
             onContinue={async () => {
-              if (activeGameId) {
-                await updateWorldState({ gameId: activeGameId, updates: { step: 'characters' } });
+              if (activeGameId && user) {
+                await updateWorldState({ gameId: activeGameId, userId: user.uid, updates: { step: 'characters' } });
               }
             }}
             onRegenerateField={handleRegenerateField}
@@ -1288,7 +985,7 @@ ${startingNode ? startingNode.description : gameData.setting}
           <GameView
             messages={messages}
             storyMessages={storyMessages}
-            onSendMessage={handleSendMessage}
+            onSendMessage={onSendMessage}
             isLoading={isLoading}
             gameData={gameData!}
             worldState={worldState}

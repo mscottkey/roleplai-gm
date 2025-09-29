@@ -252,3 +252,12 @@ export async function updateWorldState(input: UpdateWorldStateServerInput): Prom
     throw new Error(`Failed to update world state: ${message}`);
   }
 }
+
+export async function checkConsequences(input: AssessConsequencesInput, gameId: string): Promise<AssessConsequencesOutput> {
+  try {
+    const result: AssessConsequencesResponse = await assessConsequencesFlow(input);
+    return result.output;
+  } catch (e: any) {
+    throw handleAIError(e, 'assess_consequences');
+  }
+}
