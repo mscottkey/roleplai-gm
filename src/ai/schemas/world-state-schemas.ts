@@ -74,6 +74,7 @@ export const StoryBeatSchema = z.object({
     suggestedLocation: z.string().describe('Recommended node for this beat.'),
     description: z.string().describe('What should happen during this beat.'),
     isFlexible: z.boolean().describe('Can this beat be skipped/modified if the session ends early.'),
+    isPotentialSessionBreak: z.boolean().optional().describe('True if this beat is a natural and satisfying stopping point for a game session.'),
 });
 
 export const SessionProgressSchema = z.object({
