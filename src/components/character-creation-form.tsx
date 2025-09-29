@@ -111,6 +111,12 @@ const PlayerSlotCard = memo(({
         onUpdateSlot?.(id, { ...preferences, [field]: value });
     };
 
+    const handlePlayerNameFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        if (e.target.value.startsWith('Player ')) {
+            handleUpdate('playerName', '');
+        }
+    };
+
     if (generatedCharacter) {
         return (
             <Card className="flex flex-col relative group transition-all">
@@ -140,6 +146,7 @@ const PlayerSlotCard = memo(({
                         placeholder="Enter player name" 
                         value={preferences?.playerName || ''} 
                         onChange={e => handleUpdate('playerName', e.target.value)}
+                        onFocus={handlePlayerNameFocus}
                     />
                     <Label>Character Vision</Label>
                     <Textarea placeholder="e.g. A grumpy cyber-samurai with a heart of gold" value={preferences?.vision || ''} onChange={e => handleUpdate('vision', e.target.value)} />
@@ -233,16 +240,15 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   const addNewSlot = useCallback((playerName: string = '', pronouns: string = 'Any') => {
     setLocalSlots(prevSlots => {
         const newId = `${formId}-slot-${Date.now()}-${prevSlots.length}`;
-        const newPlayerName = playerName || `Player ${prevSlots.length + 1}`;
         const newSlot: Player = {
             id: newId,
-            name: newPlayerName,
+            name: playerName || `Player ${prevSlots.length + 1}`,
             isHost: false,
             isMobile: false,
             connectionStatus: 'connected',
             characterCreationStatus: 'creating',
             characterData: {
-                playerName: newPlayerName,
+                playerName: playerName || `Player ${prevSlots.length + 1}`,
                 isApproved: true,
                 pronouns,
             },
@@ -254,34 +260,28 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
   }, [formId]);
 
   useEffect(() => {
-    // Guard to prevent this from running more than once per component instance
     if (isLocalGame && isHotSeatMode && currentUser && !hasInitializedHostSlot.current) {
-        
-        // Wait for userPreferences to be loaded (it's passed as undefined initially)
         if (userPreferences === undefined) {
-            return;
+             return;
         }
 
         const hostPlayerName = (userPreferences?.displayName && userPreferences.displayName.trim() !== '') 
             ? userPreferences.displayName 
             : currentUser.email?.split('@')[0] || 'Player 1';
-      
+
         const hostPronouns = (userPreferences?.defaultPronouns && userPreferences.defaultPronouns.trim() !== '')
             ? userPreferences.defaultPronouns
             : 'Any';
-
+        
         addNewSlot(hostPlayerName, hostPronouns);
-        hasInitializedHostSlot.current = true; // Mark as initialized
+        hasInitializedHostSlot.current = true;
     }
     
-    // This logic handles clearing the manual slots if we switch away from hot-seat mode
     if (isLocalGame && !isHotSeatMode) {
-        if (localSlots.length > 0) {
-            setLocalSlots([]);
-        }
-        hasInitializedHostSlot.current = false; // Reset if we switch off
+        setLocalSlots([]);
+        hasInitializedHostSlot.current = false;
     }
-  }, [isLocalGame, isHotSeatMode, currentUser, userPreferences, addNewSlot, localSlots.length]);
+  }, [isLocalGame, isHotSeatMode, currentUser, userPreferences, addNewSlot]);
 
 
   const allPlayerSlots = isLocalGame && isHotSeatMode ? localSlots : players;
@@ -309,10 +309,11 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             const newCharacter = updates.character === null ? null : slot.characterData.generatedCharacter;
             return { 
                 ...slot, 
-                name: updates.playerName || slot.name,
+                name: updates.playerName !== undefined ? updates.playerName : slot.name,
                 characterData: {
                     ...slot.characterData,
                     ...updates,
+                    playerName: updates.playerName !== undefined ? updates.playerName : slot.characterData.playerName,
                     generatedCharacter: newCharacter,
                 }
             };
