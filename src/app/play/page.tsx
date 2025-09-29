@@ -587,6 +587,8 @@ export default function RoleplAIGMPage() {
       const startingNode = nodes.find(n => n.isStartingNode);
       const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
       const welcomeStoryMessage = { content: welcomeMessageText };
+      
+      const newSystemMessage = { id: `start-play-${Date.now()}`, role: 'system' as const, content: `The world has been built. The story can now begin.` };
 
       await updateWorldState({
           gameId: activeGameId,
@@ -595,7 +597,7 @@ export default function RoleplAIGMPage() {
               step: 'play',
               'gameData.campaignGenerated': true,
               'worldState.characters': finalCharacters,
-              messages: arrayUnion({ id: `start-play-${Date.now()}`, role: 'system', content: `The world has been built. The story can now begin.` }),
+              messages: [...messages, newSystemMessage],
               storyMessages: [welcomeStoryMessage],
               'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
               'worldState.currentScene.name': startingNode?.title || 'Starting Point',
@@ -616,7 +618,7 @@ export default function RoleplAIGMPage() {
       setGenerationProgress(null);
       setIsLoading(false);
     }
-  }, [activeGameId, gameData, worldState, user, toast, generationProgress]);
+  }, [activeGameId, gameData, worldState, user, toast, generationProgress, messages]);
 
   const handleUndo = useCallback(async () => {
     if (!activeGameId || !previousWorldState) {
@@ -1075,7 +1077,7 @@ export default function RoleplAIGMPage() {
             onRegenerateStoryline={onRegenerateStoryline}
             currentUser={user}
             sessionStatus={sessionStatus}
-            onUpdateStatus={handleUpdateStatus}
+            onUpdateStatus={onUpdateStatus}
             onConfirmEndCampaign={() => setEndCampaignConfirmation(true)}
             onConfirmEndSession={() => setSessionEnding(true)}
             onStartNewSession={handleStartNewSession}
