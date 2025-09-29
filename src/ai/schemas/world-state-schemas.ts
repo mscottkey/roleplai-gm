@@ -68,7 +68,8 @@ export type CampaignResolution = z.infer<typeof CampaignResolutionSchema>;
 
 export const StoryBeatSchema = z.object({
     beat: z.number().int().min(1).max(20).describe('The beat number within the session, 1-20.'),
-    trigger: z.string().describe('What causes this beat to advance.'),
+    intensity: z.number().int().min(1).max(5).describe('The narrative intensity of the beat, from 1 (calm) to 5 (high crisis).'),
+    trigger: z.string().describe('A concrete and specific condition that causes this beat to happen or end.'),
     beatType: z.enum(["exploration", "investigation", "confrontation", "revelation", "crisis"]).describe('The type of this story beat.'),
     expectedFactionAdvancement: z.string().describe('Which faction clock should advance.'),
     suggestedLocation: z.string().describe('Recommended node for this beat.'),
