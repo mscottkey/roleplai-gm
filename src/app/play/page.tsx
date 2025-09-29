@@ -728,8 +728,30 @@ export default function RoleplAIGMPage() {
         await saveCampaignStructure(activeGameId, completeCampaignStructure);
 
         const startingNode = nodes.find(n => n.isStartingNode);
-        const welcomeMessageText = `**The stage is set!**\n\nYour adventure begins.\n\n${startingNode ? startingNode.description : 'A new story unfolds before you.'}`;
-        const welcomeStoryMessage = { content: welcomeMessageText };
+        
+        const fullWelcomeMessage = `
+# Welcome to ${gameData.name}
+
+## Setting
+${gameData.setting}
+
+## Tone
+${gameData.tone}
+
+## Difficulty
+${gameData.difficulty}
+
+## Initial Hooks
+${gameData.initialHooks.map(hook => `- ${hook}`).join('\n')}
+
+---
+
+**Your adventure begins...**
+
+${startingNode ? startingNode.description : 'A new story unfolds before you.'}
+`;
+
+        const welcomeStoryMessage = { content: fullWelcomeMessage };
         
         const newSystemMessage = { id: `start-play-${Date.now()}`, role: 'system' as const, content: `The world has been built. The story can now begin.` };
 
@@ -838,7 +860,7 @@ export default function RoleplAIGMPage() {
     }
   }, [activeGameId, worldState, user, toast]);
 
-  const handleUpdateStatus = async (status: SessionStatus) => {
+  const handleUpdateStatus = useCallback(async (status: SessionStatus) => {
     if (!activeGameId || !user) return;
     try {
       await updateSessionStatus(activeGameId, status);
@@ -848,7 +870,7 @@ export default function RoleplAIGMPage() {
       const err = error as Error;
       toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
-  };
+  }, [activeGameId, user, toast, endCampaignConfirmation]);
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user || !campaignStructure) {
