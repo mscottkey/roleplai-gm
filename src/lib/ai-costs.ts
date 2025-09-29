@@ -1,6 +1,3 @@
-
-'use server';
-
 /**
  * @fileoverview Centralized model for AI costs.
  * This file contains the pricing information for the AI models used in the application.
@@ -36,9 +33,10 @@ export const AI_MODEL_COSTS: Record<string, ModelCost> = {
  * @returns The calculated cost in USD, or 0 if the model is not found.
  */
 export function calculateCost(model: string, usage: GenerationUsage): number {
-  const modelCosts = AI_MODEL_COSTS[model];
+  const modelKey = model.startsWith('googleai/gemini') ? model.substring('googleai/'.length) : model;
+  const modelCosts = AI_MODEL_COSTS[modelKey];
   if (!modelCosts) {
-    console.warn(`Cost calculation failed: Model "${model}" not found in AI_MODEL_COSTS.`);
+    console.warn(`Cost calculation failed: Model "${model}" (key: "${modelKey}") not found in AI_MODEL_COSTS.`);
     return 0;
   }
 
