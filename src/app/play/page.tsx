@@ -36,7 +36,6 @@ import {
   classifyInput,
   classifySetting,
   updateSessionStatus,
-  generateSessionBeatsAction,
 } from '@/app/actions';
 import type { WorldState } from '@/ai/schemas/world-state-schemas';
 import { CreateGameForm } from '@/components/create-game-form';
@@ -294,7 +293,7 @@ export default function RoleplAIGMPage() {
   const sessionLoadedRef = useRef<string | null>(null);
   const userInteractedRef = useRef(false);
 
-  const handleCreateGame = async (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => {
+  const handleCreateGame = useCallback(async (request: string, playMode: 'local' | 'remote', source: 'manual' | 'genre') => {
     if (!user) {
       toast({ variant: 'destructive', title: 'Not Logged In', description: 'You must be logged in to create a game.' });
       return;
@@ -319,8 +318,24 @@ export default function RoleplAIGMPage() {
       toast({ variant: 'destructive', title: 'Game Creation Failed', description: err.message });
       setIsLoading(false);
     }
-    // isLoading will be reset by the page transition
-  };
+  }, [user, router, toast]);
+
+  const handleContinueToCharacters = useCallback(async () => {
+    if (!activeGameId || !user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Game session or user not found.' });
+      return;
+    }
+    try {
+      await updateWorldState({
+        gameId: activeGameId,
+        userId: user.uid,
+        updates: { step: 'characters' },
+      });
+    } catch (error) {
+      const err = error as Error;
+      toast({ variant: 'destructive', title: 'Error', description: `Failed to continue: ${err.message}` });
+    }
+  }, [activeGameId, user, toast]);
 
   useEffect(() => {
     const setTrue = () => { userInteractedRef.current = true; };
@@ -1136,11 +1151,7 @@ export default function RoleplAIGMPage() {
             gameData={gameData}
             classification={lastClassification}
             isLoading={isLoading}
-            onContinue={async () => {
-              if (activeGameId && user) {
-                await updateWorldState({ gameId: activeGameId, userId: user.uid, updates: { step: 'characters' } });
-              }
-            }}
+            onContinue={handleContinueToCharacters}
             onRegenerateField={handleRegenerateField}
             onUpdateCategory={handleUpdateCategory}
             allCategories={SETTING_CATEGORIES}
