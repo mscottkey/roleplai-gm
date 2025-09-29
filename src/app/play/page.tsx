@@ -32,6 +32,7 @@ import {
   generateCampaignFactionsAction,
   generateCampaignNodesAction,
   generateCampaignResolutionAction,
+  generateSessionBeatsAction,
   createCharacter,
   classifyInput,
   classifySetting,
@@ -81,7 +82,7 @@ import { GenerationProgress } from '@/components/generation-progress';
 import { extractProseForTTS } from '@/lib/tts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure, StoryBeat } from '@/ai/schemas/world-state-schemas';
+import type { CampaignCore, Faction, Node, CampaignResolution, CampaignStructure, StoryBeat, SessionProgress } from '@/ai/schemas/world-state-schemas';
 import * as gtag from '@/lib/gtag';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -336,6 +337,18 @@ export default function RoleplAIGMPage() {
       toast({ variant: 'destructive', title: 'Error', description: `Failed to continue: ${err.message}` });
     }
   }, [activeGameId, user, toast]);
+
+  const handleUpdateStatus = useCallback(async (status: SessionStatus) => {
+    if (!activeGameId || !user) return;
+    try {
+      await updateSessionStatus(activeGameId, status);
+      toast({ title: "Status Updated", description: `Session is now ${status}.`});
+      if (endCampaignConfirmation) setEndCampaignConfirmation(false);
+    } catch (error) {
+      const err = error as Error;
+      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
+    }
+  }, [activeGameId, user, toast, endCampaignConfirmation]);
 
   useEffect(() => {
     const setTrue = () => { userInteractedRef.current = true; };
@@ -700,7 +713,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
     setIsLoading(true);
 
     try {
-        setGenerationProgress({ current: 1, total: 5, step: 'Generating Core Concepts...' });
+        setGenerationProgress({ current: 1, total: 6, step: 'Generating Core Concepts...' });
         const campaignCore = await generateCampaignCoreAction({
             setting: gameData.setting,
             tone: gameData.tone,
@@ -708,7 +721,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
             settingCategory: worldState.settingCategory || 'generic',
         }, activeGameId, user.uid);
 
-        setGenerationProgress({ current: 2, total: 5, step: 'Designing Factions...' });
+        setGenerationProgress({ current: 2, total: 6, step: 'Designing Factions...' });
         const factions = await generateCampaignFactionsAction({
             ...campaignCore,
             setting: gameData.setting,
@@ -717,7 +730,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
             settingCategory: worldState.settingCategory || 'generic',
         }, activeGameId, user.uid);
 
-        setGenerationProgress({ current: 3, total: 5, step: 'Building Situation Nodes...' });
+        setGenerationProgress({ current: 3, total: 6, step: 'Building Situation Nodes...' });
         const nodes = await generateCampaignNodesAction({
             ...campaignCore,
             factions,
@@ -727,7 +740,7 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
             settingCategory: worldState.settingCategory || 'generic',
         }, activeGameId, user.uid);
 
-        setGenerationProgress({ current: 4, total: 5, step: 'Creating Endgame...' });
+        setGenerationProgress({ current: 4, total: 6, step: 'Creating Endgame...' });
         const resolution = await generateCampaignResolutionAction({
             ...campaignCore,
             factions,
@@ -745,7 +758,34 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
             resolution,
         };
 
-        setGenerationProgress({ current: 5, total: 5, step: 'Finalizing World...' });
+        const firstSessionWorldState: WorldState = {
+            ...worldState,
+            summary: worldState.summary || `A new adventure in the world of ${gameData.name}.`,
+            characters: finalCharacters,
+            factions: factions,
+            resolution: resolution,
+        };
+
+        setGenerationProgress({ current: 5, total: 6, step: 'Generating Opening Scene...' });
+        const initialBeats = await generateSessionBeatsAction({
+            ...completeCampaignStructure,
+            currentWorldState: firstSessionWorldState,
+            sessionNumber: 1,
+        }, activeGameId, user.uid);
+
+        completeCampaignStructure.currentSessionBeats = initialBeats;
+        
+        const firstSessionProgress: SessionProgress = {
+            currentSession: 1,
+            currentBeat: 1,
+            beatsCompleted: 0,
+            beatsPlanned: initialBeats.length,
+            sessionComplete: false,
+            interruptedMidBeat: false,
+            readyForNextSession: false,
+        };
+        
+        setGenerationProgress({ current: 6, total: 6, step: 'Finalizing World...' });
         await saveCampaignStructure(activeGameId, completeCampaignStructure);
 
         const startingNode = nodes.find(n => n.isStartingNode);
@@ -783,6 +823,9 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
                 step: 'play',
                 'gameData.campaignGenerated': true,
                 'worldState.characters': finalCharacters,
+                'worldState.factions': factions,
+                'worldState.resolution': resolution,
+                'worldState.sessionProgress': firstSessionProgress,
                 messages: [...messages, newSystemMessage],
                 storyMessages: [welcomeStoryMessage],
                 'worldState.currentScene.nodeId': startingNode?.id || 'unknown',
@@ -880,18 +923,6 @@ ${startingNode ? startingNode.description : 'A new story unfolds before you.'}
         toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
     }
   }, [activeGameId, worldState, user, toast]);
-
-  const handleUpdateStatus = useCallback(async (status: SessionStatus) => {
-    if (!activeGameId || !user) return;
-    try {
-      await updateSessionStatus(activeGameId, status);
-      toast({ title: "Status Updated", description: `Session is now ${status}.`});
-      if (endCampaignConfirmation) setEndCampaignConfirmation(false);
-    } catch (error) {
-      const err = error as Error;
-      toast({ variant: 'destructive', title: 'Update Failed', description: err.message });
-    }
-  }, [activeGameId, user, toast, endCampaignConfirmation]);
 
   const handleSendMessage = async (playerInput: string, confirmed: boolean = false) => {
     if (!worldState || !activeGameId || !user || !campaignStructure) {
