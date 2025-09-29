@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useId, useEffect, memo, useCallback, useRef } from 'react';
@@ -21,7 +22,6 @@ import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { QRCodeDisplay } from './qr-code-display';
 import { ShareGameInvite } from './share-game-invite';
-import { saveGeneratedCharacters } from '@/app/actions';
 
 const getSkillDisplay = (rank: number) => {
     switch (rank) {
@@ -364,11 +364,6 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
             existingCharacters,
         });
 
-        // After successful generation, save the characters to the database.
-        await saveGeneratedCharacters(activeGameId, result.characters);
-        
-        // The component will automatically re-render with the new data from Firestore.
-        // If in local mode, we still need to update local state.
         if (isHotSeatMode) {
            setLocalSlots(prevSlots => {
                 return prevSlots.map(p => {
@@ -506,5 +501,3 @@ export const CharacterCreationForm = memo(function CharacterCreationForm({
     </div>
   );
 });
-
-    

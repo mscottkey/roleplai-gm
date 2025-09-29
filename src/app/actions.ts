@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { generateNewGame as generateNewGameFlow, type GenerateNewGameInput, type GenerateNewGameResponse } from "@/ai/flows/generate-new-game";
@@ -89,9 +90,6 @@ export async function startNewGame(input: StartNewGameInput): Promise<{ gameId: 
   }
 
   const { output: newGame } = gameGenResult;
-
-  // Since classifySetting is a low-cost flow and doesn't involve generation, we can skip logging it for now.
-  // This keeps the logs focused on the more expensive generation tasks.
     
   try {
     const app = await getServerApp();
@@ -191,49 +189,40 @@ export async function createCharacter(input: GenerateCharacterInput, gameId: str
     try {
         const result: GenerateCharacterResponse = await generateCharacterFlow(input);
         await logAiUsage({ userId, gameId, flowType: 'generate_character', model: result.model, usage: result.usage });
+        
+        const app = await getServerApp();
+        const db = getFirestore(app);
+        const batch = writeBatch(db);
+
+        result.output.characters.forEach((char) => {
+          const playerRef = doc(db, 'games', gameId, 'players', char.slotId);
+          const characterData: Character = {
+            id: char.slotId,
+            isCustom: false,
+            playerId: char.slotId,
+            playerName: char.playerName,
+            name: char.name,
+            description: char.description,
+            aspect: char.aspect,
+            pronouns: char.pronouns,
+            age: char.age,
+            archetype: char.archetype,
+            stats: char.stats,
+          };
+          batch.update(playerRef, {
+            'characterData.generatedCharacter': characterData,
+            characterCreationStatus: 'ready',
+          });
+        });
+
+        await batch.commit();
+        
         return result.output;
     } catch (e: any) {
-        throw handleAIError(e, 'generate_characters');
+        console.error("Error in createCharacter or saving:", e);
+        const message = e instanceof Error ? e.message : 'An unknown error occurred during character creation or saving.';
+        throw new Error(`Failed to create characters: ${message}`);
     }
-}
-
-export async function saveGeneratedCharacters(
-  gameId: string,
-  characters: (Character & { slotId: string })[]
-): Promise<{ success: boolean }> {
-  try {
-    const app = await getServerApp();
-    const db = getFirestore(app);
-    const batch = writeBatch(db);
-
-    characters.forEach((char) => {
-      const playerRef = doc(db, 'games', gameId, 'players', char.slotId);
-      const characterData: Character = {
-        id: char.slotId, // Ensure the character ID matches the player/slot ID
-        isCustom: false,
-        playerId: char.slotId,
-        playerName: char.playerName,
-        name: char.name,
-        description: char.description,
-        aspect: char.aspect,
-        pronouns: char.pronouns,
-        age: char.age,
-        archetype: char.archetype,
-        stats: char.stats,
-      };
-      batch.update(playerRef, {
-        'characterData.generatedCharacter': characterData,
-        characterCreationStatus: 'ready',
-      });
-    });
-
-    await batch.commit();
-    return { success: true };
-  } catch (error) {
-    console.error('Error saving generated characters:', error);
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    throw new Error(`Failed to save characters: ${message}`);
-  }
 }
 
 type UpdateWorldStateServerInput = {
@@ -322,5 +311,3 @@ export async function saveCampaignStructure(gameId: string, campaignStructure: C
   const campaignRef = doc(db, 'games', gameId, 'campaign', 'data');
   await setDoc(campaignRef, campaignStructure, { merge: true });
 }
-
-    
